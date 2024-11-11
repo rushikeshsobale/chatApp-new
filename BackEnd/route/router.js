@@ -16,8 +16,8 @@ router.use(cookieParser());
 const s3Client = new S3Client({
   region: 'us-east-1',
   credentials: {
-    // accessKeyId: ACCESS_KEY_ID,
-    // secretAccessKey: SECRET_ACCESS_KEY,
+     accessKeyId: ACCESS_KEY_ID,
+     secretAccessKey: SECRET_ACCESS_KEY,
   },
 });
 const upload = multer({ storage: multer.memoryStorage() });
