@@ -1,0 +1,113 @@
+.custom-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7); /* Dark overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Ensure it appears above other content */
+  }
+  
+  .custom-modal-content {
+    background-color:none; /* Background for the modal */
+    border-radius: 8px;
+    padding: 20px;
+    width: 90%;
+    max-width: 500px; /* Limit the width */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border:1px solid
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .close-button {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  
+  .modal-body {
+    margin-top: 10px;
+  }
+  
+  .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+  
+  .tabbed-interface {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+  }
+  
+  .tab-button {
+    background-color: transparent;
+    border: 1px solid #ccc;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .tab-button.active {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .media-preview {
+    margin-top: 10px;
+  }
+  
+  .custom-textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: none; /* Disable resizing if desired */
+    background-color: transparent; /* No background */
+    color: #fff; /* Text color */
+    outline: none; /* Remove outline */
+  }
+  
+  .custom-textarea::placeholder {
+    color: #aaa; /* Placeholder color */
+  }
+  
+  .custom-file-input {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .file-input {
+    display: none; /* Hide the default file input */
+  }
+  
+  .file-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: transparent; /* No background */
+    color: #fff; /* Text color */
+    transition: background-color 0.3s;
+  }
+  
+  .file-label:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* Optional hover effect */
+  }
+  
+  .post-card{
+    color:whitesmoke;
+    background-color: transparent !important;
+  }

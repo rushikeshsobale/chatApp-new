@@ -1,4 +1,6 @@
 const express = require('express');
+require('dotenv').config();
+
 const app = express();
 const cors = require("cors");
 const corsOptions = {
@@ -6,6 +8,7 @@ const corsOptions = {
     credentials: true,
 };
 app.use(cors(corsOptions));
+
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -34,21 +37,18 @@ io.on("connection", (socket) => {
         const {userId} = data;
         const socketId = socket.id;
         activeMembers.push({ socketId, userId });
-        // Join the room using userId
         socket.join(userId);
-    
         try {
-            // Emit status with the correct socketId
             io.emit('status', {socketId, userId}); 
-            // Emit the active members to the specific user
             io.to(userId).emit('restatus', activeMembers);
+            console.log(activeMembers, 'activeMembers')
         } catch (error) {
             console.log('Something went wrong:', error);
         }
     });
-    
     socket.on('sendMessage', (data) => {
         const { message, userId, myId, sender, timestamp } = data;
+        console.log(userId)
         try {
             io.to(userId).emit('message', { text: message, senderId: myId, senderName: sender, timestamp: timestamp });
         } catch (err) {
@@ -65,23 +65,16 @@ io.on("connection", (socket) => {
     });
     socket.on("disconnect", () => {
         const socketId = socket.id;
-    
-        // Reassign activeMembers to the filtered result
         activeMembers = activeMembers.filter(member => member.socketId !== socketId);
-    
         io.emit('userLeft', activeMembers );
     });
-    
     socket.on('error', (err) => {
         console.error('Socket error:', err.message);
     });
 })
-
 http.on('error', (err) => {
     console.error('HTTP server error:', err.message);
-    // You can choose to handle the error further or take any necessary actions here
 });
-
 const port = 5500;
 http.listen(port, () => {
     console.log(`Server is running on port ${port}`);
