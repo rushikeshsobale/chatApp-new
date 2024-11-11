@@ -1,18 +1,19 @@
 import { SET_USER } from './action';
 
 const initialState = {
-  userId: {},
- 
+  userId: null,
+  name: '',
+  friends: [],
 };
 
-const authReducer = (state= initialState, action) => {
-  console.log(state , 'action from userSlice')
+const authReducer = (state = initialState, action) => {
   switch (action.type) {
     case SET_USER:
       return {
         ...state,
         userId: action.payload.userId,
-       
+        name: action.payload.name,
+        friends: action.payload.friends,
       };
     default:
       return state;

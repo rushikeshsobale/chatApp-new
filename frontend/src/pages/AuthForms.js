@@ -48,7 +48,7 @@ const AuthForms = () => {
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       setIsSubmitting(false);
-      console.log('this is makingm ove')
+     
       return;
     }
 

@@ -1,6 +1,6 @@
 // MenuBar.js
 import React from 'react';
-// import './MenuBar.css';
+import './MenuBar.css';
 
 const MenuBar = () => {
     const handleMenuClick = (option) => {
@@ -9,7 +9,7 @@ const MenuBar = () => {
     };
 
     return (
-        <div className="menu-bar ">
+        <div className="menu-bar">
             <div className="menu-item" onClick={() => handleMenuClick('Home')}>Home</div>
             <div className="menu-item" onClick={() => handleMenuClick('About')}>About</div>
             <div className="menu-item" onClick={() => handleMenuClick('Services')}>Services</div>

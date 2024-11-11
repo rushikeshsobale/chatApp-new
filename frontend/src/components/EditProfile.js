@@ -28,16 +28,15 @@ const EditProfile = ({ userData, onSave }) => {
   };
 
   const handleSave = () => {
-    // Send only the object, not FormData
-    console.log("why this called")
+    
     const profileData = {
       firstName,
       lastName,
       bio,
-      profilePicture: profileImageFile, // this will be handled by the parent
+      profilePicture: profileImageFile,
     };
 
-    onSave(profileData); // Send profile data object to parent
+    onSave(profileData);
   };
 
   return (
