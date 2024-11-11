@@ -1,0 +1,82 @@
+.preview-container {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .preview-button {
+    color: #007bff;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  
+  .preview-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 200px;
+    max-height: 150px;
+    overflow-y: auto;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    padding: 4px;
+    z-index: 10;
+  }
+  
+  .preview-item {
+    display: flex;
+    align-items: center;
+    padding: 1px 0;
+  }
+  
+  .preview-profile-picture {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .preview-username {
+    font-weight: bold;
+    font-size: 0.5em;
+  }
+  
+  .more-text {
+    text-align: center;
+    font-size: 0.85em;
+    color: #555;
+  }
+  
+  /* LikesCommentsPreview.css */
+.preview-comments {
+  max-height:200px;
+  overflow-y: auto;
+}
+
+.comment-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1px;
+}
+
+
+.comment-content {
+  flex-grow: 1;
+}
+
+.comment-username {
+  font-weight: bold;
+}
+
+.comment-text {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #555;
+}
+
+.more-text {
+  font-size: 12px;
+  color: #007bff;
+  cursor: pointer;
+}

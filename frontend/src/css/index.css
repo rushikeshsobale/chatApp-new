@@ -11,6 +11,7 @@ body {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5); /* Black with 0.5 opacity */
   z-index: -1; /* Minimum z-index */
+  
 }
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',

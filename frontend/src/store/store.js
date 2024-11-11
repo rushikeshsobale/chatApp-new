@@ -1,5 +1,5 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
-
+import authReducer from './userSlice';
 const chatSlice = createSlice({
   name: 'chat',
   initialState: {
@@ -38,5 +38,6 @@ export const { addMessage, setInitialMessages, updateMessageStatus } = chatSlice
 export const store = configureStore({
   reducer: {
     chat: chatSlice.reducer,
+    auth: authReducer,
   },
 });

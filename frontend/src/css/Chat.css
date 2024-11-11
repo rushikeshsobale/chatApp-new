@@ -126,7 +126,7 @@
   width: 10px; /* Adjust size as needed */
   height: 10px;
   border-radius: 50%; /* Make it circular */
-  background-color: green; /* Green color */
+  background-color: green !important; /* Green color */
   display: inline-block; /* To allow it to sit next to text */
   margin-right: 5px; /* Spacing between the circle and the name */
 }
@@ -194,7 +194,7 @@ li {
 }
 
 li:hover {
-  color:green;
+  color:green !important;
   border-bottom: 2px solid green; /* Transparent bottom border */
   transition: box-shadow border-bottom 0.3s ease; /* Smooth transition */
 }
@@ -211,4 +211,42 @@ li:hover {
 
 .message-count {
   color: #b0b0b0; /* Light grey for message count */
+}
+
+.emoji-picker {
+  position: absolute;
+  right: 130px; /* or relative depending on your layout */
+  z-index: 1000; /* Ensure it's above other content */
+  background-color: rgb(0, 0, 0) !important; /* Background for the picker */
+  border: 1px solid #ccc; /* Optional border */
+  border-radius: 8px; /* Rounded corners */
+  overflow: hidden; /* Prevent overflow */
+  max-height: 300px; /* Maximum height */
+  overflow-y: auto; /* Scroll if needed */
+  scrollbar-width: none;
+  bottom:20px;
+}
+
+.emoji-button {
+  cursor: pointer; /* Pointer cursor for emoji button */
+  padding: 1px; /* Add some padding */
+}
+.epr-header{
+  display: none;
+}
+
+.epr_-4ueg5a{
+  position: absolute;
+  background-color: #1a1a1a !important;
+  scrollbar-width: none !important;
+  border: none !important;
+  left: -10px;
+  
+}
+.epr_-mpla0i{
+  scrollbar-width: none !important;
+}
+
+.message-input button {
+  background-color: black !important;
 }
