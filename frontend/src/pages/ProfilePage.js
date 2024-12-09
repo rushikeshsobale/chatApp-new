@@ -176,13 +176,13 @@ const ProfilePage = () => {
   
 
   return (
-    <div className="container-fluid mt-1 box">
+    <div className="container-fluid mt-1 ">
       <EditProfile userData={userData} onSave={handleSave} />
       {userData ? (
         <div className="row justify-content-center">
           {/* Profile and Action Buttons */}
           <div className="text-center col-lg-8" style={{ borderBottom: '2px solid #eaeaea', paddingBottom: '1rem' }}>
-            <div className="d-flex flex-column align-items-center text-white p-3">
+            <div className="d-flex flex-column align-items-center p-3">
               <img
                 src={userData?.profilePicture || 'https://via.placeholder.com/150?text=Profile+Picture'}
                 alt="Profile"
@@ -195,14 +195,14 @@ const ProfilePage = () => {
                   marginBottom: '1rem'
                 }}
               />
-              <div className="text-center">
+              <div className="text-center ">
                 <h1 className="font-weight-bold" style={{ fontSize: '1.5rem' }}>
                   {userData.firstName} {userData.lastName}
                 </h1>
                 <p>{userData.bio}</p>
                 {!user2 && <div className="d-flex justify-content-center gap-2 mt-3">
                   <button
-                    className="border btn btn-outline-light"
+                    className="border btn btn-outline-light text-dark"
                     type="button"
                     data-bs-toggle="offcanvas"
                     data-bs-target="#offcanvasRight"
@@ -213,7 +213,7 @@ const ProfilePage = () => {
                   </button>
                   <button
                     onClick={() => setShowModal(true)}
-                    className="border btn btn-outline-light"
+                    className="border btn btn-outline-light text-dark"
                     type="button"
                     style={{ width: '150px', borderRadius: '20px' }}
                   >
@@ -230,7 +230,7 @@ const ProfilePage = () => {
               <div className="row mt-4 d-flex justify-content-center gap-4">
                 {posts.length > 0 ? (
                   posts.map((post, index) => (
-                    <div key={index} className="post-card alert alert-secondary mt-2 col-lg-3" onClick={() => handlePostClick(post._id)}>
+                    <div key={index} className="post-card alert alert-secondary mt-2 col-lg-2 col-md-3 col-sm-4 col-6" onClick={() => handlePostClick(post._id)} style={{ zIndex: 1, background:'ghostwhite' }}>
                       {post.media && (
                         /\.(mp4|webm|ogg)$/i.test(post.media) ? (
                           <video src={post.media} controls className="img-fluid post-video"  style={{height:'200px'}} />

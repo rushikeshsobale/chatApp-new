@@ -7,7 +7,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckDouble } from '@fortawesome/free-solid-svg-icons';
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { CiMenuKebab } from "react-icons/ci";
-const ChatUi = ({ member, userId, name, socket, setMsgCounts }) => {
+import { FaArrowLeft } from 'react-icons/fa';
+const ChatUi = ({ member, userId, name, socket, setMsgCounts,setSelectedFriend }) => {
   const [messageInput, setMessageInput] = useState('');
   const sendId = member.friendId._id;
   const [messageArray, setMessageArray] = useState([]);
@@ -113,12 +114,13 @@ const handleEmojiClick = (emojiObject) => {
   // setShowEmojiPicker(false); // Close the emoji picker after selection
 };
   return (
-    <div className="d-flex flex-column rounded">
+    <div className="d-flex flex-column rounded" >
       <div className="d-flex justify-content-between align-items-center p-2 border-bottom">
-        <h4 className="mb-0 text-white">{member.friendId.firstName}</h4>
+       <span onClick={()=>{setSelectedFriend('')}}> <FaArrowLeft/></span>
+        <h4 className="mb-0 ">{member.friendId.firstName}</h4>
         <div className="dropdown">
           <button 
-            className="btn text-white p-0"
+            className="btn  p-0"
             type="button"
             id="dropdownMenuButton"
             data-bs-toggle="dropdown"
@@ -127,7 +129,7 @@ const handleEmojiClick = (emojiObject) => {
           >
             <CiMenuKebab />
           </button>
-          <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton" style={{ backgroundColor: 'white' }}>
+          <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton">
             <li><a onClick={clearChat} className="dropdown-item" href="#">Clear chat</a></li>
             <li><a className="dropdown-item" href="#">Action 2</a></li>
             <li><a className="dropdown-item" href="#">Action 3</a></li>
@@ -139,9 +141,9 @@ const handleEmojiClick = (emojiObject) => {
           <p className="text-center text-muted">Start a conversation!</p>
         ) : (
           messageArray.map((message, index) => (
-            <div key={index} className={`bg-none d-flex ${message.sentByCurrentUser ? 'justify-content-end' : ''} mb-1`}>
-              <div className="d-flex justify-content-between align-items-center border rounded gap-2 shadow-sm px-1 text-light">
-                <p className="mb-0 mx-1 text-white" style={{ height: '40px', opacity: 1 }}>{message.text}</p>
+            <div key={index} className={`bg-none d-flex ${message.sentByCurrentUser ? 'justify-content-end' : ''} mb-1`} >
+              <div className="d-flex justify-content-between align-items-center border rounded gap-2 shadow-sm px-1 " style={{background:'rgb(234 222 255)'}}>
+                <p className="mb-0 mx-1" style={{ height: '40px', opacity: 1 }}>{message.text}</p>
                 <span className="message-timestamp small" style={{ fontSize: '10px', alignSelf: 'flex-end' }}>
                   {new Date(message.timestamp).toLocaleTimeString()}
                 </span>
@@ -151,7 +153,7 @@ const handleEmojiClick = (emojiObject) => {
                   </span>
                 )}
                 {(message.status == 'read' || message.read) && (
-                  <span className="text-success small" title="Message read" style={{ fontSize: '13px', alignSelf: 'flex-end' }}>
+                  <span className="text-success small" title="Message read" style={{ fontSize: '10px', alignSelf: 'flex-end' }}>
                     <FontAwesomeIcon icon={faCheckDouble} />
                   </span>
                 )}
@@ -172,7 +174,7 @@ const handleEmojiClick = (emojiObject) => {
         <div className="p-2" onClick={() => setShowEmojiPicker(prev => !prev)}>
             😊 {/* This can be any emoji icon to toggle the picker */}
           </div>
-        <div className="text-white px-3 py-2 border rounded" onClick={sendMessage}>
+        <div className="px-3 py-2 border rounded" onClick={sendMessage}>
           <FontAwesomeIcon icon={faPaperPlane} />
         </div>
         <div>

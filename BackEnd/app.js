@@ -41,14 +41,14 @@ io.on("connection", (socket) => {
         try {
             io.emit('status', {socketId, userId}); 
             io.to(userId).emit('restatus', activeMembers);
-            console.log(activeMembers, 'activeMembers')
+           
         } catch (error) {
             console.log('Something went wrong:', error);
         }
     });
     socket.on('sendMessage', (data) => {
         const { message, userId, myId, sender, timestamp } = data;
-        console.log(userId)
+     
         try {
             io.to(userId).emit('message', { text: message, senderId: myId, senderName: sender, timestamp: timestamp });
         } catch (err) {
@@ -63,6 +63,19 @@ io.on("connection", (socket) => {
             console.log(err)
         }
     });
+
+    socket.on('raisedRequest', ({ userId, senderId, message}) => {
+        console.log({  message }, 'from raisedRequest');
+        const recipient = activeMembers.find(member => member.userId === userId);
+        if (recipient) {
+          const recipientSocketId = recipient.userId;
+          console.log(recipientSocketId, 'check'); // Verify the recipient's socketId
+          io.to(recipientSocketId).emit('friendRequestNotification', { senderId, message });
+        } else {
+          console.log(`User with ID ${userId} is not currently connected`);
+        }
+      });
+      
     socket.on("disconnect", () => {
         const socketId = socket.id;
         activeMembers = activeMembers.filter(member => member.socketId !== socketId);

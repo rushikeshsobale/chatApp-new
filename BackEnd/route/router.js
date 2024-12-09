@@ -1,7 +1,8 @@
 // router.js
+require('dotenv').config();
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+require('dotenv').config();
 const mongoose = require('mongoose');
-
 const multer = require('multer');
 const express = require("express");
 const router = express.Router();
@@ -10,16 +11,18 @@ const jwt = require("jsonwebtoken");
 const Muser = require("../Modules/Muser.js");
 const Post = require('../Modules/Post.js');
 const cookieParser = require("cookie-parser");
-const verifyToken = require('./verifyToken'); // Import the JWT middleware
+const verifyToken = require('./verifyToken'); 
 const secretKey = process.env.JWT_SECRET || "mySecreateKey";
 router.use(cookieParser());
+
 const s3Client = new S3Client({
-  region: 'us-east-1',
+  region: process.env.AWS_REGION,
   credentials: {
-     accessKeyId: ACCESS_KEY_ID,
-     secretAccessKey: SECRET_ACCESS_KEY,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
+
 const upload = multer({ storage: multer.memoryStorage() });
  
 
@@ -235,10 +238,8 @@ router.post("/sendRequest/:receiverId", verifyToken, async (req, res) => {
 
 router.post("/acceptFriendRequest/:requesterId", verifyToken, async (req, res) => {
   try {
-    const userId = req.decoded.userId; // The user accepting the request
-    const requesterId = req.params.requesterId; // The user who sent the request
-   
-    // Find both users
+    const userId = req.decoded.userId;
+    const requesterId = req.params.requesterId;
     const user = await Muser.findById(userId);
     const requester = await Muser.findById(requesterId);
 
@@ -259,7 +260,7 @@ router.post("/acceptFriendRequest/:requesterId", verifyToken, async (req, res) =
       new: true
     });
 
-    await Muser.findByIdAndUpdate(requesterId, {
+    await Muser.findByIdAndUpdate(requesterId, {      
       $set: {
         "friends.$[elem].isFriend": 'friends' // Update isFriend to true for the user
       }

@@ -19,7 +19,7 @@
     padding: 5px;
     width: 100%;
     display: block;
-    color: aliceblue;
+   
     background-color: transparent; /* Make the background transparent */
     border: none !important; /* Remove default borders */
     border-bottom: 2px solid #ccc !important; 

@@ -1,0 +1,80 @@
+.notification-container {
+    position: relative;
+  }
+  
+  .notification-icon {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .notification-list {
+    position: fixed;
+    top: 20px;   /* Adjust the position from the top of the screen */
+    right: 20px;  /* Adjust the position from the right of the screen */
+    width: 300px; /* Width of the floating notification */
+    background-color: #f8f9fa;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    z-index: 9999;
+    max-height: 400px; /* Limit the height of the list */
+    overflow-y: auto;
+    animation: slide-in 0.3s ease-in-out;
+  }
+  
+  .floating-notification-list {
+    position: fixed;
+    top: 70px; /* You can adjust this value based on your layout */
+    right: 20px;
+    z-index: 1000;
+    width: 300px;
+    max-height: 400px;
+    background-color: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    border-radius: 8px;
+  }
+  
+  .floating-notification-list ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .floating-notification-list li {
+    padding: 10px;
+    border-bottom: 1px solid #f1f1f1;
+  }
+  
+  .floating-notification-list li:last-child {
+    border-bottom: none;
+  }
+  
+  .notification-icon {
+    position: relative;
+    cursor: pointer;
+  }
+  
+  .badge {
+    width:20px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: red;
+    color: white;
+    font-size: 12px;
+    padding: 5px;
+    border-radius: 50%;
+  }
+  
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  

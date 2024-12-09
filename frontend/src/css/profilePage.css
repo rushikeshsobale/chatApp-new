@@ -12,7 +12,7 @@
   }
   
   .custom-modal-content {
-    background-color:none; /* Background for the modal */
+   /* Background for the modal */
     border-radius: 8px;
     padding: 20px;
     width: 90%;
@@ -74,7 +74,7 @@
     border-radius: 5px;
     resize: none; /* Disable resizing if desired */
     background-color: transparent; /* No background */
-    color: #fff; /* Text color */
+   /* Text color */
     outline: none; /* Remove outline */
   }
   
@@ -108,6 +108,6 @@
   }
   
   .post-card{
-    color:whitesmoke;
-    background-color: transparent !important;
+    
+    background:ghostwhite;
   }

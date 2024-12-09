@@ -48,7 +48,7 @@ const LikesCommentsPreview = ({ handleLike ,type, users, hasLiked, comments }) =
       )}
 
       {isHovered && type === 'comments' && (
-        <div className="preview-comments card p-2 ">
+        <div className="preview-list p-2 ">
           {comments.slice(0, 5).map((comment, index) => (
            <div key={index} className="comment-item ">
            <div className="d-flex align-items-center">

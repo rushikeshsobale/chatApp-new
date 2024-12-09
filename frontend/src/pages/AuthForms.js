@@ -74,7 +74,7 @@ const AuthForms = () => {
           socket.emit('userRegistered', userData.username);
           setIsLoginForm(!isLoginForm);
         }
-        navigate(`/`)
+        navigate(`/ProfilePage`)
         
       } else {
         const errorData = await response.json();
@@ -91,8 +91,8 @@ const AuthForms = () => {
   };
 
   return (
-    <div className="overlay">
-      <form onSubmit={handleSubmit} noValidate className="col-lg-8 container box p-5">
+    <div className="">
+      <form onSubmit={handleSubmit} noValidate className="col-lg-8 container p-5 my-3" style={{background:'ghostwhite'}}>
         <div className="form-header">
           <h2 className="form-title pt-3 text-secondary text-center">{isLoginForm ? 'Welcome Back!' : 'Create an Account!'}</h2>
         </div>

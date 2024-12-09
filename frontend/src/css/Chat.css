@@ -45,7 +45,7 @@
   
   .chat-box {
      /* Adjust height as needed */
-   background-image: url('https://img.freepik.com/free-vector/dark-black-background-design-with-stripes_1017-38064.jpg?w=1060&t=st=1727705824~exp=1727706424~hmac=d082a9ebe5ddefc5eb174f22865d782bf72c837b95ebc7797fc9bd30e2d95060'); 
+   /* background-image: url('https://img.freepik.com/free-vector/dark-black-background-design-with-stripes_1017-38064.jpg?w=1060&t=st=1727705824~exp=1727706424~hmac=d082a9ebe5ddefc5eb174f22865d782bf72c837b95ebc7797fc9bd30e2d95060');  */
     background-size: cover;
   }
   .messages {
@@ -161,7 +161,7 @@
 
 .shEffect{
   margin-top: 3px;
-  box-shadow: 5px 4px 5px 10px rgba(0, 0, 0, 0.2); 
+  box-shadow: 5px 4px 5px 0px rgba(0, 0, 0, 0.2); 
   height: 600px;
 }
 
@@ -188,7 +188,7 @@ ul {
 
 li {
   padding: 10px 15px; /* Add some padding */
-  color: #ffffff; /* White text color */
+   /* White text color */
   border-bottom: 1px solid; /* Subtle divider between items */
   transition: background-color 0.3s; /* Smooth background transition */
 }
@@ -200,7 +200,7 @@ li:hover {
 }
 
 .active {
-  background: linear-gradient(45deg, #897f7f, #1a1a1a);
+  background: linear-gradient(45deg, #897f7f, #866fb6);
   transition: background 0.3s ease;
 }
 

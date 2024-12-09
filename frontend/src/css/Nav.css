@@ -1,5 +1,5 @@
 .navbar {
-    background-color: #211e1e;
+    background-color: #71628d;
     top: 0;
     left: 0;
     width: 100%;
@@ -16,6 +16,7 @@
   .navbar-container {
     display: flex;
     align-items: center;
+    justify-content: end
   }
   
   .navbar-menu {
@@ -51,18 +52,10 @@
     border-radius: 5px; /* Slight rounding on hover */
   }
   
-  .navbar-toggle {
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-  }
+
   
   .menu-icon {
-    width: 30px;
-    height: 20px;
-    position: relative;
+    display:none;
   }
   
   .menu-icon-inner {
@@ -85,3 +78,16 @@
     transform: translateY(-8px) rotate(-45deg);
   }
   
+  @media (max-width: 768px) {
+    .navbar-menu {
+      display: none;
+    }
+    .navbar-container{
+      margin-top:5px;
+    }
+    .menu-icon {
+      width: 30px;
+      height: 20px;
+      position: relative;
+    }
+  }

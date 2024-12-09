@@ -1,5 +1,7 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import authReducer from './userSlice';
+import socketReducer from './socketSlice';
+import notificationReducer from './notificationSlice';
 const chatSlice = createSlice({
   name: 'chat',
   initialState: {
@@ -39,5 +41,7 @@ export const store = configureStore({
   reducer: {
     chat: chatSlice.reducer,
     auth: authReducer,
+    socket: socketReducer,
+    notifications: notificationReducer,
   },
 });

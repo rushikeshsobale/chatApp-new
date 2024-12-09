@@ -16,8 +16,8 @@ const PostModal = ({ showModal, onClose, handleAddPost }) => {
 
   return (
     showModal && (
-      <div className="custom-modal-overlay">
-        <div className="custom-modal-content">
+      <div className="custom-modal-overlay" >
+        <div className="custom-modal-content bg-dark">
           <div className="modal-header">
             <h5>Create a Post</h5>
             <button onClick={onClose} className="close-button">✖</button>
