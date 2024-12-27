@@ -16,7 +16,6 @@ const Notification = () => {
   useEffect(() => {
     setPrevNotificationCount(notifications.length);
   }, [notifications, prevNotificationCount]);
-
   return (
     <div className="notification-container mx-5">
       <div className="notification-icon" onClick={toggleNotifications} style={{ cursor: 'pointer' }}>
@@ -27,10 +26,12 @@ const Notification = () => {
           </span>
         )}
       </div>
-
       {showNotifications && (
         <div className="floating-notification-list">
           <ul className="list-group">
+            {notifications.length == 0 &&
+              <p className='text-center'>No notifications</p>
+            }
             {notifications.map((notification, index) => (
               <li key={index} className="list-group-item d-flex justify-content-between align-items-center bg-light text-dark border-secondary mb-2 rounded">
                 <span>{notification.message.text}</span>

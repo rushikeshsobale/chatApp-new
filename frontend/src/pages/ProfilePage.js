@@ -248,7 +248,7 @@ const ProfilePage = () => {
                     </div>
                   ))
                 ) : (
-                  <p>No posts yet!</p>
+                  <p className='m-auto text-center'>No posts yet!</p>
                 )}
               </div>
             )}

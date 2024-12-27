@@ -1,6 +1,5 @@
 const express = require('express');
 require('dotenv').config();
-
 const app = express();
 const cors = require("cors");
 const corsOptions = {
@@ -8,7 +7,6 @@ const corsOptions = {
     credentials: true,
 };
 app.use(cors(corsOptions));
-
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -63,18 +61,19 @@ io.on("connection", (socket) => {
             console.log(err)
         }
     });
-
     socket.on('raisedRequest', ({ userId, senderId, message}) => {
         console.log({  message }, 'from raisedRequest');
         const recipient = activeMembers.find(member => member.userId === userId);
         if (recipient) {
           const recipientSocketId = recipient.userId;
-          console.log(recipientSocketId, 'check'); // Verify the recipient's socketId
+        
           io.to(recipientSocketId).emit('friendRequestNotification', { senderId, message });
         } else {
           console.log(`User with ID ${userId} is not currently connected`);
         }
       });
+
+
       
     socket.on("disconnect", () => {
         const socketId = socket.id;

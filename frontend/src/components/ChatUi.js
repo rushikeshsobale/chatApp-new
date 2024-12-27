@@ -26,7 +26,7 @@ const ChatUi = ({ member, userId, name, socket, setMsgCounts,setSelectedFriend }
         pending: true,
         timestamp: new Date().toISOString()
       };
-      await fetch('http://localhost:5500/sendMessage', {
+      await fetch(`${process.env.API_URL}/sendMessage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,7 +52,7 @@ const ChatUi = ({ member, userId, name, socket, setMsgCounts,setSelectedFriend }
     const handleSetStatus = async (data) => {
      
       const { messageId, userId } = data;
-      await fetch('http://localhost:5500/updateMessageStatus', {
+      await fetch(`${process.env.API_URL}/updateMessageStatus`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ const ChatUi = ({ member, userId, name, socket, setMsgCounts,setSelectedFriend }
   }, [messageArray]);
   const clearChat = async () => {
     try {
-      const response = await fetch('http://localhost:5500/deleteChat', {
+      const response = await fetch(`${process.env.API_URL}/deleteChat`, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
