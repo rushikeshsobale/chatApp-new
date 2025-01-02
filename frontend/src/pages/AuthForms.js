@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import 'bootstrap/dist/css/bootstrap.min.css'; // Import Bootstrap CSS
 import '../css/AuthForms.css'; // Import your custom styles
+import 'dotenv/config';
 
 const AuthForms = () => {
   const [isLoginForm, setIsLoginForm] = useState(true);
@@ -11,7 +12,7 @@ const AuthForms = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate()
   useEffect(() => {
-    const newSocket = io('http://localhost:5500'); // Change the URL to your backend server URL
+    const newSocket = io(process.env.API_URL); // Change the URL to your backend server URL
     setSocket(newSocket);
 
     return () => newSocket.close(); // Close socket connection when component unmounts
@@ -53,7 +54,7 @@ const AuthForms = () => {
     }
 
     // Determine the endpoint based on the form type
-    const endpoint = isLoginForm ? 'http://localhost:5500/login' : 'http://localhost:5500/register';
+    const endpoint = isLoginForm ? `${process.env.API_URL}/login` : `${process.env.API_URL}/register`;
 
     try {
      
