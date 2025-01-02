@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
+require('dotenv').config();
 const db = mongoose.connection;
-mongoose.connect('mongodb://localhost:27017/goChat', {
+console.log(process.env.MONGO_URI, 'url')
+mongoose.connect(`mongodb://localhost:27017/goChat`, {
   
 })
 .then(() => {

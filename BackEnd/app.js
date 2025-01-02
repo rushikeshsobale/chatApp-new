@@ -1,9 +1,10 @@
+
 const express = require('express');
 require('dotenv').config();
 const app = express();
 const cors = require("cors");
 const corsOptions = {
-    origin: 'http://localhost:3000',
+    origin: `${process.env.FRONTEND_URL}`,
     credentials: true,
 };
 app.use(cors(corsOptions));
@@ -13,17 +14,18 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.json());
 require("./Mongo/Conn.js")
 app.options('/socket.io/', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+    res.setHeader('Access-Control-Allow-Origin',  `${process.env.FRONTEND_URL}`);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.sendStatus(200);
 });
+
 const router = require('./route/router');
 app.use(router);
 const http = require('http').createServer(app);
 const io = require("socket.io")(http, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: `${process.env.FRONTEND_URL}`,
         methods: ["GET", "POST"],
         allowedHeaders: ["Content-Type"],
         credentials: true
