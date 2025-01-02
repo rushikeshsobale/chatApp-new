@@ -8,6 +8,7 @@ import { useSocket} from '../components/socketContext';
 import '../css/Chat.css';
 import { setUser } from '../store/action';
 import io from 'socket.io-client';
+
 const ChatComponent = () => {
   const {socket, setSocket, setUserId, userId} = useSocket();
   const [name, setName] = useState('');
@@ -20,7 +21,7 @@ const ChatComponent = () => {
   const dispatch = useDispatch();
   const fetchUserData = async () => {
     try {
-      const response = await fetch('http://localhost:5500/getUser', {
+      const response = await fetch(`${process.env.API_URL}/getUser`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -35,7 +36,7 @@ const ChatComponent = () => {
         if(!socket){
 
         
-        const socketConnection = io('http://localhost:5500', { query: { id: data._id} });
+        const socketConnection = io(`${process.env.API_URL}`, { query: { id: data._id} });
         setSocket(socketConnection);  
         }  
       } else {
@@ -69,7 +70,7 @@ const ChatComponent = () => {
     const fetchMessages = async () => {
      
       try {
-        const response = await fetch(`http://localhost:5500/getMessages/${userId}`);
+        const response = await fetch(`${process.env.API_URL}/getMessages/${userId}`);
         if (response.ok) {
           const messages = await response.json();
           dispatch(setInitialMessages(messages));

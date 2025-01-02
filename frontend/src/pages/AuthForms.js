@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import 'bootstrap/dist/css/bootstrap.min.css'; // Import Bootstrap CSS
 import '../css/AuthForms.css'; // Import your custom styles
-import 'dotenv/config';
+
 
 const AuthForms = () => {
   const [isLoginForm, setIsLoginForm] = useState(true);
