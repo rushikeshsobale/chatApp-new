@@ -1,5 +1,4 @@
-// index.js
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './css/index.css';
 import reportWebVitals from './reportWebVitals';
@@ -7,46 +6,47 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import Navbar from './components/Nav.js';
 import AuthForms from './pages/AuthForms.js';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import Users from './pages/Users.js';
 import ChatComponent from './pages/Chat.js';
 import ProfilePage from './pages/ProfilePage.js';
 import { store } from './store/store';
-import { Provider } from 'react-redux';
-import { useDispatch } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import { updateNotifications } from './store/notificationSlice';
 import { useSocket, SocketProvider } from './components/socketContext.js';
-import io from 'socket.io-client';
 const AppWrapper = () => {
-  const {socket, setSocket, setUserId, userId} = useSocket();
+  const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
+  const { socket, userId } = useSocket();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const dispatch = useDispatch();
-  console.log(userId, 'checking userId')
+   useEffect(() => {
+        const token = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
+        if (token) {
+          setIsAuthenticated(true); 
+        } 
+      }, [isLoggedIn]);
   useEffect(() => {
     if (socket) {
       socket.on('friendRequestNotification', (data) => {
-       dispatch(updateNotifications(data));
-       const audio = new Audio('/mixkit-bell-notification-933.wav');
+        dispatch(updateNotifications(data));
+        const audio = new Audio('/mixkit-bell-notification-933.wav');
         audio.play();
       });
     }
-
   }, [socket, dispatch]);
-
-  useEffect(()=>{
+  useEffect(() => {
     return () => {
       if (socket) {
         socket.disconnect();
       }
-    }
-
-  },[])
-
-
+    };
+  }, [socket]);
 
   return (
-    <div className="overl">
+    <div className="">
       <BrowserRouter>
-        <Navbar />
+        {/* Conditionally render Navbar only when isAuthenticated and isLoggedIn are true */}
+        { isAuthenticated && <Navbar />}
         <Routes>
           <Route path="/" element={<AuthForms />} />
           <Route path="/home" element={<ChatComponent />} />

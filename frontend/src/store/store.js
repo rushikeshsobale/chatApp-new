@@ -6,11 +6,18 @@ const chatSlice = createSlice({
   name: 'chat',
   initialState: {
     chatHistory: {},
+    isLoggedIn:false,
   },
   reducers: {
+    isLoggedIn: (state, action) => {
+      const { status } = action.payload;
+      console.log(status, 'status');
+      
+      // Convert the status to boolean
+      state.isLoggedIn = status === 'true' || status === true;
+    },
     addMessage: (state, action) => {
       const { neededId, message } = action.payload;
-      console.log(message , 'toimestamp')
       if (!state.chatHistory[neededId]) {
         state.chatHistory[neededId] = [];
       }
@@ -22,7 +29,6 @@ const chatSlice = createSlice({
     updateMessageStatus: (state, action) => {
       const { sendId, userId } = action.payload;
       const messages = state.chatHistory[sendId];
-
       if (messages) {
         messages.forEach((message) => {
           // Assuming you want to mark all messages from the sender as read
@@ -35,7 +41,7 @@ const chatSlice = createSlice({
   },
 });
 
-export const { addMessage, setInitialMessages, updateMessageStatus } = chatSlice.actions;
+export const { addMessage, setInitialMessages, updateMessageStatus, isLoggedIn } = chatSlice.actions;
 
 export const store = configureStore({
   reducer: {

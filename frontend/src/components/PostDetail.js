@@ -17,7 +17,7 @@ const PostDetail = ({ postId, onClose, currentIndex, onNext, onPrevious, handleN
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const response = await fetch(`http://localhost:5500/api/getPost/${postId}`);
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/getPost/${postId}`);
         if (response.ok) {
           const data = await response.json();
           setPost(data.post);
@@ -38,7 +38,7 @@ const PostDetail = ({ postId, onClose, currentIndex, onNext, onPrevious, handleN
 
   const handleAddComment = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/api/posts/${postId}/comments`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: newComment, userId }),
@@ -60,7 +60,7 @@ const PostDetail = ({ postId, onClose, currentIndex, onNext, onPrevious, handleN
       return;
     }
     try {
-      const response = await fetch(`http://localhost:5500/api/likePost/${postId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/likePost/${postId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),

@@ -1,0 +1,118 @@
+/* In your CSS file (index.css or similar) */
+body {
+    background-color: #f8f9fa; /* Light background for the page */
+    font-family: 'Arial', sans-serif;
+  }
+  
+  .container {
+    background-color: #ffffff; /* White background for content */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card {
+    background: linear-gradient(to bottom, #ffffff, #f1f1f1); /* Subtle gradient */
+  }
+  
+  .card {
+        background-color: #f5f5f5; /* Light Gray */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card-body p {
+    font-weight: 500; /* Slightly lighter than bold */
+    color: #333; /* Darker text for names */
+  }
+  .card-body p:last-child {
+    font-style: italic;
+    color: #888; /* Gray for the email */
+  }
+  .card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  .card-body {
+    padding: 15px;
+  }
+  
+  .card-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+  
+  .card-text {
+    color: #6c757d; /* Subtle text color */
+    font-size: 0.95rem;
+  }
+  
+  button {
+    transition: background-color 0.3s ease, transform 0.3s ease;
+  }
+  
+  button:hover {
+    transform: translateY(-2px);
+  }
+  
+  .btn-primary {
+    background-color: #007bff;
+    border: none;
+  }
+  
+  .btn-primary:hover {
+    background-color: #0056b3;
+  }
+  
+  .btn-secondary {
+    background-color: #6c757d;
+    border: none;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #5a6268;
+  }
+  
+  .dropdown-menu {
+    min-width: 250px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .dropdown-item {
+    padding: 10px 15px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .dropdown-item:hover {
+    background-color: #f1f1f1;
+  }
+  
+  .badge {
+    background-color: #dc3545;
+  }
+  
+  h2 {
+    color: #343a40;
+  }
+  
+  img {
+    border: 3px solid #dee2e6; /* Soft border for profile picture */
+    border-radius: 50%;
+  }
+  
+  .card-text small {
+    color: #868e96;
+  }
+  
+  .container .row {
+    margin-bottom: 20px;
+  }
+  
+  /* For mobile responsiveness */
+  @media (max-width: 768px) {
+    .card {
+      margin-bottom: 20px;
+    }
+  }
+  

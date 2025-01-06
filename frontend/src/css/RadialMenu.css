@@ -1,0 +1,122 @@
+/* Radial Menu Container */
+.radial-menu-container {
+    position: fixed;
+    bottom: 50px;
+    right: 50px;
+    z-index: 1000;
+  }
+  
+  /* Floating Action Button */
+  .fab {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+  }
+  
+  .fab:hover {
+    background-color: #0056b3;
+  }
+  
+  .fab.open {
+    transform: rotate(45deg);
+  }
+  
+  /* Radial Links */
+  .menu-items {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .menu-item {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-color: #ffffff;
+    color: #007bff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 24px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+    animation: pop 0.3s ease forwards;
+  }
+  
+  .menu-item span {
+    position: absolute;
+    bottom: -30px;
+    font-size: 12px;
+    color: #007bff;
+    font-weight: bold;
+    opacity: 0;
+    animation: fadeIn 0.3s ease forwards;
+  }
+  
+  .menu-item:hover {
+    background-color: #f1f1f1;
+    color: #0056b3;
+  }
+  
+  .menu-item:nth-child(1) {
+    animation-delay: calc(var(--i) * 0.05s);
+    transform: translate(-80px, -80px);
+  }
+  
+  .menu-item:nth-child(2) {
+    animation-delay: calc(var(--i) * 0.05s);
+    transform: translate(-110px, 0px);
+  }
+  
+  .menu-item:nth-child(3) {
+    animation-delay: calc(var(--i) * 0.05s);
+    transform: translate(-80px, 80px);
+  }
+  
+  .menu-item:nth-child(4) {
+    animation-delay: calc(var(--i) * 0.05s);
+    transform: translate(0px, 110px);
+  }
+  
+  .menu-item:nth-child(5) {
+    animation-delay: calc(var(--i) * 0.05s);
+    transform: translate(80px, 80px);
+  }
+  
+  /* Pop animation for menu items */
+  @keyframes pop {
+    0% {
+      opacity: 0;
+      transform: scale(0);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Fade in text */
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  

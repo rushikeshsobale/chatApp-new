@@ -21,7 +21,7 @@ const ProfilePage = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getUser`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/getUser`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -40,7 +40,7 @@ const ProfilePage = () => {
   };
   const fetchUser2Data = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getProfileUser/${userId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/getProfileUser/${userId}`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -71,7 +71,7 @@ const ProfilePage = () => {
     const fetchPosts = async () => {
       if (userData) {
         try {
-          const response = await fetch(`http://localhost:5500/api/posts/${userData._id}`);
+          const response = await fetch(`${process.env.REACT_APP_API_URL}/api/posts/${userData._id}`);
           if (response.ok) {
             const data = await response.json();
             setPosts(data.posts);
@@ -104,7 +104,7 @@ const ProfilePage = () => {
     if (media) {
       formData.append('media', media);  // media should be a File object
     }
-    fetch('http://localhost:5500/api/posts', {
+    fetch(`${process.env.API_URL}/api/posts`, {
       method: 'POST',
       body: formData, // Use formData as the body
     })
@@ -133,7 +133,7 @@ const ProfilePage = () => {
       if (profileData.profilePicture) {
         formData.append('profilePicture', profileData.profilePicture);
       }
-      const response = await fetch(`http://localhost:5500/api/updateUser/${userId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/updateUser/${userId}`, {
         method: 'PUT',
         body: formData,
       });
@@ -161,10 +161,8 @@ const ProfilePage = () => {
       console.log("No more posts available.");
     }
   };
-  
   const handlePrevPost = () => {
     const currentIndex = posts.findIndex((post) => post._id === selectedPostId);
-
     // Check if there is a previous post in the array
     if (currentIndex > 0) {
       const prevPost = posts[currentIndex - 1];
@@ -173,100 +171,166 @@ const ProfilePage = () => {
       console.log("No previous posts available.");
     }
   };
-  
+
 
   return (
-    <div className="container-fluid mt-1 ">
-      <EditProfile userData={userData} onSave={handleSave} />
+    <div
+      className="profile-page container-fluid px-md-4"
+      style={{ fontFamily: 'Poppins, sans-serif' }}
+    >
+      {/* Header Section */}
       {userData ? (
-        <div className="row justify-content-center">
-          {/* Profile and Action Buttons */}
-          <div className="text-center col-lg-8" style={{ borderBottom: '2px solid #eaeaea', paddingBottom: '1rem' }}>
-            <div className="d-flex flex-column align-items-center p-3">
-              <img
-                src={userData?.profilePicture || 'https://via.placeholder.com/150?text=Profile+Picture'}
-                alt="Profile"
-                className="rounded-circle"
-                style={{
-                  width: '100px',
-                  height: '100px',
-                  border: '3px solid white',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                  marginBottom: '1rem'
-                }}
-              />
-              <div className="text-center ">
-                <h1 className="font-weight-bold" style={{ fontSize: '1.5rem' }}>
-                  {userData.firstName} {userData.lastName}
-                </h1>
-                <p>{userData.bio}</p>
-                {!user2 && <div className="d-flex justify-content-center gap-2 mt-3">
-                  <button
-                    className="border btn btn-outline-light text-dark"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#offcanvasRight"
-                    aria-controls="offcanvasRight"
-                    style={{ width: '150px', borderRadius: '20px' }}
-                  >
-                    <FaUserEdit /> Edit Profile
-                  </button>
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="border btn btn-outline-light text-dark"
-                    type="button"
-                    style={{ width: '150px', borderRadius: '20px' }}
-                  >
-                    <FaPlus /> Create Post
-                  </button>
-                </div>}
-              </div>
-            </div>
-          </div>
-          <div className="bg-none">
-            {selectedPostId ? (
-              <PostDetail postId={selectedPostId} onClose={() => setSelectedPostId(null)} userId={userData._id} handleNextPost={handleNextPost} handlePrevPost={handlePrevPost}/>
-            ) : (
-              <div className="row mt-4 d-flex justify-content-center gap-4">
-                {posts.length > 0 ? (
-                  posts.map((post, index) => (
-                    <div key={index} className="post-card alert alert-secondary mt-2 col-lg-2 col-md-3 col-sm-4 col-6" onClick={() => handlePostClick(post._id)} style={{ zIndex: 1, background:'ghostwhite' }}>
-                      {post.media && (
-                        /\.(mp4|webm|ogg)$/i.test(post.media) ? (
-                          <video src={post.media} controls className="img-fluid post-video"  style={{height:'200px'}} />
-                        ) : (
-                          <img src={post.media} alt="Post Media" className="img-fluid post-image" style={{height:'200px'}}/>
-                        )
-                      )}
-                      {post.text && <p>{post.text}</p>}
-                      {post.media && post.media.type && post.media.type.startsWith('video') && (
-                        <video controls className="w-100 mt-2">
-                          <source src={post.media.url} type={post.media.type} />
-                          Your browser does not support the video tag.
-                        </video>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className='m-auto text-center'>No posts yet!</p>
-                )}
-              </div>
-            )}
-          </div>
-          {/* Sidebar with UsersList and Modal Trigger */}
-          <div className="col-lg-5 mt-4">
-            <CustomModal
-              showModal={showModal}
-              onClose={() => setShowModal(false)}
-              newPost={newPost}
-              setNewPost={setNewPost}
-              handleMediaUpload={handleMediaUpload}
-              handleAddPost={handleAddPost}
-            />
+        <div
+        className="profile-header text-center p-4 d-flex flex-column flex-md-row align-items-center justify-content-around"
+        style={{
+          backgroundImage: 'linear-gradient(135deg, rgb(255, 255, 255), rgb(110, 72, 157))',
+          borderRadius: '20px',
+          color: '#fff',
+          padding: window.innerWidth <= 576 ? '20px' : '40px', // Adjust padding for small screens
+        }}
+      >
+        <div
+          className="mb-3 mb-md-0"
+          style={{
+            transform: window.innerWidth <= 576 ? 'scale(0.8)' : 'scale(1)', // Scale down the image on small screens
+          }}
+        >
+          <img
+            src={userData.profilePicture || 'https://via.placeholder.com/150'}
+            alt="Profile"
+            className="rounded-circle shadow"
+            style={{
+              width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust image size
+              height: window.innerWidth <= 576 ? '120px' : '150px',
+              border: '3px solid white',
+            }}
+          />
+        </div>
+      
+        <div
+          className="text-center text-md-start"
+          style={{
+            transform: window.innerWidth <= 576 ? 'scale(0.9)' : 'scale(1)', // Scale down the text content on small screens
+          }}
+        >
+          <h1
+            className="mt-3 text-center"
+            style={{
+              fontSize: window.innerWidth <= 576 ? '1.5rem' : '1.8rem', // Adjust font size
+              fontWeight: 'bold',
+            }}
+          >
+            {userData.firstName} {userData.lastName}
+          </h1>
+          <p
+            className="text-muted text-center"
+            style={{
+              fontSize: window.innerWidth <= 576 ? '0.9rem' : '1rem', // Adjust font size for bio
+            }}
+          >
+            {userData.bio || 'This user has no bio yet.'}
+          </p>
+          <div className="mt-3 d-flex flex-column flex-sm-row justify-content-center gap-3">
+            <button
+              className="btn btn-light shadow-sm btn-sm m-auto"
+              style={{
+                borderRadius: '30px',
+                width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
+              }}
+              onClick={() => setShowModal(true)}
+            >
+              <FaPlus /> Create Post
+            </button>
+            <button
+              className="btn btn-outline-light shadow-sm btn-sm m-auto"
+              style={{
+                borderRadius: '30px',
+                width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
+              }}
+            >
+              <FaUserEdit /> Edit Profile
+            </button>
           </div>
         </div>
+      </div>
+      
+      
       ) : (
-        <p>Loading user data...</p>
+        <p>Loading profile...</p>
+      )}
+
+      {/* Posts Section */}
+      <div className="posts-section mt-4 mb-5">
+        <div className="row justify-content-center gap-4 mx-1 mb-5">
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <div
+                key={post._id}
+                className="shadow-lg p-3 mx-1 rounded mt-4"
+                style={{
+                 
+                  width: '320px',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  border: '1px solid rgb(0, 0, 0)',
+                  borderRadius: '15px',
+                  transition: 'all 0.1s ease-in-out',
+                }}
+                onClick={() => handlePostClick(post._id)}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              >
+                {post.media && (
+                  <div 
+                  className='post-card p-3'
+                    style={{
+                      height: '180px',
+                      backgroundImage: `url(${post.media})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      borderRadius: '12px',
+                      marginBottom: '12px',
+                    }}
+                  ></div>
+                )}
+                <div>
+                  <p
+                    className="post-text"
+                    style={{
+                      fontSize: '16px',
+                      color: '#333',
+                      textAlign: 'justify',
+                      lineHeight: '1.5',
+                    }}
+                  >
+                    {post.text}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-muted" style={{ fontSize: '18px' }}>
+              No posts yet!
+            </p>
+          )}
+        </div>
+      </div>
+
+
+      {/* Custom Modal */}
+      {showModal && (
+        <CustomModal
+          showModal={showModal}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {/* Post Details */}
+      {selectedPostId && (
+        <PostDetail
+          postId={selectedPostId}
+          onClose={() => setSelectedPostId(null)}
+        />
       )}
     </div>
   );

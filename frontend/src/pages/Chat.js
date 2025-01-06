@@ -21,7 +21,7 @@ const ChatComponent = () => {
   const dispatch = useDispatch();
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`${process.env.API_URL}/getUser`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/getUser`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -32,11 +32,11 @@ const ChatComponent = () => {
         setProfilePicture(data.profilePicture);
         setFriends(data.friends);
         setUserId(data._id)
-        dispatch(setUser({ userId: data._id , name: data.firstName}));
+        dispatch(setUser(data));
         if(!socket){
 
         
-        const socketConnection = io(`${process.env.API_URL}`, { query: { id: data._id} });
+        const socketConnection = io(`${process.env.REACT_APP_API_URL}`, { query: { id: data._id} });
         setSocket(socketConnection);  
         }  
       } else {
@@ -70,7 +70,7 @@ const ChatComponent = () => {
     const fetchMessages = async () => {
      
       try {
-        const response = await fetch(`${process.env.API_URL}/getMessages/${userId}`);
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/getMessages/${userId}`);
         if (response.ok) {
           const messages = await response.json();
           dispatch(setInitialMessages(messages));

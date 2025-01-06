@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaUserPlus, FaUserCheck, FaUserFriends, FaBell } from 'react-icons/fa';
-import '../css/index.css';
+import '../css/users.css';
 import { useSelector } from 'react-redux';
 import { useSocket } from '../components/socketContext';
 
@@ -21,7 +21,7 @@ const UsersList = () => {
   console.log(socket, 'socket')
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5500/getUsers', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/getUsers`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -40,7 +40,7 @@ const UsersList = () => {
 
   const addFriend = async (userId, index) => {
     try {
-      const call = await fetch(`http://localhost:5500/sendRequest/${userId}`, {
+      const call = await fetch(`${process.env.REACT_APP_API_URL}/sendRequest/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -59,7 +59,7 @@ const UsersList = () => {
   };
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getUser`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/getUser`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -78,7 +78,7 @@ const UsersList = () => {
   }, []);
   const acceptFriendRequest = async (userId) => {
     try {
-      const response = await fetch(`http://localhost:5500/acceptFriendRequest/${userId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/acceptFriendRequest/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -97,7 +97,7 @@ const UsersList = () => {
   };
   const declineFriendRequest = async (requestId) => {
     try {
-      const response = await fetch(`http://localhost:5500/declineFriendRequest/${requestId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/declineFriendRequest/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -128,7 +128,7 @@ const UsersList = () => {
     <div className="container mt-4">
       <div className="row">
         {/* Users List Section */}
-        <div className="col-md-8 m-auto">
+        <div className="col-md-12 m-auto">
           <h2 className="mb-3 m-auto text-center fs-5">Find Friends</h2>
           <ul className="row justify-content-center">
             {users.map((user, index) => {
@@ -136,16 +136,12 @@ const UsersList = () => {
               return (
                 <li
                 key={user._id}
-                className="col-lg-2 mx-3 justify-content-between align-items-center border-secondary mb-3 shadow-sm rounded"
-                style={{
-                  background:'ghostwhite',
-                  alignItems: 'center',
-                  gap: '15px',
-                }}
+                className="card col-lg-3 mx-2 justify-content-between align-items-center mb-3 shadow-sm"
+                
               >
                 {/* User Info Section */}
                 <div
-                  className="text-center"
+                  className="text-center card-body"
                   onClick={() => handleUserClick(user._id)}
                   style={{
                     cursor: 'pointer',
@@ -172,6 +168,9 @@ const UsersList = () => {
                     }}
                   >
                     {user.firstName + ' ' + user.lastName}
+                  </p>
+                  <p>
+                    {user.email}
                   </p>
                 </div>
               
