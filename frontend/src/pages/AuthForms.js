@@ -52,10 +52,10 @@ const AuthForms = () => {
       console.log('this is makingm ove')
       return;
     }
-
+  
     // Determine the endpoint based on the form type
-    const endpoint = isLoginForm ? `${process.env.API_URL}/login` : `${process.env.API_URL}/register`;
-
+    const endpoint = isLoginForm ? `${process.env.REACT_APP_API_URL}/login` : `${process.env.REACT_APP_API_URL}/register`;
+   console.log(process.env, 'ssenvurl')
     try {
      
       const response = await fetch(endpoint, {
