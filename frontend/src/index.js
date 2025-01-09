@@ -14,6 +14,7 @@ import { store } from './store/store';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { updateNotifications } from './store/notificationSlice';
 import { useSocket, SocketProvider } from './components/socketContext.js';
+import PostFeed from './pages/PostFeed.js';
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const { socket, userId } = useSocket();
@@ -53,6 +54,7 @@ const AppWrapper = () => {
           <Route path="/Users" element={<Users />} />
           <Route path="/ProfilePage/:userId" element={<ProfilePage />} />
           <Route path="/ProfilePage" element={<ProfilePage />} />
+          <Route path="/postFeeds" element={<PostFeed />} />
         </Routes>
       </BrowserRouter>
     </div>

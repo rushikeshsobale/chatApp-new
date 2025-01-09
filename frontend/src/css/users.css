@@ -98,7 +98,7 @@ body {
   
   img {
     border: 3px solid #dee2e6; /* Soft border for profile picture */
-    border-radius: 50%;
+    border-radius: 1%;
   }
   
   .card-text small {

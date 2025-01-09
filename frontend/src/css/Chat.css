@@ -250,3 +250,45 @@ li:hover {
 .message-input button {
   background-color: black !important;
 }
+
+/* Light Mode */
+body {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+/* Dark Mode */
+body.dark-mode {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+.chat-box {
+  background-color: #ffffff;
+}
+
+.chat-box.dark-mode {
+  background-color: #2c2c2c;
+  color: #e0e0e0;
+}
+
+.message {
+  background-color: #f1f1f1;
+}
+
+.message.dark-mode {
+  background-color: #444;
+  color: #fff;
+}
+
+/* Button to toggle dark mode */
+.toggle-dark-mode {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+}

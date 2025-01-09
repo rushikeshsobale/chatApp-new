@@ -18,12 +18,17 @@ const ChatComponent = () => {
   const [msgCounts, setMsgCounts] = useState({});
   const [profilePicture, setProfilePicture] = useState('')
   const chatHistory = useSelector(state => state.chat.chatHistory);
+  const token = localStorage.getItem('token');
   const dispatch = useDispatch();
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/getUser`, {
+      const response = await fetch(`http://localhost:5500/getUser`, {
         method: 'GET',
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
+          'Content-Type': 'application/json', // Optional: specify content type
+        },
       });
       if (response.ok) {
         const data = await response.json();
@@ -32,11 +37,11 @@ const ChatComponent = () => {
         setProfilePicture(data.profilePicture);
         setFriends(data.friends);
         setUserId(data._id)
-        dispatch(setUser(data));
+        dispatch(setUser({ userId: data._id , name: data.firstName}));
         if(!socket){
 
         
-        const socketConnection = io(`${process.env.REACT_APP_API_URL}`, { query: { id: data._id} });
+        const socketConnection = io(`http://localhost:5500`, { query: { id: data._id} });
         setSocket(socketConnection);  
         }  
       } else {
@@ -70,7 +75,7 @@ const ChatComponent = () => {
     const fetchMessages = async () => {
      
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/getMessages/${userId}`);
+        const response = await fetch(`http://localhost:5500/getMessages/${userId}`);
         if (response.ok) {
           const messages = await response.json();
           dispatch(setInitialMessages(messages));
@@ -106,7 +111,7 @@ const ChatComponent = () => {
   return (
     <div className="my-3"  >
       <div className="row flex-grow-1">
-        <div className={`${selectedFriend ? 'd-none' : 'col-12 col-md-6 col-lg-4 mx-auto'} p-4 chat-box shEffect mx-5`} style={{ height: '600px', zIndex: '1', background:'ghostwhite'}}>
+        <div className={`${ 'col-4 col-md-4 col-lg-4'} p-4 chat-box shEffect mx-5`} style={{ height: '600px', zIndex: '1', background:'ghostwhite'}}>
           <div className="mb-1 d-flex justify-content-center">
             <img
               src={profilePicture}

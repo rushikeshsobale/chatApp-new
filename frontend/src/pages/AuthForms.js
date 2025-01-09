@@ -15,12 +15,11 @@ const AuthForms = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(""); // Added for success message
   const [errorMessage, setErrorMessage] = useState(""); // Added for error message
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+ 
   const navigate = useNavigate();
     useEffect(() => {
       const token = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
-      if (token) {
-        setIsAuthenticated(true); 
+      if (token) { 
         navigate('/home')
       } 
     }, []); 
@@ -65,11 +64,11 @@ const AuthForms = () => {
     }
 
     // Determine the endpoint based on the form type
-    const endpoint = isLoginForm ? `${process.env.REACT_APP_API_URL}/login` : `${process.env.REACT_APP_API_URL}/register`;
-
+    const endpoint = isLoginForm ? `http://localhost:5500/login` : `http://localhost:5500/register`;
+  
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
+      const response = await fetch(endpoint, {    
+        method: 'POST',    
         headers: {
           'Content-Type': 'application/json'
         },
@@ -80,7 +79,7 @@ const AuthForms = () => {
         const tokenData = await response.json();
         const token = tokenData.token;
         document.cookie = `token=${token}; path=/; SameSite=Lax`;
-
+        localStorage.setItem('token', token);
         // Emit username to backend using Socket.io upon successful login
         if (!isLoginForm) {
           socket.emit('userRegistered', userData.username);

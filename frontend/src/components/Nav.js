@@ -13,13 +13,11 @@ const BottomNav = () => {
         <i className="bi bi-compass-fill"></i>
         <span>Discover</span>
       </Link>
-      <Link to="/add-post" className="nav-item center">
-        <i className="bi bi-plus-circle-fill"></i>
+      <Link to="/postFeeds" className="nav-item ">
+        <i className="bi bi-plus-circle-fill"> </i>
+        <span>Explore</span>
       </Link>
-      <Link to="/messages" className="nav-item">
-        <i className="bi bi-chat-dots-fill"></i>
-        <span>Messages</span>
-      </Link>
+      
       <Link to="/ProfilePage" className="nav-item">
         <i className="bi bi-person-circle"></i>
         <span>Profile</span>

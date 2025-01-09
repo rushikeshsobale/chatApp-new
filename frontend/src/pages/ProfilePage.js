@@ -5,6 +5,7 @@ import EditProfile from '../components/EditProfile';
 import CustomModal from '../components/customModal';
 import PostDetail from '../components/PostDetail';
 import { useParams, useLocation } from 'react-router-dom';
+import ChatComponent from './Chat';
 
 const ProfilePage = () => {
   const { userId } = useParams();
@@ -18,18 +19,24 @@ const ProfilePage = () => {
   const [media, setMedia] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState(null);
-
+  const [searchTerm, setSearchTerm] = useState('');
+  const token = localStorage.getItem('token');
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/getUser`, {
+      const response = await fetch(`http://localhost:5500/getUser`, {
         method: 'GET',
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
+          'Content-Type': 'application/json', // Optional: specify content type
+        },
       });
 
       if (response.ok) {
         const data = await response.json();
         setUserData(data);
         setFriends(data.friends);
+        console.log(data.friends, 'friend')
         setBio(data.bio || '');
       } else {
         console.error("Failed to fetch user data:", response.statusText);
@@ -40,9 +47,13 @@ const ProfilePage = () => {
   };
   const fetchUser2Data = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/getProfileUser/${userId}`, {
+      const response = await fetch(`http://localhost:5500/getProfileUser/${userId}`, {
         method: 'GET',
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
+          'Content-Type': 'application/json', // Optional: specify content type
+        },
       });
 
       if (response.ok) {
@@ -50,6 +61,7 @@ const ProfilePage = () => {
         setUserData(data);
         setFriends(data.friends);
         setBio(data.bio || '');
+
       } else {
         console.error("Failed to fetch user data:", response.statusText);
       }
@@ -71,9 +83,9 @@ const ProfilePage = () => {
     const fetchPosts = async () => {
       if (userData) {
         try {
-          const response = await fetch(`${process.env.REACT_APP_API_URL}/api/posts/${userData._id}`);
+          const response = await fetch(`http://localhost:5500/api/posts/${userData._id}`);
           if (response.ok) {
-            const data = await response.json();
+            const data = await response.json()
             setPosts(data.posts);
 
           } else {
@@ -85,7 +97,7 @@ const ProfilePage = () => {
       }
     };
     fetchPosts();
-  }, [userData]); // This effect runs only when userData is available or updated
+  }, [userData]);
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -104,7 +116,7 @@ const ProfilePage = () => {
     if (media) {
       formData.append('media', media);  // media should be a File object
     }
-    fetch(`${process.env.API_URL}/api/posts`, {
+    fetch(`http://localhost:5500/api/posts`, {
       method: 'POST',
       body: formData, // Use formData as the body
     })
@@ -133,7 +145,7 @@ const ProfilePage = () => {
       if (profileData.profilePicture) {
         formData.append('profilePicture', profileData.profilePicture);
       }
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/updateUser/${userId}`, {
+      const response = await fetch(`http://localhost:5500/api/updateUser/${userId}`, {
         method: 'PUT',
         body: formData,
       });
@@ -171,8 +183,12 @@ const ProfilePage = () => {
       console.log("No previous posts available.");
     }
   };
+  const filteredFriends = friends?.filter(friend =>
+    `${friend?.friendId.firstName} ${friend?.friendId.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    friend.friendId.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-
+ console.log(filteredFriends, 'filteredfriends')
   return (
     <div
       className="profile-page container-fluid px-md-4"
@@ -181,94 +197,101 @@ const ProfilePage = () => {
       {/* Header Section */}
       {userData ? (
         <div
-        className="profile-header text-center p-4 d-flex flex-column flex-md-row align-items-center justify-content-around"
-        style={{
-          backgroundImage: 'linear-gradient(135deg, rgb(255, 255, 255), rgb(110, 72, 157))',
-          borderRadius: '20px',
-          color: '#fff',
-          padding: window.innerWidth <= 576 ? '20px' : '40px', // Adjust padding for small screens
-        }}
-      >
-        <div
-          className="mb-3 mb-md-0"
+          className="profile-header text-center p-1 d-flex flex-column flex-md-row align-items-center justify-content-around"
           style={{
-            transform: window.innerWidth <= 576 ? 'scale(0.8)' : 'scale(1)', // Scale down the image on small screens
+            backgroundImage: 'linear-gradient(135deg, rgb(255, 255, 255), rgb(110, 72, 157))',
+            borderRadius: '20px',
+            color: '#fff',
+            padding: window.innerWidth <= 576 ? '20px' : '40px', // Adjust padding for small screens
           }}
         >
-          <img
-            src={userData.profilePicture || 'https://via.placeholder.com/150'}
-            alt="Profile"
-            className="rounded-circle shadow"
+          <div
+            className="mb-3 mb-md-0"
             style={{
-              width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust image size
-              height: window.innerWidth <= 576 ? '120px' : '150px',
-              border: '3px solid white',
-            }}
-          />
-        </div>
-      
-        <div
-          className="text-center text-md-start"
-          style={{
-            transform: window.innerWidth <= 576 ? 'scale(0.9)' : 'scale(1)', // Scale down the text content on small screens
-          }}
-        >
-          <h1
-            className="mt-3 text-center"
-            style={{
-              fontSize: window.innerWidth <= 576 ? '1.5rem' : '1.8rem', // Adjust font size
-              fontWeight: 'bold',
+              transform: window.innerWidth <= 576 ? 'scale(0.8)' : 'scale(1)', // Scale down the image on small screens
             }}
           >
-            {userData.firstName} {userData.lastName}
-          </h1>
-          <p
-            className="text-muted text-center"
+            <img
+              src={userData.profilePicture || 'https://via.placeholder.com/150'}
+              alt="Profile"
+              className="rounded-circle shadow"
+              style={{
+                width: window.innerWidth <= 576 ? '120px' : '130px', // Adjust image size
+                height: window.innerWidth <= 576 ? '120px' : '130px',
+                border: '3px solid white',
+              }}
+            />
+          </div>
+
+          <div
+            className="text-center text-md-start"
             style={{
-              fontSize: window.innerWidth <= 576 ? '0.9rem' : '1rem', // Adjust font size for bio
+              transform: window.innerWidth <= 576 ? 'scale(0.9)' : 'scale(1)', // Scale down the text content on small screens
             }}
           >
-            {userData.bio || 'This user has no bio yet.'}
-          </p>
-          <div className="mt-3 d-flex flex-column flex-sm-row justify-content-center gap-3">
-            <button
-              className="btn btn-light shadow-sm btn-sm m-auto"
+            <h1
+              className="mt-3 text-center"
               style={{
-                borderRadius: '30px',
-                width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
-              }}
-              onClick={() => setShowModal(true)}
-            >
-              <FaPlus /> Create Post
-            </button>
-            <button
-              className="btn btn-outline-light shadow-sm btn-sm m-auto"
-              style={{
-                borderRadius: '30px',
-                width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
+                fontSize: window.innerWidth <= 576 ? '1.5rem' : '1.8rem', // Adjust font size
+                fontWeight: 'bold',
               }}
             >
-              <FaUserEdit /> Edit Profile
-            </button>
+              {userData.firstName} {userData.lastName}
+            </h1>
+            <p
+              className="text-muted text-center"
+              style={{
+                fontSize: window.innerWidth <= 576 ? '0.9rem' : '1rem', // Adjust font size for bio
+              }}
+            >
+              {userData.bio || 'This user has no bio yet.'}
+            </p>
+            <div className="mt-3 d-flex flex-column flex-sm-row justify-content-center gap-3">
+              <button
+                className="btn btn-light shadow-sm btn-sm m-auto"
+                style={{
+                  borderRadius: '30px',
+                  width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
+                }}
+                onClick={() => setShowModal(true)}
+              >
+                <FaPlus /> Create Post
+              </button>
+              <button
+                className="btn btn-outline-light shadow-sm btn-sm m-auto"
+                style={{
+                  borderRadius: '30px',
+                  width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
+                }}
+              >
+                <FaUserEdit /> Edit Profile
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      
-      
+
+
       ) : (
         <p>Loading profile...</p>
       )}
+      {/* Post Details */}
+      {selectedPostId && (
+        <PostDetail
+          postId={selectedPostId}
+          onClose={() => setSelectedPostId(null)}
+        />
+      )}
 
       {/* Posts Section */}
-      <div className="posts-section mt-4 mb-5">
-        <div className="row justify-content-center gap-4 mx-1 mb-5">
+      <div className=" row posts-section mt-4 mb-5">
+        <div className="row mx-1 gap-4 justify-content-center  mb-5 col-lg-7">
           {posts.length > 0 ? (
             posts.map((post) => (
               <div
                 key={post._id}
-                className="shadow-lg p-3 mx-1 rounded mt-4"
+                className="shadow-lg p-3  rounded mt-4"
                 style={{
-                 
+                  height: '280px',
                   width: '320px',
                   cursor: 'pointer',
                   overflow: 'hidden',
@@ -281,8 +304,8 @@ const ProfilePage = () => {
                 onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
               >
                 {post.media && (
-                  <div 
-                  className='post-card p-3'
+                  <div
+                    className='post-card p-3'
                     style={{
                       height: '180px',
                       backgroundImage: `url(${post.media})`,
@@ -314,22 +337,59 @@ const ProfilePage = () => {
             </p>
           )}
         </div>
+        <div className='col-lg-4' >
+          <h5>Friends</h5>
+
+          {/* Search Bar */}
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Friend List */}
+          <ul className="list-group" style={{height:'400px', overflow:'auto'}}>
+            {filteredFriends.length > 0 ? (
+              filteredFriends.map((friend) => (
+                <li
+                  key={friend._id}
+                  className="list-group-item d-flex justify-content-between align-items-center"
+                >
+                  <div className="d-flex align-items-center">
+                    {/* Profile Picture */}
+                    <img
+                      src={friend?.friendId.profilePicture || 'https://via.placeholder.com/40'}
+                      alt={`${friend?.friendId.firstName} ${friend.lastName}`}
+                      className="rounded-circle me-2"
+                      style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                    />
+                    {/* Friend Details */}
+                    <div>
+                      <strong>{friend?.friendId.firstName} {friend.friendId.lastName}</strong>
+                      <br />
+                      <small className="text-muted">{friend.email}</small>
+                    </div>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <li className="list-group-item text-center">No friends found</li>
+            )}
+          </ul>
+        </div>
       </div>
 
 
       {/* Custom Modal */}
       {showModal && (
         <CustomModal
+          handleAddPost={handleAddPost}
           showModal={showModal}
           onClose={() => setShowModal(false)}
-        />
-      )}
-
-      {/* Post Details */}
-      {selectedPostId && (
-        <PostDetail
-          postId={selectedPostId}
-          onClose={() => setSelectedPostId(null)}
         />
       )}
     </div>
