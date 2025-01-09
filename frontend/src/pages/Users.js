@@ -5,7 +5,7 @@ import { FaUserPlus, FaUserCheck, FaUserFriends, FaBell, FaSearch } from 'react-
 import '../css/users.css';
 import { useSelector } from 'react-redux';
 import { useSocket } from '../components/socketContext';
-import DateTimePicker from '../components/DatePicker';
+
 import PostFeed from './PostFeed';
 const UsersList = () => {
   const senderId = useSelector(state => state.auth.userId.userId);
