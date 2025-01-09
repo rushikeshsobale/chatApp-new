@@ -26,7 +26,10 @@ const UsersList = () => {
     try {
       const response = await fetch(`https://api.makethechange.in/getUsers`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
+          'Content-Type': 'application/json', // Optional: specify content type
+        },
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Network response was not ok');
