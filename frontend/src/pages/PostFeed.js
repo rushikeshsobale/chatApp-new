@@ -74,10 +74,10 @@ const PostFeed = () => {
       )}
       
       {/* Grid Layout for Posts */}
-      <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 p-md-5">
         {posts?.map((post) => (
           <div key={post._id} className="col"  onClick={() => handlePostClick(post._id)}>
-            <div className="card shadow-lg rounded border-0 h-100">
+            <div className="card shadow-lg rounded border-0  mx-3 ">
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <div className="post-meta">
@@ -98,7 +98,7 @@ const PostFeed = () => {
                       Your browser does not support the video tag.
                     </video>
                   ) : (
-                    <img src={post.media} alt="Post media" className="img-fluid rounded" style={{ maxHeight: '300px', width: '100%', objectFit: 'cover' }} />
+                    <img src={post.media} alt="Post media" className="img-fluid rounded" style={{ height: '200px', width: '100%', objectFit: 'cover' }} />
                   )}
                 </div>
 
