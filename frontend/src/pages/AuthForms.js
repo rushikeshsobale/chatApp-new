@@ -64,7 +64,7 @@ const AuthForms = () => {
     }
 
     // Determine the endpoint based on the form type
-    const endpoint = isLoginForm ? `http://localhost:5500/login` : `http://localhost:5500/register`;
+    const endpoint = isLoginForm ? `https://api.makethechange.in/login` : `https://api.makethechange.in/register`;
   
     try {
       const response = await fetch(endpoint, {    

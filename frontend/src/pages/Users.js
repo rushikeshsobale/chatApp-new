@@ -24,7 +24,7 @@ const UsersList = () => {
   const token = localStorage.getItem('token');
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getUsers`, {
+      const response = await fetch(`https://api.makethechange.in/getUsers`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -44,7 +44,7 @@ const UsersList = () => {
 
   const addFriend = async (userId, index) => {
     try {
-      const call = await fetch(`http://localhost:5500/sendRequest/${userId}`, {
+      const call = await fetch(`https://api.makethechange.in/sendRequest/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -64,7 +64,7 @@ const UsersList = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getUser`, {
+      const response = await fetch(`https://api.makethechange.in/getUser`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -89,7 +89,7 @@ const UsersList = () => {
 
   const acceptFriendRequest = async (userId) => {
     try {
-      const response = await fetch(`http://localhost:5500/acceptFriendRequest/${userId}`, {
+      const response = await fetch(`https://api.makethechange.in/acceptFriendRequest/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -109,7 +109,7 @@ const UsersList = () => {
 
   const declineFriendRequest = async (requestId) => {
     try {
-      const response = await fetch(`http://localhost:5500/declineFriendRequest/${requestId}`, {
+      const response = await fetch(`https://api.makethechange.in/declineFriendRequest/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

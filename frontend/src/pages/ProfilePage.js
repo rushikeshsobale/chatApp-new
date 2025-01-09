@@ -23,7 +23,7 @@ const ProfilePage = () => {
   const token = localStorage.getItem('token');
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getUser`, {
+      const response = await fetch(`https://api.makethechange.in/getUser`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -47,7 +47,7 @@ const ProfilePage = () => {
   };
   const fetchUser2Data = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getProfileUser/${userId}`, {
+      const response = await fetch(`https://api.makethechange.in/getProfileUser/${userId}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -83,7 +83,7 @@ const ProfilePage = () => {
     const fetchPosts = async () => {
       if (userData) {
         try {
-          const response = await fetch(`http://localhost:5500/api/posts/${userData._id}`);
+          const response = await fetch(`https://api.makethechange.in/api/posts/${userData._id}`);
           if (response.ok) {
             const data = await response.json()
             setPosts(data.posts);
@@ -116,7 +116,7 @@ const ProfilePage = () => {
     if (media) {
       formData.append('media', media);  // media should be a File object
     }
-    fetch(`http://localhost:5500/api/posts`, {
+    fetch(`https://api.makethechange.in/api/posts`, {
       method: 'POST',
       body: formData, // Use formData as the body
     })
@@ -145,7 +145,7 @@ const ProfilePage = () => {
       if (profileData.profilePicture) {
         formData.append('profilePicture', profileData.profilePicture);
       }
-      const response = await fetch(`http://localhost:5500/api/updateUser/${userId}`, {
+      const response = await fetch(`https://api.makethechange.in/api/updateUser/${userId}`, {
         method: 'PUT',
         body: formData,
       });

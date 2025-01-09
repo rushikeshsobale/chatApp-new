@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
 import 'bootstrap/dist/css/bootstrap.min.css';
 import ChatUi from '../components/ChatUi';
 import { useDispatch, useSelector } from 'react-redux';
@@ -8,7 +7,6 @@ import { useSocket} from '../components/socketContext';
 import '../css/Chat.css';
 import { setUser } from '../store/action';
 import io from 'socket.io-client';
-
 const ChatComponent = () => {
   const {socket, setSocket, setUserId, userId} = useSocket();
   const [name, setName] = useState('');
@@ -22,7 +20,7 @@ const ChatComponent = () => {
   const dispatch = useDispatch();
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`http://localhost:5500/getUser`, {
+      const response = await fetch(`https://api.makethechange.in/getUser`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -41,7 +39,7 @@ const ChatComponent = () => {
         if(!socket){
 
         
-        const socketConnection = io(`http://localhost:5500`, { query: { id: data._id} });
+        const socketConnection = io(`https://api.makethechange.in/`, { query: { id: data._id} });
         setSocket(socketConnection);  
         }  
       } else {
@@ -75,7 +73,7 @@ const ChatComponent = () => {
     const fetchMessages = async () => {
      
       try {
-        const response = await fetch(`http://localhost:5500/getMessages/${userId}`);
+        const response = await fetch(`https://api.makethechange.in/getMessages/${userId}`);
         if (response.ok) {
           const messages = await response.json();
           dispatch(setInitialMessages(messages));

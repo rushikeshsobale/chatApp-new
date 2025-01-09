@@ -20,7 +20,7 @@ const PostDetail = ({ postId, onClose, handleNextPost, handlePrevPost }) => {
     const fetchPost = async () => {
       setLoading(true); // Start loading when fetching
       try {
-        const response = await fetch(`http://localhost:5500/api/getPost/${postId}`);
+        const response = await fetch(`https://api.makethechange.in/api/getPost/${postId}`);
         if (response.ok) {
           const data = await response.json();
           setPost(data.post);
@@ -43,7 +43,7 @@ const PostDetail = ({ postId, onClose, handleNextPost, handlePrevPost }) => {
   const handleAddComment = async () => {
     if (!newComment.trim()) return; // Prevent empty comments
     try {
-      const response = await fetch(`http://localhost:5500/api/posts/${postId}/comments`, {
+      const response = await fetch(`https://api.makethechange.in/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: newComment, userId }),
@@ -62,7 +62,7 @@ const PostDetail = ({ postId, onClose, handleNextPost, handlePrevPost }) => {
   const handleLike = async () => {
     if (hasLiked) return;
     try {
-      const response = await fetch(`http://localhost:5500/api/likePost/${postId}`, {
+      const response = await fetch(`https://api.makethechange.in/api/likePost/${postId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
