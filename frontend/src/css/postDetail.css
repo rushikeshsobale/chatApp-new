@@ -50,10 +50,7 @@
   flex: 1;
 }
 
-.d-flex {
-  display: flex;
-  gap: 20px;
-}
+
 
 .btn-secondary {
   background-color: #6c757d;

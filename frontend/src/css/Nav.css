@@ -1,58 +1,131 @@
-/* Bottom Navigation Container */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 70px;
-  background-color:black;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+.floating-nav {
+  position:fixed;
+  top: 10px;
+  color: white;
+  padding: 5px 10px;
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
+  background: rgba(189, 61, 150, 0.9);
+  border-radius: 10px;
   z-index: 1000;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, background 0.3s ease;
+  opacity: 1;
 }
 
-/* Nav Item */
+/* Floating hover effect */
+.floating-nav:hover {
+  background: rgba(198, 33, 148, 0.9);
+  transform: translatey(-10%) scale(1.05);
+}
+
+/* Mobile: Move to bottom with slide-up effect */
+@media (max-width: 768px) {
+  .floating-nav {
+    top: auto;
+    bottom: 0px;
+    /* transform: translate(-50%, 100%); Initially hidden below */
+    opacity: 1;
+    animation: slideUp 0.5s ease-in-out forwards;
+    justify-content: space-around !important;
+  }
+  .nav-logo {
+    display:none !important;
+  }
+  .span{
+    display:none;
+  }
+  
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0%);
+    opacity: 1;
+  }
+}
+
+.mainnav{
+  background: rgb(141 122 181);
+}
+/* Smooth hover effect for nav items */
 .nav-item {
+  color: rgb(255, 255, 255);
   text-decoration: none;
-  color: white;
-  font-size: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
   flex: 1;
-  transition: color 0.3s ease;
+  padding: 5px;
+  transition: color 0.2s ease-in-out, transform 0.2s ease-in-out, text-decoration 0.3s ease;
+  position: relative; /* Required for positioning the underline */
+}
+
+/* Icon styles */
+.nav-item i {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 5px;
 }
 
 .nav-item span {
   font-size: 12px;
-  margin-top: 5px;
 }
 
+/* Hover animation */
 .nav-item:hover {
-  color: #007bff;
-}
-
-/* Center Icon for Add Post */
-.nav-item.center {
-  background-color: #007bff;
-  color: #ffffff;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  position: relative;
-  top: -20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 28px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s ease, transform 0.3s ease;
-}
-
-.nav-item.center:hover {
-  background-color: #0056b3;
+  color: #000;
   transform: scale(1.1);
+}
+
+/* Active state animation */
+.nav-item:active {
+  transform: scale(0.95);
+}
+
+/* Add a bounce-in animation when the nav bar appears */
+@keyframes bounceIn {
+  0% {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.floating-nav {
+  animation: bounceIn 0.6s ease-out;
+}
+
+/* Underline effect for active nav item */
+.nav-item.active {
+  color: #000;
+}
+
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #000; /* Color of the underline */
+  transition: width 0.3s ease;
+}
+
+/* Add the underline transition when hovering and active */
+.nav-item:hover::after {
+  width: 100%; /* Underline full width on hover */
+}
+
+.nav-item:not(.active):hover::after {
+  width: 60%; /* Underline partial width when not active */
 }

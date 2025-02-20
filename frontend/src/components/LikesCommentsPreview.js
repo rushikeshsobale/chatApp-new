@@ -6,7 +6,7 @@ import { FaThumbsUp } from 'react-icons/fa';
 
 const LikesCommentsPreview = ({ handleLike ,type, users, hasLiked, comments }) => {
   const [isHovered, setIsHovered] = useState(false);
-
+  console.log(comments, 'comments')
   return (
     <div
       className="preview-container"

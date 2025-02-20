@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaUserPlus, FaUserCheck, FaUserFriends, FaBell, FaSearch } from 'react-icons/fa';
+import { FaUserPlus, FaUserCheck, FaUserFriends, FaBell, FaSearch, FaThList, FaTh } from 'react-icons/fa'; // Added grid/list icons
 import '../css/users.css';
 import { useSelector } from 'react-redux';
 import { useSocket } from '../components/socketContext';
 
 import PostFeed from './PostFeed';
+
 const UsersList = () => {
   const senderId = useSelector(state => state.auth.userId.userId);
   const senderName = useSelector(state => state.auth.userId.name);
   const notifications = useSelector(state => state.notifications.notifications); // Get notifications from Redux
-
+  const apiUrl = process.env.REACT_APP_API_URL;
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,9 +23,11 @@ const UsersList = () => {
   const navigate = useNavigate();
   const { socket } = useSocket();
   const token = localStorage.getItem('token');
+  const [viewMode, setViewMode] = useState("list"); // Toggle between "list" and "grid"
+
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`https://api.makethechange.in/getUsers`, {
+      const response = await fetch(`${apiUrl}/getUsers`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
@@ -47,7 +50,7 @@ const UsersList = () => {
 
   const addFriend = async (userId, index) => {
     try {
-      const call = await fetch(`https://api.makethechange.in/sendRequest/${userId}`, {
+      const call = await fetch(`${apiUrl}/sendRequest/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -67,7 +70,7 @@ const UsersList = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`https://api.makethechange.in/getUser`, {
+      const response = await fetch(`${apiUrl}/getUser`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -92,7 +95,7 @@ const UsersList = () => {
 
   const acceptFriendRequest = async (userId) => {
     try {
-      const response = await fetch(`https://api.makethechange.in/acceptFriendRequest/${userId}`, {
+      const response = await fetch(`${apiUrl}/acceptFriendRequest/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -112,7 +115,7 @@ const UsersList = () => {
 
   const declineFriendRequest = async (requestId) => {
     try {
-      const response = await fetch(`https://api.makethechange.in/declineFriendRequest/${requestId}`, {
+      const response = await fetch(`${apiUrl}/declineFriendRequest/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -152,186 +155,158 @@ const UsersList = () => {
   };
 
   return (
-    <div className="container mt-4">
-
-      <div className="row">
-       
-        {/* Search Bar */}
-        <div className="col-md-6 m-auto">
-          <div className="input-group mb-3">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search by name..."
-              value={searchTerm}
-              onChange={handleSearch}
-              style={{ borderRadius: '20px 0 0 20px' }}
-            />
-            <span className="input-group-text bg-primary text-white" style={{ borderRadius: '0 20px 20px 0' }}>
-              <FaSearch />
-            </span>
-          </div>
-        </div>
-      </div>
-
+    <div className=" text-light container">
       <div className="row">
         {/* Users List Section */}
         <div className="col-md-12 m-auto">
-          <h2 className="mb-3 m-auto text-center fs-5 text-primary">Find Friends</h2>
-          <ul className="row justify-content-center">
+          <div className="fixed bg-dark shadow py-3 px-2 d-flex align-items-center justify-content-between">
+          
+            {/* <h2 className="fs-5 text-primary mb-0 d-smaller-none">Find Friends</h2> */}
+
+            {/* Search Bar */}
+            <div className="input-group" style={{ maxWidth: "300px" }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={handleSearch}
+                style={{ borderRadius: "20px 0 0 20px" }}
+              />
+              <span
+                className="input-group-text bg-primary text-white"
+                style={{ borderRadius: "0 20px 20px 0" }}
+              >
+                <FaSearch />
+              </span>
+            </div>
+
+            {/* View Mode Toggle Buttons */}
+            <div className="btn-group">
+              <button
+                className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : "btn-outline-primary"}`}
+                onClick={() => setViewMode("list")}
+              >
+                <FaThList /> {/* List View Icon */}
+              </button>
+              <button
+                className={`btn btn-sm ${viewMode === "grid" ? "btn-primary" : "btn-outline-primary"}`}
+                onClick={() => setViewMode("grid")}
+              >
+                <FaTh /> {/* Grid View Icon */}
+              </button>
+            </div>
+          </div>
+
+          <ul className={`row justify-content-center p-0  mt-3 ${viewMode === "grid" ? "d-flex flex-wrap" : ""}` } style={{ listStyleType: 'none' }}>
             {filteredUsers.map((user, index) => {
               const status = getFriendStatus(user._id);
               return (
                 <li
                   key={user._id}
-                  className="card col-lg-3 mx-2 justify-content-between align-items-center mb-3 shadow-sm"
-                  style={{ backgroundColor: '#f9f9f9', border: '1px solid #e0e0e0' }}
+                  className={`col-lg-2 col-12 ${viewMode === "grid" ? "bg-dark card " : "col-lg-3 col-12 m-1"}`}
+                  style={{
+                    cursor: 'pointer',
+                    transition: 'transform 0.3s ease-in-out',
+                    backgroundColor: viewMode === "list" ? '#333' : '',
+                    padding: viewMode === "list" ? '1rem' : '',
+                    marginBottom: '1rem',
+                   
+                  }}
+                  onClick={() => handleUserClick(user._id)}
                 >
-                  <div
-                    className="text-center card-body"
-                    onClick={() => handleUserClick(user._id)}
-                    style={{ cursor: 'pointer' }}
-                  >                            
+                  <div className={`text-center ${viewMode === 'list' ? 'd-flex align-items-center ' : ''}`}>
                     <img
                       src={user.profilePicture || 'https://via.placeholder.com/90'}
                       alt={`${user.firstName}'s Profile`}
-                      className="mx-2"
+                      className=""
                       style={{
                         borderRadius: '50%',
                         border: '3px solid #007bff',
-                        width: '90px',
-                        height: '90px',
+                        width: viewMode === "list" ? '40px' : '90px', // Smaller in list view
+                        height: viewMode === "list" ? '40px' : '90px', // Smaller in list view
                         objectFit: 'cover',
                       }}
                     />
-                    <p
-                      style={{
-                        fontWeight: 'bold',
-                        fontSize: '1rem',
-                      }}
-                    >
+
+                    <p className='mx-3' style={{ fontWeight: 'bold', fontSize: '1rem', color: 'whitesmoke' }}>
                       {user.firstName + ' ' + user.lastName}
                     </p>
-                    <p>{user.email}</p>
-                  </div>
-
-                  {/* Action Buttons Section */}
-                  <div className="text-center">
-                    {status === 'friends' ? (
-                      <button
-                        className="btn btn-outline-secondary btn-sm rounded-pill text-dark"
-                        style={{ fontSize: '0.9rem', fontWeight: 'bold', cursor: 'not-allowed' }}
-                        disabled
-                      >
-                        <FaUserFriends /> Friends
-                      </button>
-                    ) : status === 'sent' ? (
-                      <button
-                        className="btn btn-outline-warning btn-sm rounded-pill w-100 text-dark"
-                        style={{ fontSize: '0.9rem', fontWeight: 'bold' }}
-                        disabled
-                      >
-                        <FaUserCheck /> Requested
-                      </button>
-                    ) : status === 'recieved' ? (
-                      <button
-                        className="btn btn-outline-success btn-sm rounded-pill w-100 text-dark"
-                        style={{ fontSize: '0.9rem', fontWeight: 'bold' }}
-                        onClick={() => acceptFriendRequest(user._id)}
-                      >
-                        <FaUserCheck /> Accept
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn-outline-primary btn-sm rounded-pill w-100 text-dark"
-                        style={{ fontSize: '0.9rem', fontWeight: 'bold' }}
-                        onClick={() => addFriend(user._id, index)}
-                      >
-                        <FaUserPlus /> Add Friend
-                      </button>
-                    )}
+                    {viewMode=='grid'&&
+                       <p className='text-white'>{user.email}</p>
+                    }
+                    <div className="text-center">
+                      {status === 'friends' ? (
+                        <button
+                          className="btn btn-outline-secondary btn-sm rounded-pill t"
+                          style={{ fontSize: '0.9rem', fontWeight: 'bold', cursor: 'not-allowed' }}
+                          disabled
+                        >
+                          <FaUserFriends /> Friends
+                        </button>
+                      ) : status === 'sent' ? (
+                        <button
+                          className="btn btn-outline-warning btn-sm rounded-pill w-100"
+                          style={{ fontSize: '0.9rem', fontWeight: 'bold' }}
+                          disabled
+                        >
+                          <FaUserCheck /> Requested
+                        </button>
+                      ) : status === 'recieved' ? (
+                        <button
+                          className="btn btn-outline-success btn-sm rounded-pill w-100"
+                          style={{ fontSize: '0.9rem', fontWeight: 'bold' }}
+                          onClick={() => acceptFriendRequest(user._id)}
+                        >
+                          <FaUserCheck /> Accept
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-outline-primary btn-sm rounded-pill w-100"
+                          style={{ fontSize: '0.9rem', fontWeight: 'bold' }}
+                          onClick={() => addFriend(user._id, index)}
+                        >
+                          <FaUserPlus /> Add Friend
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </li>
               );
             })}
           </ul>
-        </div>
 
-        {/* Notifications Section */}
-        <div className={showNotifications ? 'col-lg-4' : ''}>
-          <div className="d-flex justify-content-end">
+          {/* Notifications */}
+          <div className="position-relative">
             <button
-              className="btn btn-outline-warning position-relative"
+              type="button"
+              className="btn btn-primary position-relative"
               onClick={toggleNotifications}
             >
               <FaBell />
               {notifications.length > 0 && (
-                <span
-                  className="badge badge-danger position-absolute top-0 start-100 translate-middle"
-                  style={{ fontSize: '0.7rem', borderRadius: '50%' }}
-                >
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                   {notifications.length}
                 </span>
               )}
             </button>
+            {showNotifications && (
+              <div className="notifications-dropdown">
+                <ul className="list-group">
+                  {notifications.map((notification, index) => (
+                    <li key={index} className="list-group-item">
+                      {notification.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-
-
-{/* 
-          {showNotifications && (
-            <div className="mt-2 shadow-lg">
-              {notifications.map((notification, index) => (
-                <div
-                  key={index}
-                  className="d-flex justify-content-between align-items-center shadow border rounded p-4 mb-4"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: '12px',
-                    backgroundColor: '#e6f7ff',
-                    border: '1px solid #d9ecf2',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontWeight: 'bold',
-                      fontSize: '1.1rem',
-                      color: '#333',
-                    }}
-                  >
-                    {notification.message.text}
-                  </span>
-                  <div style={{ alignSelf: 'flex-end' }}>
-                    <button
-                      onClick={() => acceptFriendRequest(notification.senderId)}
-                      className="btn btn-sm btn-success me-2 rounded-pill"
-                      style={{
-                        padding: '6px 12px',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => declineFriendRequest(notification.senderId)}
-                      className="btn btn-sm btn-danger rounded-pill"
-                      style={{
-                        padding: '6px 12px',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )} */}
         </div>
       </div>
+
+      {/* Post Feed Component */}
+      <PostFeed />
     </div>
   );
 };

@@ -1,168 +1,177 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import ChatUi from '../components/ChatUi';
 import { useDispatch, useSelector } from 'react-redux';
 import { addMessage, setInitialMessages } from '../store/store';
-import { useSocket} from '../components/socketContext';
-import '../css/Chat.css';
+import { useSocket } from '../components/socketContext';
 import { setUser } from '../store/action';
 import io from 'socket.io-client';
+import '../css/Chat.css';
+import ChatUi from '../components/ChatUi';
+import FriendList from '../components/FriendList';
+import ProfileDisplay from '../components/ProfileDisplay';
+import { useNavigate } from 'react-router-dom';
 const ChatComponent = () => {
-  const {socket, setSocket, setUserId, userId} = useSocket();
-  const [name, setName] = useState('');
+  const { socket, setSocket, setUserId, userId } = useSocket();
+  const [userName, setUserName] = useState('');
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [msgCounts, setMsgCounts] = useState({});
-  const [profilePicture, setProfilePicture] = useState('')
-  const chatHistory = useSelector(state => state.chat.chatHistory);
+  const [profilePicture, setProfilePicture] = useState('');
+  const [isMobileView, setIsMobileView] = useState(false);
+  const navigate = useNavigate();
+  const chatHistory = useSelector((state) => state.chat.chatHistory);
   const token = localStorage.getItem('token');
   const dispatch = useDispatch();
-  const fetchUserData = async () => {
+  const apiUrl = process.env.REACT_APP_API_URL;
+
+  const fetchUserData = useCallback(async () => {
     try {
-      const response = await fetch(`https://api.makethechange.in/getUser`, {
+      const response = await fetch(`${apiUrl}/getUser`, {
         method: 'GET',
         credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
-          'Content-Type': 'application/json', // Optional: specify content type
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
+
       if (response.ok) {
         const data = await response.json();
         setUserId(data._id);
-        setName(data.firstName);
+        setUserName(data.firstName);
         setProfilePicture(data.profilePicture);
         setFriends(data.friends);
-        setUserId(data._id)
-        dispatch(setUser({ userId: data._id , name: data.firstName}));
-        if(!socket){
-
-        
-        const socketConnection = io(`https://api.makethechange.in/`, { query: { id: data._id} });
-        setSocket(socketConnection);  
-        }  
+        dispatch(setUser({ userId: data._id, name: data.firstName }));
+        if (!socket) {
+          const socketConnection = io(`${apiUrl}/`, { query: { id: data._id } });
+          setSocket(socketConnection);
+        }
       } else {
         console.error('Failed to fetch user data:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
-  };
+  }, [token, socket, setSocket, setUserId, dispatch]);
   useEffect(() => {
     fetchUserData();
-  }, []);
+  }, [fetchUserData]);
+ 
   useEffect(() => {
     if (socket && userId) {
-      socket.on('message', handleMessage);
+     
       socket.on('restatus', (data) => setActiveUsers(data));
       socket.emit('joinRoom', { userId });
-      socket.on('status', (data) => setActiveUsers(prevActiveUsers => [...prevActiveUsers, data]));
+      socket.on('status', (data) =>
+        setActiveUsers((prevActiveUsers) => [...prevActiveUsers, data])
+      );
       socket.on('userLeft', (activeMembers) => setActiveUsers(activeMembers));
+
       return () => {
-        socket.off('message', handleMessage);
+       
         socket.off('status');
-        // socket.disconnect();
+        socket.off('userLeft');
       };
     }
   }, [socket, userId]);
-  const handleFriendSelect = (member) => {
-    setSelectedFriend(member);
-  };
-  useEffect(() => {
-    const fetchMessages = async () => {
-     
-      try {
-        const response = await fetch(`https://api.makethechange.in/getMessages/${userId}`);
-        if (response.ok) {
-          const messages = await response.json();
-          dispatch(setInitialMessages(messages));
-        } else {
-          throw new Error('Failed to fetch messages');
-        }
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-      }
-    };
-    if (userId) fetchMessages();
-  }, [userId, dispatch]);
-  const handleMessage = (message) => {
-    const audio = new Audio('/mixkit-bell-notification-933.wav');
-    audio.play();
-    setMsgCounts(prevCounts => ({
-      ...prevCounts,
-      [message.senderId]: (prevCounts[message.senderId] || 0) + 1,
-    }));
-    if (message.senderId) {
-      dispatch(addMessage({
-        neededId: message.senderId,
-        message: {
-          ...message,
-          sentByCurrentUser: message.sender === name,
-        },
-      }));
-      socket.emit('recievedMsg', { id: message.senderId });
-    } else {
-      console.error('Message does not have senderId:', message);
-    }
-  };
-  return (
-    <div className="my-3"  >
-      <div className="row flex-grow-1">
-        <div className={`${ 'col-4 col-md-4 col-lg-4'} p-4 chat-box shEffect mx-5`} style={{ height: '600px', zIndex: '1', background:'ghostwhite'}}>
-          <div className="mb-1 d-flex justify-content-center">
-            <img
-              src={profilePicture}
-              alt={`${name}'s Profile`}
-              className="profile-image mx-3"
-              style={{ borderRadius: '50%', border: '2px solid #fff' }}
-            />
-            <h5 className="mx-2 my-auto">{name}</h5>
-          </div>
-          <ul style={{overflow:"auto", height:"400px", scrollbarWidth:'none'}}>
-            {friends?.filter(member => member?.isFriend === 'friends')
-              .map((member, index) => (
-                <li
-                  className={`d-flex justify-content-between align-items-center px-2 py-0 m-3 border rounded bg-white ${selectedFriend === member ? 'active' : ''}`}
-                  key={index}
-                  onClick={() => handleFriendSelect(member)}
-                  style={{ borderBottom: '1px solid #eaeaea', cursor: 'pointer' }}
-                >
 
-                  <div className="d-flex align-items-center">
-                    <img
-                      src={member?.friendId?.profilePicture||'https://as1.ftcdn.net/v2/jpg/06/33/54/78/1000_F_633547842_AugYzexTpMJ9z1YcpTKUBoqBF0CUCk10.jpg'}
-                      alt={`${member?.friendId?.firstName}'s Profile`}
-                      className="mx-2"
-                      style={{ borderRadius: '50%', border: '2px solid #fff', width: '50px', height: '50px' }}
-                    />
-                    <div className="d-flex align-items-center">
-                      {activeUsers.some(user => user.userId === member?.friendId?._id) && (
-                        <span className="active-status mx-1" style={{ color: 'green' }}>&#8226;</span>
-                      )}
-                      <span className="mx-1 text-dark">{member?.friendId?.firstName + " " + member?.friendId?.lastName }</span>
-                    </div>
-                  </div>
-                  <span className="message-count badge bg-primary mx-2">
-                    {msgCounts[member?.friendId?._id] || ''}
-                  </span>
-                </li>
-              ))}
-          </ul>
-        </div>
-        {selectedFriend && (
-          <div className="col-md-7 d-flex flex-column shEffect chat-box m-auto" style={{ zIndex: 1, background:'ghostwhite' }}>
-            <ChatUi
-              member={selectedFriend}
-              setSelectedFriend={setSelectedFriend}
-              userId={userId}
-              name={name}
-              socket={socket}
-              History={chatHistory}
-              setMsgCounts={setMsgCounts}
-            />
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+
+  const handleFriendSelect = (friend) => {
+    setSelectedFriend(friend);
+  };
+
+  const handleBackToFriendList = () => {
+    setSelectedFriend(null);
+  };
+
+  return (
+    <div className=" m-auto" >
+      <div className="">
+        <div className='d-flex px-2'>
+          <button className="btn text-light border-0 me-2" onClick={() => navigate(-1)}>
+            <i className="bi bi-arrow-left fs-5"></i>
+          </button>
+          <div>
+            <h1 className='text-center text-white pt-2 mx-3 '>Chats</h1>
           </div>
-        )}
+        </div>
+
+        <div className={`p-1 chat-ui-container container justify-content-center d-flex shadow-sm ${isMobileView ? 'd-block flex-column' : ''}`}>
+
+          {!isMobileView || !selectedFriend ? (
+            <div className={`friend-list-container border border-light rounded  col-lg-4  ${isMobileView ? 'col-12' : ''}`}>
+              <FriendList
+                friends={friends}
+                activeUsers={activeUsers}
+                msgCounts={msgCounts}
+                selectedFriend={selectedFriend}
+                handleFriendSelect={handleFriendSelect}
+                handleBackToFriendList={handleBackToFriendList}
+              />
+            </div>
+          ) : null}
+          {selectedFriend ? (
+            <div className={`${isMobileView ? 'col-12' : 'col-lg-8'}`}>
+              <ChatUi
+                member={selectedFriend}
+                setSelectedFriend={setSelectedFriend}
+                userId={userId}
+                userName={userName}
+                socket={socket}
+                history={chatHistory}
+                setMsgCounts={setMsgCounts}
+                onBack={isMobileView ? handleBackToFriendList : null}
+              />
+            </div>
+          ) : (
+            <div className={` d-none flex-column justify-content-center p-5 col-lg-8`} style={{ background: 'aliceblue' }}>
+              {/* Illustration */}
+              <img
+                src="https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"
+                alt="No friend selected"
+                className="img-fluid mb-3"
+                style={{ maxWidth: "200px" }}
+              />
+
+              {/* Message */}
+              <p className="text-muted text-center">
+                No friend selected. Choose a friend from the list or invite someone to chat!
+              </p>
+
+              {/* Invite Button */}
+              <button
+                className="btn btn-primary mt-3"
+                onClick={() => alert("Invite feature coming soon!")}
+              >
+                Invite a Friend
+              </button>
+
+              {/* Or Search for Friends */}
+              <div className="mt-4" style={{ width: "100%", maxWidth: "300px" }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search for friends..."
+                />
+              </div>
+            </div>
+
+          )}
+
+        </div>
+
       </div>
     </div>
   );

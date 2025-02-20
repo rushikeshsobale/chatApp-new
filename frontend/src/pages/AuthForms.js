@@ -15,6 +15,7 @@ const AuthForms = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(""); // Added for success message
   const [errorMessage, setErrorMessage] = useState(""); // Added for error message
+  const apiUrl = process.env.REACT_APP_API_URL;
  
   const navigate = useNavigate();
     useEffect(() => {
@@ -42,7 +43,6 @@ const AuthForms = () => {
     }
     return errors;
   };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -56,16 +56,13 @@ const AuthForms = () => {
       confPassword: formData.get('confPassword') 
     };
     const errors = validateForm(userData);
-
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       setIsSubmitting(false);
       return;
     }
-
     // Determine the endpoint based on the form type
-    const endpoint = isLoginForm ? `https://api.makethechange.in/login` : `https://api.makethechange.in/register`;
-  
+    const endpoint = isLoginForm ? `${apiUrl}/login` : `${apiUrl}/register`;
     try {
       const response = await fetch(endpoint, {    
         method: 'POST',    
@@ -74,7 +71,6 @@ const AuthForms = () => {
         },
         body: JSON.stringify(userData)
       });
-
       if (response.ok) {
         const tokenData = await response.json();
         const token = tokenData.token;
@@ -85,7 +81,6 @@ const AuthForms = () => {
           socket.emit('userRegistered', userData.username);
           setIsLoginForm(!isLoginForm);
         } else {
-         
           setSuccessMessage("Login successful! Redirecting to profile...");
           setTimeout(() => {
 

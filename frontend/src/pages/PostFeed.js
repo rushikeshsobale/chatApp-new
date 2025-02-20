@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import PostDetail from '../components/PostDetail';
+import '../css/postFeed.css';
+import moment from "moment";
 const PostFeed = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const loaderRef = useRef(null);
   const [showModal, setShowModal] = useState(false);
-   const [selectedPostId, setSelectedPostId] = useState(null);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const navigate = useNavigate();
+  const apiUrl = process.env.REACT_APP_API_URL;
   useEffect(() => {
     fetchPosts(page);
   }, [page]);
@@ -15,7 +20,7 @@ const PostFeed = () => {
   const fetchPosts = async (pageNumber) => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5500/api/getPosts?page=${pageNumber}&limit=10`);
+      const response = await fetch(`${apiUrl}/api/getPosts?page=${pageNumber}&limit=10`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -58,66 +63,152 @@ const PostFeed = () => {
   }, []);
 
   const handlePostClick = (postId) => {
-    setSelectedPostId(postId);
+    navigate(`/postDetails/${postId}`);
+  };
+
+  const handleUserClick = (id) => {
+    navigate(`/ProfilePage/${id}`);
   };
 
   return (
-    <div className=" mt-1">
-      <h2 className="text-center mb-4">Explore </h2>
+    <div className=" p-0 col-lg:p-5   container" style={{ overflow: 'scroll', height: '100vh' }}>
+      <div className="d-flex  align-items-center justify-content-between border-bottom ">
+        {/* Back Button */}
+        <button className="btn btn-dark border-0" onClick={() => navigate(-1)}>
+          <i className="bi bi-arrow-left fs-5"></i>
+        </button>
+
+        {/* Title */}
+        <h1 className="flex-grow-1 text-white text-center m-0">Posts</h1>
+
+        {/* Spacer to balance alignment */}
+        <div style={{ width: "40px" }}></div>
+      </div>
+
       {selectedPostId && (
         <div className='p-fixed'>
-        <PostDetail
-          postId={selectedPostId}
-          onClose={() => setSelectedPostId(null)}
-        />
+          <PostDetail
+            postId={selectedPostId}
+            onClose={() => setSelectedPostId(null)}
+          />
         </div>
       )}
-      
+
+
       {/* Grid Layout for Posts */}
-      <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 p-md-5">
+      <div className="">
         {posts?.map((post) => (
-          <div key={post._id} className="col"  onClick={() => handlePostClick(post._id)}>
-            <div className="card shadow-lg rounded border-0  mx-3 ">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="post-meta">
-                    <h5 className="card-title text-primary">{post.title}</h5>
-                    <small className="text-muted">{new Date(post.createdAt).toLocaleString()}</small>
-                  </div>
+          <div className="col-md-12 m-auto">
+            <div className=" bg-none text-white shadow-sm mb-1" onClick={() => handlePostClick(post._id)}>
+              {/* Post Header */}
+              <div className="card-header bg-none d-flex align-items-center justify-content-between p-1 border-bottom">
+                <div className="d-flex align-items-center">
+                  <img
+                    src="https://via.placeholder.com/40"
+                    alt="User"
+                    className="rounded-circle me-2"
+                    style={{ width: "40px", height: "40px" }}
+                  />
                   <div>
-                    <span className="badge bg-success">{post.likes.length} Likes</span>
-                    <span className="badge bg-info ms-2">{post.comments.length} Comments</span>
+                    <h6 className="mb-0 fw-bold text-white" onClick={() => handleUserClick(post.userId._id)}
+                    >{post.userId.firstName}</h6>
+                    <small className="text-white">
+                      {moment(post?.createdAt).fromNow()}
+                    </small>
                   </div>
                 </div>
+                <button className="btn btn-light border-0">
+                  <i className="bi bi-three-dots"></i>
+                </button>
+              </div>
 
-                {/* Media: Image or Video */}
-                <div className="media-container mb-3">
-                  {post.media && post.media.endsWith('.mp4') ? (
-                    <video controls className="img-fluid rounded" style={{ maxHeight: '300px', width: '100%', objectFit: 'cover' }}>
-                      <source src={post.media} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : (
-                    <img src={post.media} alt="Post media" className="img-fluid rounded" style={{ height: '200px', width: '100%', objectFit: 'cover' }} />
-                  )}
+              {/* Post Image */}
+              <div className="post-image">
+                <div
+                  className="card-img-top"
+                  style={{
+                    height: "70vh",
+                    backgroundImage: `url(${post.media})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                ></div>
+              </div>
+
+              {/* Post Actions */}
+              <div className="card-body">
+                <div className="d-flex justify-content-between">
+                  <div>
+                    {/* Like Button */}
+                    <button className="btn p-0 me-2 text-light">
+                      <i className="bi bi-heart fs-5"></i>
+                    </button>
+                    {/* Comment Button */}
+                    <button className="btn p-0 me-2 text-light">
+                      <i className="bi bi-chat fs-5"></i>
+                    </button>
+                    {/* Share Button */}
+                    <button className="btn p-0 text-light">
+                      <i className="bi bi-send fs-5"></i>
+                    </button>
+                  </div>
+                  <button className="btn p-0 text-light">
+                    <i className="bi bi-bookmark fs-5"></i>
+                  </button>
                 </div>
 
-                <p className="card-text">{post.text}</p>
+                {/* Post Likes & Caption */}
+                {/* {post.likes?.map(() => (
+                                
+                              ))} */}
+                {/* Post Likes & Caption */}
+                <p className="mt-2 mb-1 fw-bold">
+                  {post.likes?.length > 0 ? `${post.likes.length.toLocaleString()} likes` : "Be the first to like this"}
+                </p>
+                <p className="mb-1">
+                  {post.text}
+                </p>
 
-                <div className="d-flex justify-content-between">
-                  <button className="btn btn-outline-danger btn-sm d-flex align-items-center">
-                    <i className="bi bi-heart-fill me-1"></i> Like
-                  </button>
-                  <button className="btn btn-outline-secondary btn-sm d-flex align-items-center">
-                    <i className="bi bi-chat-left-dots-fill me-1"></i> Comment
-                  </button>
+                <p className="text-white small m-0">
+                  View all {post.comments?.length} comments
+                </p>
+                <div className="d-flex ">
+                  {/* <div className="likes">
+                                    <LikesCommentsPreview
+                                      // handleLike={handleLike}
+                                      type="likes"
+                                      users={post.likes.map(like => like.userId)}
+                                    // hasLiked={hasLiked}
+                                    />
+                                  </div>
+                                  <div className="comments">
+                                    <LikesCommentsPreview
+                                      type="comments"
+                                      users={post.comments.map(comment => comment.userId)}
+                                      comments={post.comments}
+                                    />
+                                  </div> */}
                 </div>
               </div>
+
+              {/* Post Comment Box */}
+              {/* <div className="card-footer  border-0">
+                                <div className="d-flex align-items-center">
+                                  <input
+                                    type="text"
+                                    className="form-control border-0 bg-dark text-white"
+                                    placeholder="Add a comment..."
+                                  />
+                                  <button className="btn btn-sm text-primary fw-bold">Post</button>
+                                </div>
+                              </div> */}
             </div>
           </div>
+
         ))}
       </div>
-     
+
+
       {/* Loader */}
       {loading && (
         <div className="text-center mt-4" ref={loaderRef}>

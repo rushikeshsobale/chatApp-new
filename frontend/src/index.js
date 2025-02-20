@@ -15,6 +15,7 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import { updateNotifications } from './store/notificationSlice';
 import { useSocket, SocketProvider } from './components/socketContext.js';
 import PostFeed from './pages/PostFeed.js';
+import PostDetail from './components/PostDetail.js';
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const { socket, userId } = useSocket();
@@ -44,18 +45,23 @@ const AppWrapper = () => {
   }, [socket]);
 
   return (
-    <div className="">
+    <div className="" style={{background:'black'}}>
+      <div className='hello'>
+
+      </div>
       <BrowserRouter>
         {/* Conditionally render Navbar only when isAuthenticated and isLoggedIn are true */}
         { isAuthenticated && <Navbar />}
         <Routes>
           <Route path="/" element={<AuthForms />} />
-          <Route path="/home" element={<ChatComponent />} />
-          <Route path="/Users" element={<Users />} />
+          <Route path="/home" element={<PostFeed />} />
+          <Route path="/chats" element={<ChatComponent />} />
           <Route path="/ProfilePage/:userId" element={<ProfilePage />} />
           <Route path="/ProfilePage" element={<ProfilePage />} />
           <Route path="/postFeeds" element={<PostFeed />} />
+          <Route path="/postDetails/:postId" element={<PostDetail/>} />
         </Routes>
+        
       </BrowserRouter>
     </div>
   );

@@ -1,150 +1,180 @@
-import React, { useState, useEffect } from 'react';
-import { FaThumbsUp, FaRegThumbsUp } from 'react-icons/fa'; // Like icons from react-icons
-import '../css/postDetail.css';
-import LikesCommentsPreview from './LikesCommentsPreview';
-import { useSelector } from 'react-redux';
-import { Spinner } from 'react-bootstrap'; // For loading spinner
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Spinner, Card, ListGroup, Image, Button, Form, Alert } from 'react-bootstrap';
+import moment from 'moment';
 
-const PostDetail = ({ postId, onClose, handleNextPost, handlePrevPost }) => {
+const PostDetail = () => {
+  const { postId } = useParams();
   const [post, setPost] = useState(null);
-  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState('');
   const [likes, setLikes] = useState([]);
-  const [hasLiked, setHasLiked] = useState(false);
-  const userId = useSelector(state => state.auth.userId.userId);
-  const [flag, setFlag] = useState(false);
-  const [loading, setLoading] = useState(true); // For loading state
-  const [darkMode, setDarkMode] = useState(false); // For dark mode toggle
+  const [comments, setComments] = useState([]);
+  const navigate = useNavigate();
+  const apiUrl = process.env.REACT_APP_API_URL;
 
   useEffect(() => {
-    const fetchPost = async () => {
-      setLoading(true); // Start loading when fetching
+    const fetchPostDetails = async () => {
       try {
-        const response = await fetch(`https://api.makethechange.in/api/getPost/${postId}`);
-        if (response.ok) {
-          const data = await response.json();
+        const response = await fetch(`${apiUrl}/getPost/${postId}`);
+        const data = await response.json();
+
+        if (data.success) {
           setPost(data.post);
-          setComments(data.post.comments || []);
           setLikes(data.post.likes || []);
-          const userHasLiked = data.post.likes.some((like) => like.userId._id === userId);
-          setHasLiked(userHasLiked);
+          setComments(data.post.comments || []);
         } else {
-          console.error('Failed to fetch post:', response.statusText);
+          throw new Error('Post not found');
         }
       } catch (error) {
-        console.error('Error fetching post:', error);
+        setError(error.message);
       } finally {
-        setLoading(false); // Stop loading once data is fetched
+        setLoading(false);
       }
     };
-    fetchPost();
-  }, [postId, flag]);
 
-  const handleAddComment = async () => {
-    if (!newComment.trim()) return; // Prevent empty comments
-    try {
-      const response = await fetch(`https://api.makethechange.in/api/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: newComment, userId }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setComments((prev) => [...prev, data.comment]);
-        setNewComment('');
-        setFlag(!flag);
-      }
-    } catch (error) {
-      console.error('Error adding comment:', error);
-    }
+    fetchPostDetails();
+  }, [postId]);
+
+  const handleLike = () => {
+    const newLikes = [...likes, { userId: { firstName: 'You', lastName: '', profilePicture: null } }];
+    setLikes(newLikes);
   };
 
-  const handleLike = async () => {
-    if (hasLiked) return;
-    try {
-      const response = await fetch(`https://api.makethechange.in/api/likePost/${postId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setLikes(data.likes);
-        setHasLiked(true);
-        setFlag(!flag);
-      }
-    } catch (error) {
-      console.error('Error liking post:', error);
-    }
-  };
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
 
-  const toggleDarkMode = () => setDarkMode(!darkMode); // Toggle dark mode
+    const newCommentData = {
+      userId: { firstName: 'You', lastName: '', profilePicture: null },
+      text: newComment,
+      createdAt: new Date().toISOString(),
+    };
+
+    setComments([...comments, newCommentData]);
+    setNewComment('');
+  };
 
   if (loading) {
-    return (
-      <div className="spinner-container">
-        <Spinner animation="border" variant="primary" />
-      </div>
-    );
+    return <Spinner animation="border" variant="light" className="d-block mx-auto mt-5" />;
   }
 
-  if (!post) return <p>Post not found.</p>;
+  if (error) {
+    return <Alert variant="danger" className="mt-4 text-center">{error}</Alert>;
+  }
 
   return (
-    <>
-      <div className={`overlay ${darkMode ? 'dark-mode' : ''}`} onClick={onClose}></div> {/* Overlay for blur */}
-      <div className={`post-detail-container col-lg-6 m-auto${darkMode ? 'dark-mode' : ''}`} >
-        <div className="post-detail">
-          <button style={{ fontSize: '12px' }} onClick={onClose} className="btn btn-secondary">X</button>
-
-          {post.media && /\.(mp4|webm|ogg)$/i.test(post.media) ? (
-            <video src={post.media} controls className="img-fluid post-video" />
-          ) : (
-            <img src={post.media} alt="Post Media" className=" post-image" />
-          )}
-
-          <h3 className="post-text">{post.text}</h3>
-          
-          <div className="d-flex mb-3">
-            <div className="likes">
-              <LikesCommentsPreview
-                handleLike={handleLike}
-                type="likes"
-                users={post.likes.map(like => like.userId)}
-                hasLiked={hasLiked}
+    <div className="w:lg-50 d-flex justify-content-center mt-4" style={{ height: '90vh', overflow: 'scroll', scrollbarWidth: 'none' }}>
+      <div className="w-100">
+        <div className=" bg-none text-white shadow-sm mb-1">
+          {/* Post Header */}
+          <div className="card-header bg-none d-flex align-items-center justify-content-between p-1 border-bottom">
+            <button className="btn btn-light border-0 me-2" onClick={() => navigate(-1)}>
+              <i className="bi bi-arrow-left fs-5"></i>
+            </button>
+            <div className="d-flex align-items-center">
+              <img
+                src="https://via.placeholder.com/40"
+                alt="User"
+                className="rounded-circle me-2"
+                style={{ width: "40px", height: "40px" }}
               />
+              <div>
+                <h6 className="mb-0 fw-bold text-white">{post?.userId.firstName}</h6>
+                <small className="text-white">
+                  {moment(post?.createdAt).fromNow()}
+                </small>
+              </div>
             </div>
-            <div className="comments">
-              <LikesCommentsPreview
-                type="comments"
-                users={post.comments.map(comment => comment.userId)}
-                comments={comments}
-              />
+            <button className="btn btn-light border-0">
+              <i className="bi bi-three-dots"></i>
+            </button>
+          </div>
+
+          {/* Post Image */}
+          <div className="post-imag">
+            <div
+              className="card-img-top"
+              style={{
+                height: "400px",
+                backgroundImage: `url(${post.media})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            ></div>
+          </div>
+
+          {/* Post Actions */}
+          <div className="card-body">
+            <div className="d-flex justify-content-between">
+              <div>
+                {/* Like Button */}
+                <button className="btn p-0 me-2 text-light">
+                  <i className="bi bi-heart fs-5"></i>
+                </button>
+                {/* Comment Button */}
+                <button className="btn p-0 me-2 text-light">
+                  <i className="bi bi-chat fs-5"></i>
+                </button>
+                {/* Share Button */}
+                <button className="btn p-0 text-light">
+                  <i className="bi bi-send fs-5"></i>
+                </button>
+              </div>
+              <button className="btn p-0 text-light">
+                <i className="bi bi-bookmark fs-5"></i>
+              </button>
+            </div>
+
+            {/* Post Likes & Caption */}
+            {/* {post.likes?.map(() => (
+                         
+                       ))} */}
+            {/* Post Likes & Caption */}
+            <p className="mt-2 mb-1 fw-bold">
+              {post.likes?.length > 0 ? `${post.likes.length.toLocaleString()} likes` : "Be the first to like this"}
+            </p>
+            <p className="mb-1">
+              {post.text}
+            </p>
+
+            <p className="text-white small m-0">
+              View all {post.comments?.length} comments
+            </p>
+            <div className="d-flex ">
+              {/* <div className="likes">
+                             <LikesCommentsPreview
+                               // handleLike={handleLike}
+                               type="likes"
+                               users={post.likes.map(like => like.userId)}
+                             // hasLiked={hasLiked}
+                             />
+                           </div>
+                           <div className="comments">
+                             <LikesCommentsPreview
+                               type="comments"
+                               users={post.comments.map(comment => comment.userId)}
+                               comments={post.comments}
+                             />
+                           </div> */}
             </div>
           </div>
 
-          <div className="comment-section">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Write a comment..."
-              className="comment-input"
-            />
-            <button onClick={handleAddComment} className="btn btn-primary mt-2">Add Comment</button>
-          </div>
-
-          <div className="d-flex justify-content-between mt-3">
-            <button onClick={handlePrevPost} className="btn btn-secondary">Previous</button>
-            <button onClick={handleNextPost} className="btn btn-secondary">Next</button>
-          </div>
-          
-          {/* Dark mode toggle button */}
-          <button className="btn btn-light mt-3" onClick={toggleDarkMode}>
-            {darkMode ? 'Light Mode' : 'Dark Mode'}
-          </button>
+          {/* Post Comment Box */}
+          {/* <div className="card-footer  border-0">
+                         <div className="d-flex align-items-center">
+                           <input
+                             type="text"
+                             className="form-control border-0 bg-dark text-white"
+                             placeholder="Add a comment..."
+                           />
+                           <button className="btn btn-sm text-primary fw-bold">Post</button>
+                         </div>
+                       </div> */}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

@@ -3,6 +3,7 @@ body {
   font-family: Arial, sans-serif;
   position: relative;
   background: red;
+  overflow:hidden;
 }
 .overlay {
   /* Cover the entire viewport */
@@ -53,5 +54,17 @@ code {
   cursor: pointer;
   font-size: 1.5rem;
   color: white;
+}
+
+.hello {
+  height: 100px;
+   /* Just for visibility */
+}
+
+/* Hide when screen size is small (e.g., below 768px) */
+@media (max-width: 768px) {
+  .hello {
+    display: none;
+  }
 }
 

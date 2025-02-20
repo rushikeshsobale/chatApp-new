@@ -1,34 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaUserEdit, FaUserFriends, FaPlus } from 'react-icons/fa';
+import { FaUserEdit, FaUserFriends, FaPlus, FaSearch } from 'react-icons/fa';
 import EditProfile from '../components/EditProfile';
 import CustomModal from '../components/customModal';
 import PostDetail from '../components/PostDetail';
 import { useParams, useLocation } from 'react-router-dom';
 import ChatComponent from './Chat';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination, Navigation } from 'swiper/modules';
+import { IoGridSharp } from "react-icons/io5";
+import { PiSlideshowFill } from "react-icons/pi";
+import { GiSouthAfricaFlag } from "react-icons/gi";
+import { motion } from "framer-motion";
+import LikesCommentsPreview from '../components/LikesCommentsPreview';
+import "bootstrap-icons/font/bootstrap-icons.css";
+import { useNavigate } from 'react-router-dom';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import 'swiper/css/navigation';
+import moment from "moment";
+
+
 
 const ProfilePage = () => {
+  const [newPost, setNewPost] = useState('');
+  const [media, setMedia] = useState(null);
   const { userId } = useParams();
   const location = useLocation();
   const [userData, setUserData] = useState(null);
   const [friends, setFriends] = useState([]);
-  const [user2, setUser2] = useState()
-  const [bio, setBio] = useState('');
-  const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState([]);
-  const [media, setMedia] = useState(null);
-  const [showModal, setShowModal] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const token = localStorage.getItem('token');
+  const [activeTab, setActiveTab] = useState("grid");
+  const apiUrl = process.env.REACT_APP_API_URL;
+  const navigate = useNavigate()
+  // Fetch User Data
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`https://api.makethechange.in/getUser`, {
+      const response = await fetch(`${apiUrl}/getUser`, {
         method: 'GET',
         credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
-          'Content-Type': 'application/json', // Optional: specify content type
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -36,8 +53,6 @@ const ProfilePage = () => {
         const data = await response.json();
         setUserData(data);
         setFriends(data.friends);
-        console.log(data.friends, 'friend')
-        setBio(data.bio || '');
       } else {
         console.error("Failed to fetch user data:", response.statusText);
       }
@@ -45,14 +60,16 @@ const ProfilePage = () => {
       console.error('Error:', error);
     }
   };
+
+  // Fetch Profile User Data (If viewing another user's profile)
   const fetchUser2Data = async () => {
     try {
-      const response = await fetch(`https://api.makethechange.in/getProfileUser/${userId}`, {
+      const response = await fetch(`${apiUrl}/getProfileUser/${userId}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`, // Include the token in the Authorization header
-          'Content-Type': 'application/json', // Optional: specify content type
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -60,8 +77,6 @@ const ProfilePage = () => {
         const data = await response.json();
         setUserData(data);
         setFriends(data.friends);
-        setBio(data.bio || '');
-
       } else {
         console.error("Failed to fetch user data:", response.statusText);
       }
@@ -69,25 +84,25 @@ const ProfilePage = () => {
       console.error('Error:', error);
     }
   };
+
   useEffect(() => {
     if (location.pathname !== '/ProfilePage') {
       fetchUser2Data();
-      setUser2(userId)
-    }
-    else {
+    } else {
       fetchUserData();
-      setUser2('')
     }
-  }, [location.pathname])
+  }, [location.pathname]);
+
+  // Fetch Posts
   useEffect(() => {
     const fetchPosts = async () => {
       if (userData) {
         try {
-          const response = await fetch(`https://api.makethechange.in/api/posts/${userData._id}`);
+          const response = await fetch(`${apiUrl}/api/posts/${userData._id}`);
           if (response.ok) {
-            const data = await response.json()
+            const data = await response.json();
             setPosts(data.posts);
-
+           
           } else {
             console.error("Failed to fetch posts:", response.statusText);
           }
@@ -98,6 +113,8 @@ const ProfilePage = () => {
     };
     fetchPosts();
   }, [userData]);
+
+
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -116,7 +133,7 @@ const ProfilePage = () => {
     if (media) {
       formData.append('media', media);  // media should be a File object
     }
-    fetch(`https://api.makethechange.in/api/posts`, {
+    fetch(`${apiUrl}/api/posts`, {
       method: 'POST',
       body: formData, // Use formData as the body
     })
@@ -145,7 +162,7 @@ const ProfilePage = () => {
       if (profileData.profilePicture) {
         formData.append('profilePicture', profileData.profilePicture);
       }
-      const response = await fetch(`https://api.makethechange.in/api/updateUser/${userId}`, {
+      const response = await fetch(`${apiUrl}/api/updateUser/${userId}`, {
         method: 'PUT',
         body: formData,
       });
@@ -161,9 +178,7 @@ const ProfilePage = () => {
       console.error("Error during PUT request:", error);
     }
   };
-  const handlePostClick = (postId) => {
-    setSelectedPostId(postId);
-  };
+
   const handleNextPost = () => {
     const currentIndex = posts.findIndex((post) => post._id === selectedPostId);
     if (currentIndex !== -1 && currentIndex < posts.length - 1) {
@@ -183,207 +198,260 @@ const ProfilePage = () => {
       console.log("No previous posts available.");
     }
   };
+
+  const filteredPosts = posts?.filter(post =>
+    post?.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    post?.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const filteredFriends = friends?.filter(friend =>
     `${friend?.friendId.firstName} ${friend?.friendId.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     friend.friendId.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
- console.log(filteredFriends, 'filteredfriends')
+  const tabs = [
+    { id: "grid", label: "Grid", icon: <IoGridSharp size={24} /> },
+    { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={24} /> },
+    { id: "saved", label: "Saved", icon: <GiSouthAfricaFlag size={24} /> },
+  ];
+  const handlePostClick = (postId) => {
+    navigate(`/postDetails/${postId}`);
+  };
+
   return (
-    <div
-      className="profile-page container-fluid px-md-4"
-      style={{ fontFamily: 'Poppins, sans-serif' }}
-    >
+    <div className="profile-page  col-lg-9  m-auto justify-content-around " style={{ fontFamily: 'Poppins, sans-serif', overflow: 'scroll', height: '100vh' }}>
       {/* Header Section */}
       {userData ? (
-        <div
-          className="profile-header text-center p-1 d-flex flex-column flex-md-row align-items-center justify-content-around"
-          style={{
-            backgroundImage: 'linear-gradient(135deg, rgb(255, 255, 255), rgb(110, 72, 157))',
-            borderRadius: '20px',
-            color: '#fff',
-            padding: window.innerWidth <= 576 ? '20px' : '40px', // Adjust padding for small screens
-          }}
-        >
-          <div
-            className="mb-3 mb-md-0"
-            style={{
-              transform: window.innerWidth <= 576 ? 'scale(0.8)' : 'scale(1)', // Scale down the image on small screens
-            }}
-          >
+        <div className="profile-header text-center py-3 d-flex flex-column flex-md-row align-items-center justify-content-around" style={{ color: '#fff', background:'crimson' }}>
+          <div className="d-flex align-items-center text-md-start text-center gap-3">
             <img
               src={userData.profilePicture || 'https://via.placeholder.com/150'}
               alt="Profile"
               className="rounded-circle shadow"
-              style={{
-                width: window.innerWidth <= 576 ? '120px' : '130px', // Adjust image size
-                height: window.innerWidth <= 576 ? '120px' : '130px',
-                border: '3px solid white',
-              }}
+              style={{ width: '70px', height: '70px', border: '3px solid white' }}
             />
-          </div>
-
-          <div
-            className="text-center text-md-start"
-            style={{
-              transform: window.innerWidth <= 576 ? 'scale(0.9)' : 'scale(1)', // Scale down the text content on small screens
-            }}
-          >
-            <h1
-              className="mt-3 text-center"
-              style={{
-                fontSize: window.innerWidth <= 576 ? '1.5rem' : '1.8rem', // Adjust font size
-                fontWeight: 'bold',
-              }}
-            >
-              {userData.firstName} {userData.lastName}
-            </h1>
-            <p
-              className="text-muted text-center"
-              style={{
-                fontSize: window.innerWidth <= 576 ? '0.9rem' : '1rem', // Adjust font size for bio
-              }}
-            >
-              {userData.bio || 'This user has no bio yet.'}
-            </p>
-            <div className="mt-3 d-flex flex-column flex-sm-row justify-content-center gap-3">
-              <button
-                className="btn btn-light shadow-sm btn-sm m-auto"
-                style={{
-                  borderRadius: '30px',
-                  width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
-                }}
-                onClick={() => setShowModal(true)}
-              >
-                <FaPlus /> Create Post
-              </button>
-              <button
-                className="btn btn-outline-light shadow-sm btn-sm m-auto"
-                style={{
-                  borderRadius: '30px',
-                  width: window.innerWidth <= 576 ? '120px' : '150px', // Adjust button width
-                }}
-              >
-                <FaUserEdit /> Edit Profile
-              </button>
+            <div>
+              <h1 className="mb-1" style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                {userData.firstName} {userData.lastName}
+              </h1>
+              <p className="mb-0" style={{ fontSize: '1rem' }}>
+                {userData.bio || 'This user has no bio yet.'}
+              </p>
             </div>
           </div>
+          {/* Action Buttons */}
+          <div className="mt-3 mt-md-0 d-flex  gap-3">
+            <button
+              className="btn btn-light shadow-sm btn-sm col-sm-5 col-lg-10"
+              style={{ borderRadius: '30px' }}
+              onClick={() => setShowModal(true)}
+            >
+              <FaPlus className="me-2" /> Create Post
+            </button>
+            <button
+              className="btn btn-outline-light shadow-sm btn-sm col-sm-5 col-lg-10"
+              style={{ borderRadius: '30px' }}
+            >
+              <FaUserEdit className="me-2" /> Edit Profile
+            </button>
+          </div>
         </div>
-
-
       ) : (
         <p>Loading profile...</p>
       )}
-      {/* Post Details */}
-      {selectedPostId && (
-        <PostDetail
-          postId={selectedPostId}
-          onClose={() => setSelectedPostId(null)}
+      <div className=''>
+        {/* Search Bar for Posts and Friends */}
+        {/* <div className="d-flex  mb-3 col-lg-4 col-12">
+        <input
+          type="text"
+          className="form-control "
+          placeholder="Search posts or friends..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
-      )}
-
-      {/* Posts Section */}
-      <div className=" row posts-section mt-4 mb-5">
-        <div className="row mx-1 gap-4 justify-content-center  mb-5 col-lg-7">
-          {posts.length > 0 ? (
-            posts.map((post) => (
-              <div
-                key={post._id}
-                className="shadow-lg p-3  rounded mt-4"
-                style={{
-                  height: '280px',
-                  width: '320px',
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  border: '1px solid rgb(0, 0, 0)',
-                  borderRadius: '15px',
-                  transition: 'all 0.1s ease-in-out',
-                }}
-                onClick={() => handlePostClick(post._id)}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-              >
-                {post.media && (
+        <button className="btn btn-outline-light d-md-inline-flex ms-2">
+          <FaSearch />
+        </button>
+      </div> */}
+        <div className="d-flex border-bottom p-2 justify-content-around bg-white shadow-sm">
+          {[
+            { id: "grid", icon: <IoGridSharp size={24} />, label: "Grid" },
+            { id: "slideshow", icon: <PiSlideshowFill size={24} />, label: "Slideshow" },
+            { id: "saved", icon: <GiSouthAfricaFlag size={24} />, label: "Saved" }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              className={`flex flex-column align-items-center text-secondary position-relative border-0 bg-transparent p-2 
+        ${activeTab === tab.id ? "text-dark fw-bold" : ""}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.icon}
+              <span className="span text-sm">{tab.label}</span>
+              {activeTab === tab.id && (
+                <div
+                  className="position-absolute w-100"
+                  style={{
+                    height: "3px",
+                    backgroundColor: "black",
+                    bottom: "-2px",
+                    left: 0,
+                    transition: "width 0.3s ease-in-out"
+                  }}
+                ></div>
+              )}
+            </button>
+          ))}
+        </div>
+        {/* Posts Section */}
+        {activeTab == 'grid' &&
+          <div className="posts-section">
+            <div className="row ">
+              {filteredPosts.map((post) => (
+                <div key={post._id} className="col-lg-4 col-4 p-1 mb-4">
                   <div
-                    className='post-card p-3'
+                    className="bg-dark shadow-lg"
                     style={{
-                      height: '180px',
-                      backgroundImage: `url(${post.media})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      borderRadius: '12px',
-                      marginBottom: '12px',
+                      cursor: "pointer",
+                      overflow: "hidden",
+                      transition: "transform 0.3s ease-in-out",
                     }}
-                  ></div>
-                )}
-                <div>
-                  <p
-                    className="post-text"
-                    style={{
-                      fontSize: '16px',
-                      color: '#333',
-                      textAlign: 'justify',
-                      lineHeight: '1.5',
-                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                    onClick={() => handlePostClick(post._id)}
                   >
-                    {post.text}
-                  </p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-center text-muted" style={{ fontSize: '18px' }}>
-              No posts yet!
-            </p>
-          )}
-        </div>
-        <div className='col-lg-4' >
-          <h5>Friends</h5>
-
-          {/* Search Bar */}
-          <div className="mb-3">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {/* Friend List */}
-          <ul className="list-group" style={{height:'400px', overflow:'auto'}}>
-            {filteredFriends.length > 0 ? (
-              filteredFriends.map((friend) => (
-                <li
-                  key={friend._id}
-                  className="list-group-item d-flex justify-content-between align-items-center"
-                >
-                  <div className="d-flex align-items-center">
-                    {/* Profile Picture */}
-                    <img
-                      src={friend?.friendId.profilePicture || 'https://via.placeholder.com/40'}
-                      alt={`${friend?.friendId.firstName} ${friend.lastName}`}
-                      className="rounded-circle me-2"
-                      style={{ width: '40px', height: '40px', objectFit: 'cover' }}
-                    />
-                    {/* Friend Details */}
-                    <div>
-                      <strong>{friend?.friendId.firstName} {friend.friendId.lastName}</strong>
-                      <br />
-                      <small className="text-muted">{friend.email}</small>
-                    </div>
+                    <div
+                      className="card-img-top"
+                      style={{
+                        height: "130px",
+                        backgroundImage: `url(${post.media})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    ></div>
                   </div>
-                </li>
-              ))
-            ) : (
-              <li className="list-group-item text-center">No friends found</li>
-            )}
-          </ul>
-        </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        }
+
+        {activeTab == 'slideshow' &&
+
+          <div className="mt-3 bg-none" >
+            <div className="row justify-content-center">
+              {posts.map((post) => (
+                <div className="col-md-12 ">
+                  <div className=" bg-none text-white shadow-sm ">
+                    {/* Post Header */}
+                    <div className="card-header bg-none d-flex align-items-center justify-content-between p-1 border-bottom">
+                      <div className="d-flex align-items-center">
+                        <img
+                          src="https://via.placeholder.com/40"
+                          alt="User"
+                          className="rounded-circle me-2"
+                          style={{ width: "40px", height: "40px" }}
+                        />
+                        <div>
+                          <h6 className="mb-0 fw-bold text-white">{post.userId.firstName}</h6>
+                          <small className="text-white">
+                            {moment(post?.createdAt).fromNow()}
+                          </small>
+                        </div>
+                      </div>
+                      <button className="btn btn-light border-0">
+                        <i className="bi bi-three-dots"></i>
+                      </button>
+                    </div>
+
+                    {/* Post Image */}
+                    <div className="post-image ">
+                      <div
+                        className="card-img-top"
+                        style={{
+                          height: "60vh",
+                          backgroundImage: `url(${post.media})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      ></div>
+                    </div>
+
+                    {/* Post Actions */}
+                    <div className="card-body">
+                      <div className="d-flex justify-content-between">
+                        <div>
+                          {/* Like Button */}
+                          <button className="btn p-0 me-2 text-light">
+                            <i className="bi bi-heart fs-5"></i>
+                          </button>
+                          {/* Comment Button */}
+                          <button className="btn p-0 me-2 text-light">
+                            <i className="bi bi-chat fs-5"></i>
+                          </button>
+                          {/* Share Button */}
+                          <button className="btn p-0 text-light">
+                            <i className="bi bi-send fs-5"></i>
+                          </button>
+                        </div>
+                        <button className="btn p-0 text-light">
+                          <i className="bi bi-bookmark fs-5"></i>
+                        </button>
+                      </div>
+
+                      {/* Post Likes & Caption */}
+                      {/* {post.likes?.map(() => (
+                      
+                    ))} */}
+                      {/* Post Likes & Caption */}
+                      <p className="mt-2 mb-1 fw-bold">
+                        {post.likes?.length > 0 ? `${post.likes.length.toLocaleString()} likes` : "Be the first to like this"}
+                      </p>
+                      <p className="mb-1">
+                        {post.text}
+                      </p>
+
+                      <p className="text-white small m-0">
+                        View all {post.comments?.length} comments
+                      </p>
+                      <div className="d-flex ">
+                        {/* <div className="likes">
+                          <LikesCommentsPreview
+                            // handleLike={handleLike}
+                            type="likes"
+                            users={post.likes.map(like => like.userId)}
+                          // hasLiked={hasLiked}
+                          />
+                        </div>
+                        <div className="comments">
+                          <LikesCommentsPreview
+                            type="comments"
+                            users={post.comments.map(comment => comment.userId)}
+                            comments={post.comments}
+                          />
+                        </div> */}
+                      </div>
+                    </div>
+
+                    {/* Post Comment Box */}
+                    {/* <div className="card-footer  border-0">
+                      <div className="d-flex align-items-center">
+                        <input
+                          type="text"
+                          className="form-control border-0 bg-dark text-white"
+                          placeholder="Add a comment..."
+                        />
+                        <button className="btn btn-sm text-primary fw-bold">Post</button>
+                      </div>
+                    </div> */}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        }
+
+
       </div>
-
-
       {/* Custom Modal */}
       {showModal && (
         <CustomModal
@@ -392,7 +460,41 @@ const ProfilePage = () => {
           onClose={() => setShowModal(false)}
         />
       )}
+
+      {/* Swiper Component for Mobile (Optional) */}
+      <Swiper
+        spaceBetween={10}
+        slidesPerView={1}
+        navigation
+        pagination={{ clickable: true }}
+        modules={[Pagination, Navigation]}
+        className="d-md-none"  // Only show Swiper on mobile
+      >
+        {filteredPosts.map((post) => (
+          <SwiperSlide key={post._id}>
+            <div
+              className="bg-dark shadow-lg"
+              onClick={() => handlePostClick(post._id)}
+            >
+              <div
+                className="card-img-top"
+                style={{
+                  height: "200px",
+                  backgroundImage: `url(${post.media})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              ></div>
+              <div className="card-body">
+                <h5 className="card-title">{post.title || "Untitled Post"}</h5>
+                <p className="card-text">{post.description || "No description available."}</p>
+              </div>
+            </div>
+          </SwiperSlide>
+        ))}
+      </Swiper>
     </div>
   );
 };
+
 export default ProfilePage;
