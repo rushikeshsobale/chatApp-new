@@ -1,131 +1,138 @@
-.floating-nav {
-  position:fixed;
-  top: 10px;
-  color: white;
-  padding: 5px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(189, 61, 150, 0.9);
-  border-radius: 10px;
+/* Main container adjustment */
+.content-container {
+  padding-right: 80px; /* Space for right-aligned nav on desktop */
+}
+
+/* Navigation container */
+.bottom-nav-container {
+  position: fixed;
+  bottom: 20px;
+ 
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 500px;
   z-index: 1000;
-  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, background 0.3s ease;
-  opacity: 1;
 }
 
-/* Floating hover effect */
-.floating-nav:hover {
-  background: rgba(198, 33, 148, 0.9);
-  transform: translatey(-10%) scale(1.05);
-}
+/* Right-aligned version for desktop */
+@media (min-width: 992px) {
+  .bottom-nav-container {
+    left: auto;
+    right: 20px;
+    top: 20%;
+    bottom: auto;
+    transform: translateY(-50%);
+    width: auto;
+    max-width: none;
+  }
 
-/* Mobile: Move to bottom with slide-up effect */
-@media (max-width: 768px) {
-  .floating-nav {
+  .glass-nav {
+    flex-direction: column;
+    padding: 20px 12px;
+    border-radius: 30px;
+    gap: 15px;
+  }
+
+  .nav-item {
+    flex-direction: row;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .nav-icon {
+    margin-bottom: 0;
+    margin-right: 8px;
+  }
+
+  .active-indicator {
+    bottom: auto;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .fab {
+    position: relative;
     top: auto;
-    bottom: 0px;
-    /* transform: translate(-50%, 100%); Initially hidden below */
-    opacity: 1;
-    animation: slideUp 0.5s ease-in-out forwards;
-    justify-content: space-around !important;
-  }
-  .nav-logo {
-    display:none !important;
-  }
-  .span{
-    display:none;
-  }
-  
-}
-
-/* Slide up animation */
-@keyframes slideUp {
-  from {
-    transform: translate(-50%, 100%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, 0%);
-    opacity: 1;
+    left: auto;
+    transform: none;
+    margin: 10px 0;
   }
 }
 
-.mainnav{
-  background: rgb(141 122 181);
+/* Rest of your existing styles */
+.glass-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
-/* Smooth hover effect for nav items */
+
+/* ... keep your other existing styles ... */
+
 .nav-item {
-  color: rgb(255, 255, 255);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-decoration: none;
-  text-align: center;
-  flex: 1;
-  padding: 5px;
-  transition: color 0.2s ease-in-out, transform 0.2s ease-in-out, text-decoration 0.3s ease;
-  position: relative; /* Required for positioning the underline */
+  color: #555;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
 }
 
-/* Icon styles */
-.nav-item i {
-  font-size: 24px;
-  display: block;
-  margin-bottom: 5px;
-}
-
-.nav-item span {
-  font-size: 12px;
-}
-
-/* Hover animation */
-.nav-item:hover {
-  color: #000;
-  transform: scale(1.1);
-}
-
-/* Active state animation */
-.nav-item:active {
-  transform: scale(0.95);
-}
-
-/* Add a bounce-in animation when the nav bar appears */
-@keyframes bounceIn {
-  0% {
-    transform: translateY(100px);
-    opacity: 0;
-  }
-  60% {
-    transform: translateY(-10px);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-.floating-nav {
-  animation: bounceIn 0.6s ease-out;
-}
-
-/* Underline effect for active nav item */
 .nav-item.active {
-  color: #000;
+  color: #3a0ca3;
 }
 
-.nav-item.active::after {
-  content: '';
+.nav-icon {
+  margin-bottom: 4px;
+  color: inherit;
+}
+
+.nav-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.active-indicator {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background-color: #000; /* Color of the underline */
-  transition: width 0.3s ease;
+  bottom: -8px;
+  width: 5px;
+  height: 5px;
+  background: #3a0ca3;
+  border-radius: 50%;
 }
 
-/* Add the underline transition when hovering and active */
-.nav-item:hover::after {
-  width: 100%; /* Underline full width on hover */
+.fab {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #7209b7 0%, #3a0ca3 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 5px 20px rgba(58, 12, 163, 0.3);
+  cursor: pointer;
+  z-index: 10;
 }
 
-.nav-item:not(.active):hover::after {
-  width: 60%; /* Underline partial width when not active */
+/* Animation for floating bubbles (optional) */
+@keyframes floatUp {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-100px) rotate(180deg); }
 }

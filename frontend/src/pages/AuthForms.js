@@ -1,221 +1,454 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
-import 'bootstrap/dist/css/bootstrap.min.css'; // Import Bootstrap CSS
-import '../css/AuthForms.css'; // Import your custom styles
+import React, { useState } from "react";
 import { useDispatch } from 'react-redux';
-import { setUser } from '../store/action';
-import { addMessage, setInitialMessages, isLoggedIn } from '../store/store';
+import {jwtDecode} from 'jwt-decode';
+import {
+  FaUser,
+  FaLock,
+  FaEnvelope,
+  FaPhone,
+  FaBirthdayCake,
+  FaTransgender,
+  FaGoogle,
+  FaFacebook,
+  FaTwitter,
+  FaApple,
+  FaEye,
+  FaEyeSlash,
+} from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api";
+import {
+  register,
+  login,
+  verifyEmail,
+  sendVerification,
+} from "../services/authService";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "../css/AuthForms.css";
+import { SET_USER } from "../store/action";
+const AuthPage = () => {
 
-const AuthForms = () => {
   const dispatch = useDispatch();
-  const [isLoginForm, setIsLoginForm] = useState(true);
-  const [socket, setSocket] = useState(null);
-  const [formErrors, setFormErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(""); // Added for success message
-  const [errorMessage, setErrorMessage] = useState(""); // Added for error message
-  const apiUrl = process.env.REACT_APP_API_URL;
- 
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    username: "",
+    fullName: "",
+    phone: "",
+    birthDate: "",
+    gender: "other",
+  });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [authStep, setAuthStep] = useState(1);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isVerified, setIsVerified] = useState(false);
   const navigate = useNavigate();
-    useEffect(() => {
-      const token = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
-      if (token) { 
-        navigate('/home')
-      } 
-    }, []); 
-  useEffect(() => {
-    const newSocket = io(process.env.REACT_APP_API_URL); // Change the URL to your backend server URL
-    setSocket(newSocket);
-
-    return () => newSocket.close(); // Close socket connection when component unmounts
-  }, []);
-
-  const validateForm = (formData) => {
-    const errors = {};
-    if (!formData.email) errors.email = "Email is required";
-    if (!formData.password) errors.password = "Password is required";
-    if (!isLoginForm) {
-      if (!formData.firstName) errors.firstName = "First name is required";
-      if (!formData.lastName) errors.lastName = "Last name is required";
-      if (!formData.phone) errors.phone = "Phone number is required";
-      if (formData.password !== formData.confPassword) errors.confPassword = "Passwords do not match";
-    }
-    return errors;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    const formData = new FormData(event.target);
-    const userData = {
-      email: formData.get('email'),
-      password: formData.get('password'),
-      firstName: formData.get('firstName'),
-      lastName: formData.get('lastName'),
-      phone: formData.get('phone'),
-      confPassword: formData.get('confPassword') 
-    };
-    const errors = validateForm(userData);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      setIsSubmitting(false);
-      return;
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email is invalid";
     }
-    // Determine the endpoint based on the form type
-    const endpoint = isLoginForm ? `${apiUrl}/login` : `${apiUrl}/register`;
-    try {
-      const response = await fetch(endpoint, {    
-        method: 'POST',    
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(userData)
-      });
-      if (response.ok) {
-        const tokenData = await response.json();
-        const token = tokenData.token;
-        document.cookie = `token=${token}; path=/; SameSite=Lax`;
-        localStorage.setItem('token', token);
-        // Emit username to backend using Socket.io upon successful login
-        if (!isLoginForm) {
-          socket.emit('userRegistered', userData.username);
-          setIsLoginForm(!isLoginForm);
-        } else {
-          setSuccessMessage("Login successful! Redirecting to profile...");
-          setTimeout(() => {
+    // if (!formData.password && isLogin) {
+    //   newErrors.password = "Password is required";
+    // } else if (formData.password.length < 8) {
+    //   newErrors.password = "Password must be at least 8 characters";
+    // }
+    if (!isLogin) {
+      // if (!formData.username) {
+      //   newErrors.username = "Username is required";
+      // }
 
-            navigate(`/ProfilePage`);
-            dispatch(isLoggedIn({ status: 'true' }));
-          }, 2000); // Redirect after 2 seconds to show success message
-        }
+      // if (!formData.fullName) {
+      //   newErrors.fullName = 'Full name is required';
+      // }
+
+      // if (!formData.birthDate) {
+      //   newErrors.birthDate = 'Birth date is required';
+      // }
+    }
+    setErrors(newErrors);
+    console.log(Object.keys(newErrors), "seeing");
+    return Object.keys(newErrors).length === 0;
+  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (validate() === false) return;
+    setLoading(true);
+    try {
+      if (isLogin) {
+        const {token} = await login({
+          email: formData.email,
+          password: formData.password,
+        });
+       
+        localStorage.setItem("token", token);
+        // if (token) {
+          const decodedData = jwtDecode(token);
+          dispatch({
+            type: SET_USER,
+            payload: { user: decodedData }, // Replace with actual userId
+          });
+          console.log(decodedData, "decodeData");
+          localStorage.setItem("user", JSON.stringify(decodedData));
+        navigate("/home");
       } else {
-        const errorData = await response.json();
-        setErrorMessage(errorData.message || "Something went wrong. Please try again.");
+        if (authStep === 1) {
+        const response =   await sendVerification(formData.email);
+         console.log(response, 'response')
+          setAuthStep(2);
+        } else if (authStep === 2) {
+          const verified = await verifyEmail({
+            email: formData.email,
+            code: verificationCode,
+          });
+          if (verified) {
+            setIsVerified(true);
+            setAuthStep(3);
+          }
+        } else {
+        
+          const response = await register({
+            ...formData,
+            verificationCode,
+          });
+
+          console.log(response)
+          localStorage.setItem('userId',response.userId)
+          // if (token) {
+          //   const decodedData = jwtDecode(token);
+          //   dispatch({
+          //     type: SET_USER,
+          //     payload: { user: decodedData }, // Replace with actual userId
+          //   });
+          //   console.log(decodedData, "decodeData");
+          //   localStorage.setItem("user", JSON.stringify(decodedData));
+            
+          // }
+         
+          navigate("/onboarding");
+        }
       }
     } catch (error) {
-      console.error('Error:', error.message);
-      setErrorMessage("An error occurred while processing your request.");
+      console.error("Authentication error:", error);
+      setErrors({
+        ...errors,
+        form: error.message || "Authentication failed",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setIsSubmitting(false);
   };
-
-  const toggleForm = () => {
-    setIsLoginForm(!isLoginForm);
-    setFormErrors({}); // Clear form errors when toggling forms
-    setErrorMessage(""); // Clear error message
-    setSuccessMessage(""); // Clear success message
+  const handleSocialLogin = (provider) => {
+    window.location.href = `${process.env.REACT_APP_API_URL}/auth/${provider}`;
   };
-
   return (
-    <div className="">
-      <form onSubmit={handleSubmit} noValidate className="col-lg-8 container p-5 my-3" style={{ background: 'ghostwhite' }}>
-        <div className="form-header">
-          <h2 className="form-title pt-3 text-secondary text-center">{isLoginForm ? 'Welcome Back!' : 'Create an Account!'}</h2>
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
+          <h2>
+            {isLogin
+              ? "Welcome Back"
+              : authStep === 1
+              ? "Create Account"
+              : authStep === 2
+              ? "Verify Email"
+              : "Complete Profile"}
+          </h2>
+          <p>
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <span
+              className="auth-toggle"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setAuthStep(1);
+              }}
+            >
+              {isLogin ? "Sign Up" : "Log In"}
+            </span>
+          </p>
         </div>
-
-        {/* Success and Error Messages */}
-        {successMessage && <div className="alert alert-success">{successMessage}</div>}
-        {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
-
-        <div className="row p-2">
-          {!isLoginForm && (
+        {errors.form && <div className="alert alert-danger">{errors.form}</div>}
+        <form onSubmit={handleSubmit}>
+          {authStep === 1 && (
             <>
-              <div className="col-lg-6 p-2">
-                <label htmlFor="register-firstName">First Name:</label>
+              <div className="form-group">
+                <label>Email</label>
+                <div className="input-group">
+                  <span className="input-group-text">
+                    <FaEnvelope />
+                  </span>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="your@email.com"
+                    className={`form-control ${
+                      errors.email ? "is-invalid" : ""
+                    }`}
+                  />
+                  {errors.email && (
+                    <div className="invalid-feedback">{errors.email}</div>
+                  )}
+                </div>
+              </div>
+              {isLogin && (
+                <div className="form-group">
+                  <label>Password</label>
+                  <div className="input-group">
+                    <span className="input-group-text">
+                      <FaLock />
+                    </span>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      className={`form-control ${
+                        errors.password ? "is-invalid" : ""
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      className="input-group-text"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                    {errors.password && (
+                      <div className="invalid-feedback">{errors.password}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {authStep === 2 && (
+            <div className="form-group">
+              <label>Verification Code</label>
+              <p className="text-muted">
+                We sent a 6-digit code to {formData.email}
+              </p>
+              <div className="input-group">
                 <input
                   type="text"
-                  id="register-firstName"
-                  name="firstName"
-                  className={`${formErrors.firstName ? 'is-invalid' : ''}`}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  placeholder="123456"
+                  className="form-control"
+                  maxLength="6"
                 />
-                {formErrors.firstName && <div className="invalid-feedback">{formErrors.firstName}</div>}
               </div>
-              <div className="col-lg-6 p-2">
-                <label htmlFor="register-lastName">Last Name:</label>
-                <input
-                  type="text"
-                  id="register-lastName"
-                  name="lastName"
-                  className={` ${formErrors.lastName ? 'is-invalid' : ''}`}
-                />
-                {formErrors.lastName && <div className="invalid-feedback">{formErrors.lastName}</div>}
+              <div className="mt-2">
+                <button
+                  type="button"
+                  className="btn btn-link p-0"
+                  onClick={() => setAuthStep(1)}
+                >
+                  Change Email
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 ms-3"
+                  onClick={() => console.log("Resend code")}
+                >
+                  Resend Code
+                </button>
               </div>
-              <div className="col-lg-6 p-2 m-auto">
-                <label htmlFor="register-phone">Phone No:</label>
-                <input
-                  type="tel"
-                  id="register-phone"
-                  name="phone"
-                  className={`input-field ${formErrors.phone ? 'is-invalid' : ''}`}
-                />
-                {formErrors.phone && <div className="invalid-feedback">{formErrors.phone}</div>}
+            </div>
+          )}
+
+          {authStep === 3 && (
+            <>
+              <div className="form-group">
+                <label>Username</label>
+                <div className="input-group">
+                  <span className="input-group-text">@</span>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    placeholder="username"
+                    className={`form-control ${
+                      errors.username ? "is-invalid" : ""
+                    }`}
+                  />
+                  {errors.username && (
+                    <div className="invalid-feedback">{errors.username}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Phone Number</label>
+                <div className="input-group">
+                  <span className="input-group-text">
+                    <FaPhone />
+                  </span>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+1 (123) 456-7890"
+                    className="form-control"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Birth Date</label>
+                <div className="input-group">
+                  <span className="input-group-text">
+                    <FaBirthdayCake />
+                  </span>
+                  <input
+                    type="date"
+                    name="birthDate"
+                    value={formData.birthDate}
+                    onChange={handleChange}
+                    className="form-control"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Gender</label>
+                <div className="input-group">
+                  <span className="input-group-text">
+                    <FaTransgender />
+                  </span>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className="form-select"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer-not-to-say">Prefer not to say</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Password</label>
+                <div className="input-group">
+                  <span className="input-group-text"><FaLock /></span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="••••••••"
+                    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                  />
+                  <button 
+                    type="button" 
+                    className="input-group-text"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+                </div>
               </div>
             </>
           )}
 
-          <div className="col-lg-8 p-2">
-            <label htmlFor="register-email">Email:</label>
-            <input
-              type="email"
-              id="register-email"
-              name="email"
-              className={`input-field ${formErrors.email ? 'is-invalid' : ''}`}
-              required
-            />
-            {formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
+          <div className="form-group mt-4">
+            <button
+              type="submit"
+              className="btn btn-primary w-100"
+              disabled={loading}
+            >
+              {loading ? (
+                <span
+                  className="spinner-border spinner-border-sm"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
+              ) : isLogin ? (
+                "Log In"
+              ) : authStep === 1 ? (
+                "Continue"
+              ) : authStep === 2 ? (
+                "Verify"
+              ) : (
+                "Complete Registration"
+              )}
+            </button>
           </div>
-          <div className="col-lg-8 p-2 " style={{ marginLeft: '270px' }}>
-            <label htmlFor="register-password">Password:</label>
-            <input
-              type="password"
-              id="register-password"
-              name="password"
-              className={`input-field ${formErrors.password ? 'is-invalid' : ''}`}
-              required
-            />
-            {formErrors.password && <div className="invalid-feedback">{formErrors.password}</div>}
-          </div>
-          {!isLoginForm && (
-            <div className="col-lg-8 p-2 ">
-              <label htmlFor="register-conf-password">Confirm Password:</label>
-              <input
-                type="password"
-                id="register-conf-password"
-                name="confPassword"
-                className={`input-field ${formErrors.confPassword ? 'is-invalid' : ''}`}
-                required
-              />
-              {formErrors.confPassword && <div className="invalid-feedback">{formErrors.confPassword}</div>}
+
+          {isLogin && (
+            <div className="text-center mt-3">
+              <Link to="/forgot-password" className="text-decoration-none">
+                Forgot Password?
+              </Link>
             </div>
           )}
+        </form>
+
+        <div className="auth-divider">
+          <span>OR</span>
         </div>
 
-        <div className="button-group d-flex mt-5 m-auto text-secondary">
+        <div className="social-auth">
           <button
-            type="submit"
-            className="btn btn-submit"
-            disabled={isSubmitting}
-            style={{ width: '100%' }}
+            className="btn btn-social btn-google"
+            onClick={() => handleSocialLogin("google")}
           >
-            {isLoginForm ? 'Login' : 'Register'}
+            <FaGoogle /> Continue with Google
           </button>
-          <div className="toggle-form d-flex">
-            <p>
-              {isLoginForm ? "Don't have an account?" : "Already have an account?"}
-            </p>
-            <p
-              type=""
-              className="btn-link"
-              onClick={toggleForm}
-            >
-              {isLoginForm ? ' Register here' : ' Login here'}
-            </p>
-          </div>
+          <button
+            className="btn btn-social btn-facebook"
+            onClick={() => handleSocialLogin("facebook")}
+          >
+            <FaFacebook /> Continue with Facebook
+          </button>
+          <button
+            className="btn btn-social btn-twitter"
+            onClick={() => handleSocialLogin("twitter")}
+          >
+            <FaTwitter /> Continue with Twitter
+          </button>
+          <button
+            className="btn btn-social btn-apple"
+            onClick={() => handleSocialLogin("apple")}
+          >
+            <FaApple /> Continue with Apple
+          </button>
         </div>
-      </form>
+
+        <div className="auth-footer">
+          <p className="text-muted">
+            By {isLogin ? "logging in" : "registering"}, you agree to our
+            <Link to="/terms" className="text-decoration-none">
+              {" "}
+              Terms
+            </Link>{" "}
+            and
+            <Link to="/privacy" className="text-decoration-none">
+              {" "}
+              Privacy Policy
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default AuthForms;
+export default AuthPage;

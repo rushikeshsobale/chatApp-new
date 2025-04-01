@@ -1,92 +1,105 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FaHome, FaCompass, FaPlusCircle, FaUserCircle } from 'react-icons/fa'; // FontAwesome icons
-import '../css/Nav.css'; // Updated CSS file
-import { PiChats } from "react-icons/pi";
-const BottomNav = () => {
-  const [isVisible, setIsVisible] = useState(true);
-  const [activeLink, setActiveLink] = useState('/home'); // Set the default active link
+import { Link, useLocation } from 'react-router-dom';
+import { FaHome, FaPlusCircle, FaUserCircle } from 'react-icons/fa';
+import { PiChats, PiCompass } from 'react-icons/pi';
+import { motion, AnimatePresence } from 'framer-motion';
+import '../css/Nav.css';
 
-  const handleLinkClick = (link) => {
-    setActiveLink(link); // Update the active link when clicked
-  };
+const BottomNav = () => {
+  const location = useLocation();
+  const [activeLink, setActiveLink] = useState(location.pathname);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isHovering, setIsHovering] = useState(null);
+
+  // Auto-hide on scroll
   useEffect(() => {
     let lastScrollY = window.scrollY;
     const handleScroll = () => {
-      if (window.scrollY > lastScrollY) {
-        setIsVisible(false); // Hide on scroll down
+      if (window.scrollY > lastScrollY && window.scrollY > 100) {
+        setIsVisible(false);
       } else {
-        setIsVisible(true); // Show on scroll up
+        setIsVisible(true);
       }
       lastScrollY = window.scrollY;
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Update active link on route change
+  useEffect(() => {
+    setActiveLink(location.pathname);
+  }, [location]);
+
+  const navItems = [
+    { path: "/home", icon: <FaHome size={22} />, label: "Home" },
+    { path: "/chats", icon: <PiChats size={22} />, label: "Chats" },
+    { path: "/explore", icon: <PiCompass size={22} />, label: "Explore" },
+    { path: "/profile", icon: <FaUserCircle size={22} />, label: "Profile" }
+  ];
+
   return (
-    <div className="d-flex justify-content-center">
-    <nav className="floating-nav container py-2 d-flex align-items-center justify-content-between">
-      {/* Logo */}
-      <div className="nav-logo d-flex align-items-center col-lg-6 col-0">
-        <img 
-          src="https://via.placeholder.com/40" 
-          alt="Logo" 
-          className="me-2"
-          style={{ width: "40px", height: "40px", borderRadius: "50%" }} 
-        />
-        <span className="fw-bold text-white">LOGO</span>
-      </div>
-
-      {/* Navigation Links */}
-      <div className="d-flex col-lg-4 col-12 justify-content-around">
-        <Link
-          to="/home"
-          className={`nav-item d-flex flex-column align-items-center ${
-            activeLink === "/home" ? "active" : ""
-          }`}
-          onClick={() => handleLinkClick("/home")}
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div 
+          className="bottom-nav-container d-none"
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ type: 'spring', damping: 25 }}
         >
-          <FaHome size={24} />
-          <span>Home</span>
-        </Link>
-
-        <Link
-          to="/chats"
-          className={`nav-item d-flex flex-column align-items-center ${
-            activeLink === "/chats" ? "active" : ""
-          }`}
-          onClick={() => handleLinkClick("/chats")}
-        >
-          <PiChats size={24}/>
-          <span>Chats</span>
-        </Link>
-
-        <Link
-          to="/postFeeds"
-          className={`nav-item d-flex flex-column align-items-center ${
-            activeLink === "/postFeeds" ? "active" : ""
-          }`}
-          onClick={() => handleLinkClick("/postFeeds")}
-        >
-          <FaPlusCircle size={24} />
-          <span>Explore</span>
-        </Link>
-
-        <Link
-          to="/ProfilePage"
-          className={`nav-item d-flex flex-column align-items-center ${
-            activeLink === "/ProfilePage" ? "active" : ""
-          }`}
-          onClick={() => handleLinkClick("/ProfilePage")}
-        >
-          <FaUserCircle size={24} />
-          <span>Profile</span>
-        </Link>
-      </div>
-    </nav>
-  </div>
-
+          <nav className="glass-nav">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`nav-item ${activeLink === item.path ? 'active' : ''}`}
+                onMouseEnter={() => setIsHovering(item.path)}
+                onMouseLeave={() => setIsHovering(null)}
+              >
+                <motion.div
+                  className="nav-icon"
+                  animate={{
+                    y: activeLink === item.path ? -5 : 0,
+                    scale: isHovering === item.path ? 1.15 : 1
+                  }}
+                  transition={{ type: 'spring', stiffness: 500 }}
+                >
+                  {item.icon}
+                </motion.div>
+                <motion.span
+                  className="nav-label"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ 
+                    opacity: activeLink === item.path ? 1 : 0.7,
+                    y: activeLink === item.path ? 0 : 5
+                  }}
+                >
+                  {item.label}
+                </motion.span>
+                
+                {activeLink === item.path && (
+                  <motion.div 
+                    className="active-indicator"
+                    layoutId="activeIndicator"
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                )}
+              </Link>
+            ))}
+            
+            {/* Floating Action Button */}
+            <motion.div 
+              className="fab"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaPlusCircle size={24} />
+            </motion.div>
+          </nav>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

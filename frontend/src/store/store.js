@@ -12,8 +12,6 @@ const chatSlice = createSlice({
     isLoggedIn: (state, action) => {
       const { status } = action.payload;
       console.log(status, 'status');
-      
-      // Convert the status to boolean
       state.isLoggedIn = status === 'true' || status === true;
     },
     addMessage: (state, action) => {
@@ -40,9 +38,7 @@ const chatSlice = createSlice({
     },
   },
 });
-
 export const { addMessage, setInitialMessages, updateMessageStatus, isLoggedIn } = chatSlice.actions;
-
 export const store = configureStore({
   reducer: {
     chat: chatSlice.reducer,

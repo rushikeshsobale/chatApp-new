@@ -1,10 +1,15 @@
 const jwt = require('jsonwebtoken');
 const secretKey = process.env.JWT_SECRET || "mySecreateKey";
 const verifyToken = (req, res, next) => {
-  const token = req.cookies.token || req.headers['authorization'] || req.query.token;
+  let token = req.headers['authorization'];
+  console.log(token, 'token')
   if (!token) {
       return res.status(401).json({ message: "Token not provided" });
   }
+    // Handle Bearer token format
+    if (token.startsWith("Bearer ")) {
+      token = token.split(" ")[1]; // Extract actual token
+    }
   try {
     const decoded = jwt.verify(token, secretKey);
     req.decoded = decoded; 

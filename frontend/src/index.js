@@ -16,6 +16,9 @@ import { updateNotifications } from './store/notificationSlice';
 import { useSocket, SocketProvider } from './components/socketContext.js';
 import PostFeed from './pages/PostFeed.js';
 import PostDetail from './components/PostDetail.js';
+import ExplorePage from './pages/ExplorePage.js';
+import ForgotPassword from './components/ForgotPassword.js';
+import Onboarding from './components/Onboarding.js';
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const { socket, userId } = useSocket();
@@ -46,20 +49,20 @@ const AppWrapper = () => {
 
   return (
     <div className="" style={{background:'black'}}>
-      <div className='hello'>
-
-      </div>
       <BrowserRouter>
         {/* Conditionally render Navbar only when isAuthenticated and isLoggedIn are true */}
         { isAuthenticated && <Navbar />}
         <Routes>
-          <Route path="/" element={<AuthForms />} />
+          <Route path="/login" element={<AuthForms />} />
           <Route path="/home" element={<PostFeed />} />
           <Route path="/chats" element={<ChatComponent />} />
           <Route path="/ProfilePage/:userId" element={<ProfilePage />} />
-          <Route path="/ProfilePage" element={<ProfilePage />} />
-          <Route path="/postFeeds" element={<PostFeed />} />
+          <Route path="/Profile" element={<ProfilePage />} />
+          
           <Route path="/postDetails/:postId" element={<PostDetail/>} />
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/forgot-password" element={<ForgotPassword/>}/>
+          <Route path="/onboarding" element={<Onboarding/>}/>
         </Routes>
         
       </BrowserRouter>

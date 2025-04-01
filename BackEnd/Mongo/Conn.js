@@ -6,7 +6,6 @@ mongoose.connect(`mongodb://localhost:27017/goChat`, {
   
 })
 .then(() => {
-
   console.log('Connected to MongoDB');
 })
 .catch((error) => {

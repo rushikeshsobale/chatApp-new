@@ -1,76 +1,153 @@
-.auth-forms {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 80vh;
-    position:absolute;
-    top:70px;
-  }
-  
-  
-  
-  .box {
-   background-image: url('https://img.freepik.com/free-vector/dark-black-background-design-with-stripes_1017-38064.jpg?w=1060&t=st=1727705824~exp=1727706424~hmac=d082a9ebe5ddefc5eb174f22865d782bf72c837b95ebc7797fc9bd30e2d95060'); 
-   background-size: cover;
-   min-height: 100vh;
-  }
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  background-image: url('https://source.unsplash.com/random/1920x1080/?social');
+  background-size: cover;
+  background-position: center;
+  padding: 20px;
+}
 
-  input {
-    padding: 5px;
-    width: 100%;
-    display: block;
-   
-    background-color: transparent; /* Make the background transparent */
-    border: none !important; /* Remove default borders */
-    border-bottom: 2px solid #ccc !important; 
-    transition: border-color 0.3s, box-shadow 0.3s; /* Smooth transition */
-  }
-  
-  input:focus {
-    outline: none; /* No default outline */
-    border-bottom: 2px solid #007bff !important; /* Change bottom border color on focus */
-  }
-  
-  /* Change only the bottom border color and add glowing effect on hover */
-  input:hover {
-    border-bottom: 2px solid #007bff !important; /* Change bottom border color on hover */
-    box-shadow: none; /* Remove shadow for a clean look */
-  }
-  
-  /* Optional: Style for invalid feedback */
-  .invalid-feedback {
-    display: none; /* Ensure feedback is visible */
-  }
+.auth-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  width: 100%;
+  max-width: 500px;
+}
 
-  label{
-    color: rgb(104, 112, 119) !important;
-  }
+.auth-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
 
+.auth-header h2 {
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 10px;
+}
 
- 
-  .button-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Center the buttons */
-    margin-top: 20px; /* Space above the button group */
+.auth-header p {
+  color: #666;
+}
+
+.auth-toggle {
+  color: #1877f2;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.auth-toggle:hover {
+  text-decoration: underline;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.input-group-text {
+  background-color: #f8f9fa;
+  border-right: none;
+}
+
+.form-control {
+  border-left: none;
+}
+
+.form-control:focus {
+  box-shadow: none;
+  border-color: #ced4da;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 25px 0;
+  color: #666;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.auth-divider span {
+  padding: 0 15px;
+}
+
+.social-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.btn-google {
+  background-color: #fff;
+  color: #757575;
+  border: 1px solid #ddd;
+}
+
+.btn-google:hover {
+  background-color: #f8f9fa;
+}
+
+.btn-facebook {
+  background-color: #1877f2;
+  color: white;
+}
+
+.btn-facebook:hover {
+  background-color: #166fe5;
+}
+
+.btn-twitter {
+  background-color: #1da1f2;
+  color: white;
+}
+
+.btn-twitter:hover {
+  background-color: #1a91da;
+}
+
+.btn-apple {
+  background-color: #000;
+  color: white;
+}
+
+.btn-apple:hover {
+  background-color: #333;
+}
+
+.auth-footer {
+  margin-top: 30px;
+  text-align: center;
+  font-size: 14px;
+}
+
+@media (max-width: 576px) {
+  .auth-card {
+    padding: 30px 20px;
   }
-  
-  .btn-submit {
- 
-    padding: 10px; /* Padding for the button */
-    font-size: 1.1rem; /* Slightly larger font size */
-    border-radius: 5px; /* Rounded corners */
-  }
-  
-  .toggle-form {
-    text-align: center; /* Center the text */
-    margin-top: 10px; /* Space above the text */
-  }
-  
-  .btn-link {
-    color: #007bff; /* Link color */
-    text-decoration: underline; /* Underline for emphasis */
-    cursor: pointer; /* Pointer cursor */
-    margin-left: 5px; /* Space between text and button */
-  }
-  
+}
