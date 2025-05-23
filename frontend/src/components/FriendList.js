@@ -2,6 +2,8 @@ import React from "react";
 import "../css/Chat.css";
 
 const FriendList = ({ friends, activeUsers, msgCounts, selectedFriend, handleFriendSelect }) => {
+ 
+   console.log(activeUsers,'active users')
   return (
     <div className="friend-list-container">
       <div className="friend-list-header">
@@ -13,10 +15,9 @@ const FriendList = ({ friends, activeUsers, msgCounts, selectedFriend, handleFri
       
       <div className="friends-scroll-container">
         {friends
-          .filter((friend) => friend?.isFriend === "friends")
-          .map((friend, index) => {
-            const isActive = activeUsers.some((user) => user.userId === friend?.friendId?._id);
-            const unreadCount = msgCounts[friend?.friendId?._id] || 0;
+          ?.map((friend, index) => {
+            const isActive = activeUsers.some((user) => user._id === friend?._id);
+            const unreadCount = msgCounts[friend?._id] || 0;
             
             return (
               <div
@@ -27,20 +28,20 @@ const FriendList = ({ friends, activeUsers, msgCounts, selectedFriend, handleFri
                 <div className="friend-avatar">
                   <div className={`avatar-container ${isActive ? "active" : ""}`}>
                     <img 
-                      src={friend?.friendId?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"} 
+                      src={friend?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"} 
                       alt="Profile" 
                       className="profile-image"
                     />
                   </div>
                 </div>
 
-                <div className="friend-details">
+                <div className="friend-details mx-3">
                   <div className="friend-name">
-                    {friend?.friendId?.firstName} {friend?.friendId?.lastName}
+                    {friend?.userName} 
                   </div>
                   <div className="friend-status">
                     {isActive ? (
-                      <span className="active-indicator">Online</span>
+                      <span className="active-indicator"></span>
                     ) : (
                       <span className="last-seen">Last seen recently</span>
                     )}

@@ -27,7 +27,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "../css/AuthForms.css";
 import { SET_USER } from "../store/action";
 const AuthPage = () => {
-
   const dispatch = useDispatch();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -89,7 +88,6 @@ const AuthPage = () => {
           email: formData.email,
           password: formData.password,
         });
-       
         localStorage.setItem("token", token);
         // if (token) {
           const decodedData = jwtDecode(token);
@@ -97,13 +95,11 @@ const AuthPage = () => {
             type: SET_USER,
             payload: { user: decodedData }, // Replace with actual userId
           });
-          console.log(decodedData, "decodeData");
           localStorage.setItem("user", JSON.stringify(decodedData));
-        navigate("/home");
+        navigate("/profile");
       } else {
         if (authStep === 1) {
         const response =   await sendVerification(formData.email);
-         console.log(response, 'response')
           setAuthStep(2);
         } else if (authStep === 2) {
           const verified = await verifyEmail({
@@ -115,12 +111,10 @@ const AuthPage = () => {
             setAuthStep(3);
           }
         } else {
-        
           const response = await register({
             ...formData,
             verificationCode,
           });
-
           console.log(response)
           localStorage.setItem('userId',response.userId)
           // if (token) {

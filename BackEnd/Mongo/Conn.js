@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
-require('dotenv').config();
+const dotenv = require("dotenv");
+dotenv.config();
 const db = mongoose.connection;
-console.log(process.env.MONGO_URI, 'url')
-mongoose.connect(`mongodb://localhost:27017/goChat`, {
-  
+
+mongoose.connect(process.env.MONGO_URI, {
+
 })
 .then(() => {
   console.log('Connected to MongoDB');

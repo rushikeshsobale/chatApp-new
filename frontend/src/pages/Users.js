@@ -16,9 +16,9 @@ import { useSelector } from "react-redux";
 import { useSocket } from "../components/socketContext";
 
 const UsersList = () => {
-  const senderId = useSelector((state) => state.auth.userId.userId);
-  const senderName = useSelector((state) => state.auth.userId.name);
-  const notifications = useSelector((state) => state.notifications.notifications);
+  const senderId = useSelector((state) => state.auth?.userId?.userId);
+  const senderName = useSelector((state) => state.auth?.userId?.name);
+  const notifications = useSelector((state) => state?.notifications?.notifications);
   const apiUrl = process.env.REACT_APP_API_URL;
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);

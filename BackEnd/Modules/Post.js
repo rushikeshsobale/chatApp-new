@@ -6,7 +6,7 @@ const commentSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId, // Refers to the user who made the comment
     required: true,
-    ref: 'User', // Assuming there's a User model
+    ref: 'Muser', // Assuming there's a User model
   },
   text: {
     type: String,
@@ -23,7 +23,7 @@ const likeSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId, // Refers to the user who liked the post
     required: true,
-    ref: 'User',
+    ref: 'Muser',
   },
 });
 
@@ -36,13 +36,18 @@ const postSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  hash: { type: String, required: false },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
-    ref: 'User',
+    ref: 'Muser',
   },
   comments: [commentSchema], // Array of comments
   likes: [likeSchema], // Array of likes
+  savedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Muser'
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

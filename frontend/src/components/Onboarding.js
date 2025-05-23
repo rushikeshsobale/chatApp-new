@@ -198,13 +198,21 @@ const Onboarding = () => {
         profilePic,
         bio,
         ...userData,
-        onboardingComplete: true,
-        skipped: skipAll,
       };
-    await completeProfile(userId,completeData)
-       navigate("/home");
+
+      const response = await completeProfile(userId, completeData);
+      
+      if (response.success) {
+        // Update local storage with user data
+        localStorage.setItem('userData', JSON.stringify(response.user));
+        navigate('/');
+      } else {
+        console.error('Profile completion failed:', response.error);
+        // You might want to show an error message to the user here
+      }
     } catch (error) {
-      console.error("Error completing profile:", error);
+      console.error('Error completing profile:', error);
+      // You might want to show an error message to the user here
     } finally {
       setLoading(false);
     }

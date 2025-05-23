@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaUserEdit, FaUserFriends, FaPlus, FaSearch, FaBell, FaHome, FaCompass, FaVideo, FaStore, FaGamepad, FaBookmark } from "react-icons/fa";
+import { FaUserEdit, FaUserFriends, FaPlus, FaSearch, FaBell, FaHome, FaCompass, FaVideo, FaStore, FaGamepad, FaBookmark, FaPen } from "react-icons/fa";
 import { IoMdNotifications } from "react-icons/io";
 import { RiMessengerLine } from "react-icons/ri";
 import EditProfile from "../components/EditProfile";
@@ -22,14 +22,19 @@ import "swiper/css/pagination";
 import "swiper/css/navigation";
 import moment from "moment";
 import StoryCircle from "../components/StoryCircle";
+import StoryViewer from "../components/StoryViewer";
 import FriendSuggestion from "../components/FriendSuggestion";
 import TrendingTopics from "../components/TrendingTopics";
 import EventCard from "../components/EventCard";
 import { fetchSuggestions } from "../services/profileService";
+import FollowModal from "../components/FollowModal";
+import CreateStory from "../components/CreateStory";
+import { getNotifications, updateNotification } from "../services/notificationService";
+import { useSelector } from "react-redux";
 const ProfilePage = () => {
   const [newPost, setNewPost] = useState("");
   const [media, setMedia] = useState(null);
-  const { userId } = useParams();
+  // const { userId } = useParams();
   const location = useLocation();
   const [userData, setUserData] = useState(null);
   const [friends, setFriends] = useState([]);
@@ -46,13 +51,20 @@ const ProfilePage = () => {
   const [events, setEvents] = useState([]);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+  const [showCreateStory, setShowCreateStory] = useState(false);
+  const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
   const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userId = user?.userId;
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
-  
+  const socket = useSelector((state) => state.socket.socket);
   // Fetch User Data
   useEffect(() => {
-    if (location.pathname === "/Profile") {
+    if (location.pathname === "/profile") {
       fetchUserData();
     } else {
       fetchUser2Data();
@@ -60,18 +72,14 @@ const ProfilePage = () => {
     fetchNotifications();
     getSuggestions();
     fetchStories();
-    
-    fetchTrendingTopics();
-    fetchEvents();
+    fetchPosts()
+    // fetchTrendingTopics();
+    // fetchEvents();
   }, [location.pathname]);
-
   const getSuggestions = async () => {
     const suggestions = await fetchSuggestions(); // Wait for the data
-    console.log(suggestions, 'suggest'); // Now it will log actual data
     setSuggestions(suggestions); // Update state
-};
-
-
+  };
   const fetchUserData = async () => {
     try {
       const response = await fetch(`${apiUrl}/getUser`, {
@@ -82,11 +90,8 @@ const ProfilePage = () => {
           "Content-Type": "application/json",
         },
       });
-
       if (response.ok) {
         const data = await response.json();
-
-        console.log()
         setUserData(data);
         setFriends(data.friends);
       } else {
@@ -96,7 +101,6 @@ const ProfilePage = () => {
       console.error("Error:", error);
     }
   };
-
   const fetchUser2Data = async () => {
     try {
       const response = await fetch(`${apiUrl}/getProfileUser/${userId}`, {
@@ -107,7 +111,6 @@ const ProfilePage = () => {
           "Content-Type": "application/json",
         },
       });
-
       if (response.ok) {
         const data = await response.json();
         setUserData(data);
@@ -119,35 +122,33 @@ const ProfilePage = () => {
       console.error("Error:", error);
     }
   };
-
   const fetchPosts = async () => {
-    if (userData) {
-      try {
-        const response = await fetch(`${apiUrl}/api/posts/${userData._id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setPosts(data.posts);
-        } else {
-          console.error("Failed to fetch posts:", response.statusText);
-        }
-      } catch (error) {
-        console.error("Error fetching posts:", error);
+    try {
+      const response = await fetch(`${apiUrl}/post/getPosts/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPosts(data.posts);
+      } else {
+        console.error("Failed to fetch posts:", response.statusText);
       }
+    } catch (error) {
+      console.error("Error fetching posts:", error);
     }
   };
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/notifications`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications);
-        setUnreadCount(data.unreadCount);
-      }
+      const notifications = await getNotifications(userId);
+      setNotifications(notifications || []);
+      setUnreadCount(notifications?.filter(notification => !notification.read).length || 0);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
@@ -155,7 +156,12 @@ const ProfilePage = () => {
 
   const fetchStories = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/stories`);
+      const response = await fetch(`${apiUrl}/stories/feed`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setStories(data.stories);
@@ -164,9 +170,6 @@ const ProfilePage = () => {
       console.error("Error fetching stories:", error);
     }
   };
-
-  
-
   const fetchTrendingTopics = async () => {
     try {
       const response = await fetch(`${apiUrl}/api/trending`);
@@ -179,6 +182,21 @@ const ProfilePage = () => {
     }
   };
 
+  useEffect(() => {
+     console.log(socket, 'socket')
+    if (!socket) return;
+    console.log(socket, 'socketon')
+    socket.on('got_a_notification', (data) => {
+      console.log(data, 'from socket');
+      fetchNotifications();
+    });
+  
+    // Optional: Cleanup listener on unmount
+    return () => {
+      socket.off('got_a_notification');
+    };
+  }, [socket]);
+  
   const fetchEvents = async () => {
     try {
       const response = await fetch(`${apiUrl}/api/events`);
@@ -206,14 +224,10 @@ const ProfilePage = () => {
   const handleAddPost = (text, media) => {
     const userId = userData._id;
     const formData = new FormData();
-    formData.append("text", text);
-    formData.append("userId", userId);
-  
     if (media) {
       formData.append("media", media.file);
     }
-  
-    fetch(`${apiUrl}/api/posts`, {
+    fetch(`${apiUrl}/post/mediaPost`, {
       method: "POST",
       body: formData,
     })
@@ -243,7 +257,7 @@ const ProfilePage = () => {
       if (profileData.profilePicture) {
         formData.append("profilePicture", profileData.profilePicture);
       }
-      const response = await fetch(`${apiUrl}/api/updateUser/${userId}`, {
+      const response = await fetch(`${apiUrl}/profile/updateUser/${userId}`, {
         method: "PUT",
         body: formData,
       });
@@ -277,23 +291,23 @@ const ProfilePage = () => {
     }
   };
 
-  const handleAddComment = async (postId, commentText) => {
-    try {
-      const response = await fetch(`${apiUrl}/api/posts/${postId}/comment`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text: commentText }),
-      });
-      if (response.ok) {
-        fetchPosts(); // Refresh posts
-      }
-    } catch (error) {
-      console.error("Error adding comment:", error);
-    }
-  };
+  // const handleAddComment = async (postId, commentText) => {
+  //   try {
+  //     const response = await fetch(`${apiUrl}/api/posts/${postId}/comment`, {
+  //       method: "POST",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ text: commentText }),
+  //     });
+  //     if (response.ok) {
+  //       fetchPosts(); // Refresh posts
+  //     }
+  //   } catch (error) {
+  //     console.error("Error adding comment:", error);
+  //   }
+  // };
 
   const handleSharePost = async (postId) => {
     try {
@@ -343,19 +357,62 @@ const ProfilePage = () => {
     }
   };
 
-  const handleMarkNotificationsAsRead = async () => {
+  const handleMarkNotificationAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/notifications/markAsRead`, {
+      await updateNotification(notificationId, true);
+      setNotifications(prevNotifications => 
+        prevNotifications.map(notification => 
+          notification._id === notificationId 
+            ? { ...notification, read: true }
+            : notification
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      const response = await fetch(`${apiUrl}/notifications/${notificationId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        setNotifications(prevNotifications => 
+          prevNotifications.filter(notification => notification._id !== notificationId)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
+  };
+
+  const handleShowFollowers = () => {
+    setShowFollowersModal(true);
+  };
+
+  const handleShowFollowing = () => {
+    setShowFollowingModal(true);
+  };
+
+  const handleUnfollowUser = async (userId) => {
+    try {
+      const response = await fetch(`${apiUrl}/api/users/${userId}/unfollow`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
-        setUnreadCount(0);
+        fetchUserData(); // Refresh user data
       }
     } catch (error) {
-      console.error("Error marking notifications as read:", error);
+      console.error("Error unfollowing user:", error);
     }
   };
 
@@ -383,16 +440,41 @@ const ProfilePage = () => {
     navigate(`/postDetails/${postId}`);
   };
 
+  const handleCreateStory = async (storyData) => {
+    try {
+      const formData = new FormData();
+      formData.append('media', storyData.media);
+      formData.append('caption', storyData.caption);
+      const response = await fetch(`${apiUrl}/stories/create`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStories(prev => [data.story, ...prev]);
+        setShowCreateStory(false);
+      }
+    } catch (error) {
+      console.error('Error creating story:', error);
+    }
+  };
+  const handleStoryClick = (story) => {
+    const storyIndex = stories.findIndex(s => s._id === story._id);
+    setSelectedStoryIndex(storyIndex);
+    setShowStoryViewer(true);
+  };
   return (
     <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: "#f5f5f5" }}>
       {/* Navigation Bar */}
       <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
         <div className="container">
           <a className="navbar-brand fw-bold text-primary" href="/" style={{ fontSize: "1.8rem" }}>
-            SocialApp
+            HiBUDDY
           </a>
-          
-          <div className="d-flex align-items-center">
+          <div className="align-items-center">
             <div className="input-group rounded-pill mx-3" style={{ width: "300px" }}>
               <span className="input-group-text bg-light border-0 rounded-start-pill">
                 <FaSearch className="text-muted" />
@@ -405,22 +487,21 @@ const ProfilePage = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
             <div className="d-none d-lg-flex gap-4 mx-3">
-              <a href="/" className="text-dark"><FaHome size={22} /></a>
+              <a href="/home" className="text-dark"><FaHome size={22} /></a>
               <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a>
               <a href="/watch" className="text-dark"><FaVideo size={22} /></a>
-              <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
-              <a href="/games" className="text-dark"><FaGamepad size={22} /></a>
+              {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
+              <a href="/games" className="text-dark"><FaGamepad size={22} /></a> */}
             </div>
-            
+
             <div className="d-flex gap-3 ms-3">
               <div className="position-relative">
-                <button 
-                  className="btn p-0 position-relative" 
+                <button
+                  className="btn p-0 position-relative"
                   onClick={() => {
                     setShowNotifications(!showNotifications);
-                    if (showNotifications) handleMarkNotificationsAsRead();
+                    if (showNotifications) handleMarkNotificationAsRead(notifications[0]._id);
                   }}
                 >
                   <IoMdNotifications size={24} className="text-dark" />
@@ -432,19 +513,46 @@ const ProfilePage = () => {
                 </button>
                 {showNotifications && (
                   <div className="position-absolute end-0 mt-2 bg-white rounded shadow-lg p-3" style={{ width: "350px", zIndex: 1000 }}>
-                    <h6 className="fw-bold mb-3">Notifications</h6>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h6 className="fw-bold mb-0">Notifications</h6>
+                      <button 
+                        className="btn btn-sm btn-link text-muted"
+                        onClick={() => setShowNotifications(false)}
+                      >
+                        <i className="bi bi-x-lg"></i>
+                      </button>
+                    </div>
                     {notifications.length > 0 ? (
                       notifications.map(notification => (
-                        <div key={notification._id} className="d-flex align-items-center mb-3">
-                          <img 
-                            src={notification.sender.profilePicture || "https://via.placeholder.com/40"} 
-                            alt="Profile" 
-                            className="rounded-circle me-3" 
-                            style={{ width: "40px", height: "40px" }} 
+                        <div 
+                          key={notification._id} 
+                          className="d-flex align-items-center mb-3 p-2 rounded hover-bg-light"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => !notification.read && handleMarkNotificationAsRead(notification._id)}
+                        >
+                          <img
+                            src={notification.sender?.profilePicture || "https://via.placeholder.com/40"}
+                            alt="Profile"
+                            className="rounded-circle me-3"
+                            style={{ width: "40px", height: "40px" }}
                           />
-                          <div>
-                            <p className="mb-0 small">{notification.text}</p>
+                          <div className="flex-grow-1">
+                            <p className="mb-0 small">{notification.message}</p>
                             <small className="text-muted">{moment(notification.createdAt).fromNow()}</small>
+                          </div>
+                          <div className="d-flex align-items-center">
+                            {!notification.read && (
+                              <span className="badge bg-primary rounded-circle me-2" style={{ width: "8px", height: "8px" }}></span>
+                            )}
+                            <button 
+                              className="btn btn-sm btn-link text-muted p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteNotification(notification._id);
+                              }}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
                           </div>
                         </div>
                       ))
@@ -454,23 +562,21 @@ const ProfilePage = () => {
                   </div>
                 )}
               </div>
-              
-              <button className="btn p-0">
+              <button className="btn p-0" onClick={() => navigate('/chats')}>
                 <RiMessengerLine size={24} className="text-dark" />
               </button>
-              
               <div className="dropdown">
-                <button 
-                  className="btn p-0 dropdown-toggle" 
-                  id="profileDropdown" 
-                  data-bs-toggle="dropdown" 
+                <button
+                  className="btn p-0 dropdown-toggle"
+                  id="profileDropdown"
+                  data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  <img 
-                    src={userData?.profilePicture || "https://via.placeholder.com/30"} 
-                    alt="Profile" 
-                    className="rounded-circle" 
-                    style={{ width: "30px", height: "30px", objectFit: "cover" }} 
+                  <img
+                    src={userData?.profilePicture || "https://via.placeholder.com/30"}
+                    alt="Profile"
+                    className="rounded-circle"
+                    style={{ width: "30px", height: "30px", objectFit: "cover" }}
                   />
                 </button>
                 <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
@@ -487,7 +593,7 @@ const ProfilePage = () => {
       </nav>
 
       {/* Main Content */}
-      <div className="container-fluid mt-3">
+      <div className="container-fluid mt-3 ">
         <div className="row">
           {/* Left Sidebar */}
           <div className="col-lg-3 d-none d-lg-block">
@@ -495,17 +601,6 @@ const ProfilePage = () => {
               <div className="card border-0 shadow-sm mb-3">
                 <div className="card-body">
                   <ul className="list-unstyled">
-                    <li className="mb-2">
-                      <a href="/profile" className="d-flex align-items-center text-decoration-none text-dark">
-                        <img 
-                          src={userData?.profilePicture || "https://via.placeholder.com/30"} 
-                          alt="Profile" 
-                          className="rounded-circle me-2" 
-                          style={{ width: "30px", height: "30px", objectFit: "cover" }} 
-                        />
-                        <span>{userData?.firstName} {userData?.lastName}</span>
-                      </a>
-                    </li>
                     <li className="mb-2">
                       <a href="/friends" className="d-flex align-items-center text-decoration-none text-dark">
                         <FaUserFriends className="me-2" />
@@ -555,78 +650,50 @@ const ProfilePage = () => {
                   </ul>
                 </div>
               </div>
-
               <TrendingTopics topics={trendingTopics} />
             </div>
           </div>
-
           {/* Main Content Area */}
-          <div className="col-lg-6">
+          <div className="col-lg-6"
+            style={{
+              height: "100vh",
+              backgroundColor: "white",
+              overflow: "auto",
+            }}>
             {/* Stories */}
             <div className="card border-0 shadow-sm mb-3">
               <div className="card-body">
                 <Swiper
-                  slidesPerView={4}
-                  spaceBetween={10}
+                  slidesPerView={8}
+                  spaceBetween={6}
                   pagination={{ clickable: true }}
                   modules={[Pagination]}
                   className="stories-swiper"
                 >
-                  {stories.map((story) => (
-                    <SwiperSlide key={story._id}>
-                      <StoryCircle story={story} />
+                  {/* Add Story Button */}
+                  {/* Other users' stories */}
+                  {Array.from(
+                    new Map(
+                      stories
+                        .filter(story => story.userId._id !== userId)
+                        .map(story => [story.userId._id, story])
+                    ).values()
+                  ).map((story) => (
+                    <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
+                      <span>{story.userId.userName}</span>
+                      <StoryCircle
+                        story={story}
+                        onClick={handleStoryClick}
+                        currentUserId={userId}
+                      />
                     </SwiperSlide>
                   ))}
                 </Swiper>
               </div>
             </div>
-
-            {/* Create Post */}
-            <div className="card border-0 shadow-sm mb-3">
-              <div className="card-body">
-                <div className="d-flex align-items-center mb-3">
-                  <img 
-                    src={userData?.profilePicture || "https://via.placeholder.com/40"} 
-                    alt="Profile" 
-                    className="rounded-circle me-3" 
-                    style={{ width: "40px", height: "40px", objectFit: "cover" }} 
-                  />
-                  <button 
-                    className="btn btn-light flex-grow-1 text-start rounded-pill"
-                    onClick={() => setShowModal(true)}
-                    style={{ height: "40px" }}
-                  >
-                    What's on your mind, {userData?.firstName}?
-                  </button>
-                </div>
-                <div className="d-flex justify-content-between border-top pt-3">
-                  <button className="btn btn-light rounded-pill">
-                    <i className="bi bi-camera-video-fill text-danger me-2"></i>
-                    Live Video
-                  </button>
-                  <button className="btn btn-light rounded-pill">
-                    <i className="bi bi-images text-success me-2"></i>
-                    Photo/Video
-                  </button>
-                  <button className="btn btn-light rounded-pill">
-                    <i className="bi bi-emoji-smile text-warning me-2"></i>
-                    Feeling/Activity
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Profile Header */}
             {userData && (
-              <div 
+              <div
                 className="profile-header position-relative overflow-hidden mb-3"
-                style={{
-                  background: "linear-gradient(135deg, #ff4d6d 0%, #c9184a 100%)",
-                  color: "white",
-                  padding: "2rem 0",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                  clipPath: "polygon(0 0, 100% 0, 100% 90%, 0 100%)",
-                }}
               >
                 <div className="container">
                   <div className="row align-items-center">
@@ -648,75 +715,199 @@ const ProfilePage = () => {
                           onMouseEnter={e => e.currentTarget.style.transform = "perspective(500px) rotateY(5deg) scale(1.05)"}
                           onMouseLeave={e => e.currentTarget.style.transform = "perspective(500px) rotateY(-5deg)"}
                         />
+                        <label
+                          className="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 cursor-pointer"
+                          style={{
+                            cursor: 'pointer',
+                            width: '32px',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '2px solid white',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                          }}
+                          onClick={() => setShowEditProfile(true)}
+                        >
+                          <FaPen size={12} />
+                        </label>
                         <div className="status-indicator"></div>
                       </div>
-
                       <div>
-                        <h1 
+                        <p
                           className="mb-2"
-                          style={{ 
-                            fontSize: "2rem", 
-                            fontWeight: 800,
-                            letterSpacing: "-0.5px",
-                            textShadow: "1px 2px 3px rgba(0,0,0,0.2)"
-                          }}
                         >
-                          <span className="text-gradient">{userData.userName}</span> {userData.lastName}
-                        </h1>
-                        <p 
-                          className="mb-0" 
-                          style={{ 
+                          <span className="text-dark text-sm">{userData?.userName}</span>
+                        </p>
+                        <p
+                          className="mb-0"
+                          style={{
                             fontSize: "1.1rem",
                             opacity: 0.9,
                             maxWidth: "500px"
                           }}
                         >
-                          {userData.bio || "Tell your story..."}
+                          {userData?.bio || "Tell your story..."}
                         </p>
                       </div>
                     </div>
 
                     <div className="col-md-4 mt-4 mt-md-0">
-                      <div className="d-flex flex-column gap-3">
-                        <button
-                          className="btn btn-light shadow-sm d-flex align-items-center justify-content-center py-2"
-                          style={{
-                            borderRadius: "50px",
-                            fontWeight: 600,
-                            transition: "all 0.3s ease",
-                          }}
-                          onClick={() => setShowModal(true)}
-                        >
-                          <FaPlus className="me-2" /> Create Post
-                        </button>
-                        
-                        <button
-                          className="btn btn-outline-light shadow-sm d-flex align-items-center justify-content-center py-2"
-                          style={{
-                            borderRadius: "50px",
-                            fontWeight: 600,
-                            borderWidth: "2px",
-                            transition: "all 0.3s ease",
-                          }}
-                          onClick={() => setShowEditProfile(true)}
-                        >
-                          <FaUserEdit className="me-2" /> Edit Profile
-                        </button>
+                      <div className="d-flex justify-content-around align-items-center">
+                        {/* Followers Stats */}
+                        <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowers}>
+                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.5rem' }}>
+                            {userData?.followers?.length || 0}
+                          </h3>
+                          <p className="mb-0 " style={{ fontSize: '0.9rem' }}>
+                            Followers
+                          </p>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="mx-2" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)' }}></div>
+
+                        {/* Following Stats */}
+                        <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowing}>
+                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.5rem' }}>
+                            {userData?.following?.length || 0}
+                          </h3>
+                          <p className="mb-0 " style={{ fontSize: '0.9rem' }}>
+                            Following
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-
+            <button
+              className="btn btn-primary rounded-circle position-fixed"
+              style={{
+                bottom: "30px",
+                right: "30px",
+                width: "60px",
+                height: "60px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                zIndex: 1000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.3s ease"
+              }}
+              onClick={() => setShowModal(true)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.1)";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+              }}
+            >
+              <FaPlus size={24} />
+            </button>
+            {/* Create Post Card - Enhanced */}
+            <div className="card border-0 shadow-sm mb-3">
+              <div className="card-body">
+                {/* <div className="d-flex align-items-center mb-3">
+                  <img
+                    src={userData?.profilePicture || "https://via.placeholder.com/40"}
+                    alt="Profile"
+                    className="rounded-circle me-3"
+                    style={{ width: "40px", height: "40px", objectFit: "cover" }}
+                  />
+                  <button
+                    className="btn btn-light flex-grow-1 text-start rounded-pill"
+                    onClick={() => setShowModal(true)}
+                    style={{
+                      height: "40px",
+                      transition: "all 0.3s ease",
+                      border: "1px solid #e0e0e0"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f8f9fa";
+                      e.currentTarget.style.borderColor = "#dee2e6";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#fff";
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                  >
+                    What's on your mind, {userData?.userName}?
+                  </button>
+                </div> */}
+                <div className="d-flex justify-content-between border-top pt-3">
+                  <button
+                    className="btn btn-light rounded-pill d-flex align-items-center"
+                    onClick={() => setShowCreateStory(true)}
+                    style={{
+                      transition: "all 0.3s ease",
+                      border: "1px solid #e0e0e0"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f8f9fa";
+                      e.currentTarget.style.borderColor = "#dee2e6";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#fff";
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                  >
+                    <i className="bi bi-camera-video-fill text-danger me-2"></i>
+                    Create Story
+                  </button>
+                  <button
+                    className="btn btn-light rounded-pill d-flex align-items-center"
+                    onClick={() => setShowModal(true)}
+                    style={{
+                      transition: "all 0.3s ease",
+                      border: "1px solid #e0e0e0"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f8f9fa";
+                      e.currentTarget.style.borderColor = "#dee2e6";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#fff";
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                  >
+                    <i className="bi bi-images text-success me-2"></i>
+                    Photo/Video
+                  </button>
+                  <button
+                    className="btn btn-light rounded-pill d-flex align-items-center"
+                    onClick={() => setShowModal(true)}
+                    style={{
+                      transition: "all 0.3s ease",
+                      border: "1px solid #e0e0e0"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f8f9fa";
+                      e.currentTarget.style.borderColor = "#dee2e6";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#fff";
+                      e.currentTarget.style.borderColor = "#e0e0e0";
+                    }}
+                  >
+                    <i className="bi bi-emoji-smile text-warning me-2"></i>
+                    Feeling/Activity
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* Profile Header */}
             {/* Profile Navigation */}
-            <div className="card border-0 shadow-sm mb-3 sticky-top bg-white" style={{ top: "60px", zIndex: 10 }}>
+            <div className="card border-0 shadow-sm mb-3  bg-white" style={{ zIndex: 10 }}>
               <div className="card-body p-0">
                 <div className="d-flex justify-content-around border-bottom">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
-                      className={`flex flex-column align-items-center py-3 position-relative border-0 bg-transparent 
+                      className={`flex flex-column align-items-center  position-relative border-0 bg-transparent 
                         ${activeTab === tab.id ? "text-dark fw-bold" : "text-secondary"}`}
                       onClick={() => setActiveTab(tab.id)}
                       style={{
@@ -725,9 +916,9 @@ const ProfilePage = () => {
                       }}
                     >
                       <div className="mb-1">{tab.icon}</div>
-                      <span className="small">{tab.label}</span>
+                    
                       {activeTab === tab.id && (
-                        <div 
+                        <div
                           className="position-absolute w-100 bg-primary"
                           style={{
                             height: "3px",
@@ -744,7 +935,7 @@ const ProfilePage = () => {
             </div>
 
             {/* Profile Content */}
-            <div className="mb-4">
+            <div className="mb-4 p-3">
               {activeTab === "grid" && (
                 <div className="row g-3">
                   {filteredPosts.map((post) => (
@@ -773,9 +964,9 @@ const ProfilePage = () => {
                   ))}
                 </div>
               )}
-
               {activeTab === "slideshow" && (
                 <div className="row justify-content-center">
+                {console.log(posts, 'posts')}
                   {posts.map((post) => (
                     <div key={post._id} className="col-12 mb-4">
                       <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: "16px" }}>
@@ -789,7 +980,7 @@ const ProfilePage = () => {
                               style={{ width: "45px", height: "45px", objectFit: "cover" }}
                             />
                             <div>
-                              <h6 className="mb-0 fw-bold">{post.userId.firstName} {post.userId.lastName}</h6>
+                              <h6 className="mb-0 fw-bold">{post.userId.userName} </h6>
                               <small className="text-muted">{moment(post.createdAt).fromNow()}</small>
                             </div>
                           </div>
@@ -799,7 +990,7 @@ const ProfilePage = () => {
                         </div>
 
                         {/* Post Image */}
-                        <div 
+                        <div
                           className="w-100"
                           style={{
                             aspectRatio: "1/1",
@@ -813,26 +1004,26 @@ const ProfilePage = () => {
                         <div className="card-body">
                           <div className="d-flex justify-content-between mb-3">
                             <div>
-                              <button 
+                              <button
                                 className="btn p-0 me-3"
                                 onClick={() => handleLikePost(post._id)}
                               >
                                 <i className={`bi ${post.likes?.includes(userData?._id) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
                               </button>
-                              <button 
+                              <button
                                 className="btn p-0 me-3"
                                 onClick={() => handlePostClick(post._id)}
                               >
                                 <i className="bi bi-chat fs-4"></i>
                               </button>
-                              <button 
+                              <button
                                 className="btn p-0"
                                 onClick={() => handleSharePost(post._id)}
                               >
                                 <i className="bi bi-send fs-4"></i>
                               </button>
                             </div>
-                            <button 
+                            <button
                               className="btn p-0"
                               onClick={() => handleSavePost(post._id)}
                             >
@@ -841,8 +1032,8 @@ const ProfilePage = () => {
                           </div>
 
                           <p className="fw-bold mb-2">
-                            {post.likes?.length > 0 
-                              ? `${post.likes.length.toLocaleString()} likes` 
+                            {post.likes?.length > 0
+                              ? `${post.likes.length.toLocaleString()} likes`
                               : "Be the first to like this"}
                           </p>
                           <p className="mb-2">
@@ -876,8 +1067,10 @@ const ProfilePage = () => {
           {/* Right Sidebar */}
           <div className="col-lg-3 d-none d-lg-block">
             <div className="sticky-top" style={{ top: "70px" }}>
-              <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
-              
+             {suggestions &&
+                <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
+             }
+          
               <div className="card border-0 shadow-sm mb-3">
                 <div className="card-header bg-white">
                   <h6 className="mb-0 fw-bold">Birthdays</h6>
@@ -905,11 +1098,11 @@ const ProfilePage = () => {
                     {friends?.slice(0, 5).map((friend) => (
                       <li key={friend._id} className="p-3 border-bottom">
                         <a href={`/profile/${friend.friendId._id}`} className="d-flex align-items-center text-decoration-none text-dark">
-                          <img 
-                            src={friend.friendId.profilePicture || "https://via.placeholder.com/40"} 
-                            alt="Profile" 
-                            className="rounded-circle me-3" 
-                            style={{ width: "35px", height: "35px", objectFit: "cover" }} 
+                          <img
+                            src={friend.friendId.profilePicture || "https://via.placeholder.com/40"}
+                            alt="Profile"
+                            className="rounded-circle me-3"
+                            style={{ width: "35px", height: "35px", objectFit: "cover" }}
                           />
                           <span>{friend.friendId.firstName} {friend.friendId.lastName}</span>
                         </a>
@@ -936,11 +1129,49 @@ const ProfilePage = () => {
 
       {showEditProfile && userData && (
         <EditProfile
+          show={showEditProfile}
+          onHide={() => setShowEditProfile(false)}
           userData={userData}
           onSave={handleSave}
-          onClose={() => setShowEditProfile(false)}
         />
       )}
+
+      {/* Followers Modal */}
+      <FollowModal
+        show={showFollowersModal}
+        onHide={() => setShowFollowersModal(false)}
+        title="Followers"
+        users={userData?.followers || []}
+        currentUserId={userData?._id}
+        onFollow={handleFollowUser}
+        onUnfollow={handleUnfollowUser}
+      />
+
+      {/* Following Modal */}
+      <FollowModal
+        show={showFollowingModal}
+        onHide={() => setShowFollowingModal(false)}
+        title="Following"
+        users={userData?.following || []}
+        currentUserId={userData?._id}
+        onFollow={handleFollowUser}
+        onUnfollow={handleUnfollowUser}
+      />
+
+      {/* Create Story Modal */}
+      <CreateStory
+        show={showCreateStory}
+        onHide={() => setShowCreateStory(false)}
+        onCreateStory={handleCreateStory}
+        userData={userData}
+      />
+
+      <StoryViewer
+        show={showStoryViewer}
+        onHide={() => setShowStoryViewer(false)}
+        stories={stories}
+        currentStoryIndex={selectedStoryIndex}
+      />
 
       {/* Global Styles */}
       <style jsx global>{`

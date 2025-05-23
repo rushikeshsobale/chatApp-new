@@ -3,8 +3,55 @@ const Muser = require("../Modules/Muser.js");
 const secretKey = process.env.JWT_SECRET || "mySecreateKey";
 const router = express.Router();
 const verifyToken = require("./verifyToken.js");
+const multer = require("multer");
+const { uploadToS3 } = require("../utils/s3Upload");
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.get("/userProfile/:userId", verifyToken, async (req, res) => {
+  const { userId } = req.params;
+  const currentUserId = req.user.id;
+
+  try {
+    const user = await Muser.findById(userId).lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isOwner = userId === currentUserId;
+    const isFollower = user.followers.includes(currentUserId);
+
+    // Always remove password field
+    delete user.password;
+
+    const basicInfo = {
+      _id: user._id,
+      userName: user.userName,
+      profilePicture: user.profilePicture,
+      bio: user.bio,
+      
+    };
+
+    if (user.isPrivate && !isOwner && !isFollower) {
+      return res.status(200).json({
+        ...basicInfo,
+        isPrivate: true,
+        message: "This profile is private. Limited info shown.",
+      });
+    }
+
+    res.status(200).json({
+      ...user,
+      isPrivate: false,
+    });
+
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.get("/suggestions", verifyToken, async (req, res) => {
- console.log(req.body, 'profileroutes')
   try {
     const users = await Muser.find(); // Retrieve all users
     const filteredUsers = users.filter(
@@ -16,23 +63,78 @@ router.get("/suggestions", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+router.put("/updateUser/:userId", upload.single("profilePicture"), async (req, res) => {
+  const { firstName, lastName, bio } = req.body;
+  const { userId } = req.params;
+
+  if (!userId || !firstName || !lastName) {
+    return res.status(400).json({
+      success: false,
+      message: "User ID, First Name, and Last Name are required",
+    });
+  }
+
+  try {
+    let mediaUrl = null;
+    
+    if (req.file) {
+      const uploadResult = await uploadToS3(req.file, {
+        folder: "profiles",
+        checkDuplicate: false, // Don't check duplicates for profile pictures
+        generateUniqueName: true
+      });
+      mediaUrl = uploadResult.url;
+    }
+
+    const updatedData = {
+      firstName,
+      lastName,
+      bio,
+      profilePicture: mediaUrl || null,
+    };
+
+    const updatedUser = await Muser.findByIdAndUpdate(userId, updatedData, {
+      new: true,
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal server error" 
+    });
+  }
+});
 
 router.post("/follow/:id", verifyToken, async (req, res) => {
     try {
-        const userId = req.decoded.id; // Logged-in user
+        const userId = req.decoded.userId; // Logged-in user
         const targetUserId = req.params.id; // User to follow
-
+       
         if (userId === targetUserId) {
             return res.status(400).json({ message: "You cannot follow yourself" });
         }
 
         const user = await Muser.findById(userId);
         const targetUser = await Muser.findById(targetUserId);
-
+       
         if (!user || !targetUser) {
             return res.status(404).json({ message: "User not found" });
         }
-
+        if (user.following.includes(targetUserId)) {
+          return res.status(400).json({ message: "Following already" });
+      }
         if (targetUser.isPrivate) {
             // Private account: Send a follow request
             if (targetUser.followRequests.includes(userId)) {
@@ -60,7 +162,7 @@ router.post("/follow/:id", verifyToken, async (req, res) => {
 // Accept or Deny Follow Request
 router.post("/follow-request/:id", verifyToken, async (req, res) => {
     try {
-        const userId = req.decoded.id; // Logged-in user
+        const userId = req.decoded.userId; // Logged-in user
         const requesterId = req.params.id; // User who sent the request
         const { action } = req.body; // 'accept' or 'deny'
 
@@ -93,3 +195,4 @@ router.post("/follow-request/:id", verifyToken, async (req, res) => {
     }
 });
 
+module.exports = router;

@@ -947,7 +947,7 @@
 }
 
 .message-reactions {
-  position: absolute;
+  position: sticky;
   bottom: -12px;
   right: 8px;
   background: white;

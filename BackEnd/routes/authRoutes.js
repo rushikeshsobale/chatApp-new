@@ -5,13 +5,12 @@ const Muser = require("../Modules/Muser.js");
 const multer = require("multer");
 const secretKey = process.env.JWT_SECRET || "mySecreateKey";
 const router = express.Router();
-
+const { uploadToS3 } = require("../utils/s3Upload");
 // Multer configuration
 const upload = multer({ storage: multer.memoryStorage() });
-
 // Register route
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
-  console.log("Received request:", req.body);
+  
   try {
     const { email, password, username, birthdate, phone } = req.body;
     if (!email || !password || !username) {
@@ -47,9 +46,9 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
-
 // Send verification email
 router.post("/send-verification", async (req, res) => {
+ 
   try {
     const { email } = req.body;
     const existingUser = await Muser.findOne({ email });
@@ -66,7 +65,6 @@ router.post("/send-verification", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Email verification route
 router.post("/verify-email", async (req, res) => {
   try {
@@ -85,70 +83,182 @@ router.post("/verify-email", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 // Complete profile route
 router.put("/complete-profile/:userId", upload.single("profilePicture"), async (req, res) => {
   const userId = req.params.userId;
+  
+  // Set a longer timeout for this route
+  req.setTimeout(60000); // 60 seconds timeout
+  
   try {
-    console.log(req.body, "request body");
-    const profileData = req.body.profileData ? JSON.parse(req.body.profileData) : {};
-    const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
+    // Validate user exists
+    const user = await Muser.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: "User not found",
+        message: "The user with the provided ID does not exist"
+      });
+    }
 
+    // Handle profile picture upload
+    let profilePicture = user.profilePicture; // Keep existing picture by default
+    if (req.file) {
+      try {
+        const uploadResult = await uploadToS3(req.file, {
+          folder: "profiles",
+          checkDuplicate: false,
+          generateUniqueName: true
+        });
+        profilePicture = uploadResult.url;
+      } catch (uploadError) {
+        console.error("Profile picture upload error:", uploadError);
+        return res.status(500).json({
+          success: false,
+          error: "Profile picture upload failed",
+          message: "Failed to upload profile picture",
+          details: uploadError.message
+        });
+      }
+    }
+
+    // Parse and validate profile data
+    let profileData;
+    try {
+      profileData = req.body.profileData ? JSON.parse(req.body.profileData) : {};
+    } catch (error) {
+      console.error("Profile data parsing error:", error);
+      return res.status(400).json({
+        success: false,
+        error: "Invalid profile data format",
+        message: "The profile data provided is not in the correct format",
+        details: error.message
+      });
+    }
+
+    // Prepare update data
     const updateData = {
-      ...profileData,
       profilePicture,
       onboardingComplete: true,
-      lastUpdated: new Date(),
+      lastUpdated: new Date()
     };
 
+    // Handle basic info
     if (profileData.basicInfo) {
-      updateData.firstName = profileData.basicInfo.firstName;
-      updateData.lastName = profileData.basicInfo.lastName;
-      updateData.gender = profileData.basicInfo.gender;
-      updateData.birthDate = profileData.basicInfo.birthDate;
-      updateData.location = profileData.basicInfo.location;
+      const { firstName, lastName, gender, birthDate, location } = profileData.basicInfo;
+      
+      // Validate required fields
+      if (!firstName || !lastName) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields",
+          message: "First name and last name are required",
+          missingFields: {
+            firstName: !firstName,
+            lastName: !lastName
+          }
+        });
+      }
+
+      updateData.firstName = firstName;
+      updateData.lastName = lastName;
+      updateData.gender = gender;
+      updateData.birthDate = birthDate;
+      updateData.location = location;
     }
 
-    const updatedUser = await Muser.findByIdAndUpdate(userId, { $set: updateData }, { new: true });
-
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
+    // Handle onboarding data
+    if (profileData.onboarding) {
+      const { interests, preferences, goals, bio } = profileData.onboarding;
+      
+      updateData.interests = interests || [];
+      updateData.preferences = preferences || {};
+      updateData.goals = goals || [];
+      updateData.bio = bio || '';
     }
 
-    res.json({
+    // Handle additional profile data
+    if (profileData.additionalInfo) {
+      updateData.additionalInfo = profileData.additionalInfo;
+    }
+
+    // Update user profile with retry logic
+    let updatedUser;
+    try {
+      updatedUser = await Muser.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+    } catch (updateError) {
+      console.error("Profile update error:", updateError);
+      return res.status(500).json({
+        success: false,
+        error: "Profile update failed",
+        message: "Failed to update user profile",
+        details: updateError.message
+      });
+    }
+
+    // Prepare response data
+    const responseData = {
+      success: true,
       message: "Profile completed successfully",
-      user: updatedUser,
-    });
+      data: {
+        user: {
+          id: updatedUser._id,
+          email: updatedUser.email,
+          userName: updatedUser.userName,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          profilePicture: updatedUser.profilePicture,
+          onboardingComplete: updatedUser.onboardingComplete,
+          interests: updatedUser.interests,
+          goals: updatedUser.goals,
+          bio: updatedUser.bio,
+          lastUpdated: updatedUser.lastUpdated
+        },
+        nextStep: "profile-completed"
+      }
+    };
+
+    // Send response with proper headers
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(responseData);
+
   } catch (error) {
     console.error("Profile completion error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ 
+      success: false,
+      error: "Internal server error",
+      message: "An error occurred while updating the profile",
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
-module.exports = router;
+
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const validateEmail = await Muser.findOne({ email: email });
-    console.log("Stored Password:", validateEmail.password);
-    console.log("Entered Password:", password);
-    console.log(
-      "Stored:",
-      validateEmail.password,
-      typeof validateEmail.password
+    if (!validateEmail) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    const validatePassword = await bcrypt.compare(
+      password,
+      validateEmail.password
     );
-    if (validateEmail) {
-      const validatePassword = await bcrypt.compare(
-        password,
-        validateEmail.password
-      );
+   
     if (validatePassword) {
       const token = jwt.sign(
         {
           userId: validateEmail._id,
           email: validateEmail.email,
-          name: validateEmail.userName,
+          userName: validateEmail.userName,
           requests: validateEmail.requests,
           friends: validateEmail.friends,
         },
@@ -160,9 +270,10 @@ router.post("/login", async (req, res) => {
     } else {
       res.status(400).json({ message: "Password does not match" });
     }
-  }
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+module.exports = router;

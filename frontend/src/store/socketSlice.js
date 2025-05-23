@@ -1,6 +1,24 @@
 // socketSlice.js
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { io } from 'socket.io-client';
 
+const apiUrl = process.env.REACT_APP_API_URL; // Replace with your actual backend URL
+const user = JSON.parse(localStorage.getItem("user"));
+const userId = user?.userId;
+export const initializeSocket = createAsyncThunk(
+  'socket/initialize',
+  async (_, { dispatch }) => {
+    
+    console.log(userId, 'userId')
+    if (!userId) return;
+
+    const socketConnection = io(`${apiUrl}/`, {
+      query: { id: userId },
+    });
+    console.log(socketConnection, 'socletconnection', userId)
+    dispatch(setSocket(socketConnection));
+  }
+);
 
 const socketSlice = createSlice({
   name: 'socket',
@@ -10,7 +28,6 @@ const socketSlice = createSlice({
   },
   reducers: {
     setSocket: (state, action) => {
-        console.log(state, action , 'from')
       state.socket = action.payload;
       state.isConnected = !!action.payload;
     },

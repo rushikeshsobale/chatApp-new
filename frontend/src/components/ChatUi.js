@@ -4,12 +4,13 @@ import { addMessage, updateMessageStatus } from '../store/store';
 import EmojiPicker from 'emoji-picker-react';
 import '../css/Chat.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faCheckDouble, 
-  faEllipsisV, 
-  faTrashAlt, 
-  faSmile, 
-  faShare, 
+import { createNotification } from '../services/notificationService'
+import {
+  faCheckDouble,
+  faEllipsisV,
+  faTrashAlt,
+  faSmile,
+  faShare,
   faCheck,
   faPaperPlane,
   faPaperclip,
@@ -22,7 +23,7 @@ import { FaArrowLeft } from 'react-icons/fa';
 
 const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBack }) => {
   const [messageInput, setMessageInput] = useState('');
-  const friendId = member.friendId._id;
+  const friendId = member._id;
   const [messages, setMessages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUser, setTypingUser] = useState('');
@@ -30,18 +31,24 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
   const apiUrl = process.env.REACT_APP_API_URL;
   const [chatId, setChatId] = useState([userId, friendId].sort().join("_"));
   const inputRef = useRef(null);
+  const messageTone = new Audio('https://bigsoundbank.com/UPLOAD/mp3/1313.mp3');
   useEffect(() => {
     setChatId([userId, friendId].sort().join("_"));
   }, [userId, friendId]);
 
   const fetchMessages = async (page = 1, limit = 20) => {
     try {
-      const response = await fetch(`${apiUrl}/getMessages/${chatId}?page=${page}&limit=${limit}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/messages/getMessages?page=${page}&limit=${limit}&senderId=${userId}&receiverId=${friendId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch messages");
       const data = await response.json();
 
-      setMessages((prev) => [...prev, ...data.reverse()]);
-
+      setMessages(data.reverse());
 
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -56,7 +63,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
   }, [chatId]);
 
   const sendMessage = async (attachment) => {
-    console.log(attachment, 'attachment');
+
     if (!messageInput.trim()) return;
 
     try {
@@ -70,7 +77,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
 
-      setMessages((prev) => [...prev, { chatId, senderId: userId, receiverId: friendId, content: messageInput, attachment }]);
+      setMessages((prev) => [...prev, { chatId, senderId: userId, receiverId: friendId, content: messageInput, attachment, timestamp: Date.now() }]);
 
       const response = await fetch(`${apiUrl}/postMessage`, {
         method: 'POST',
@@ -78,7 +85,18 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
       });
 
       if (!response.ok) throw new Error('Failed to send message');
+      if (response.ok) {
+        const notificationData = {
+          recipient: friendId,
+          sender: userId,
+          type: 'message',
+          message: `${member.userName} has messaged you `,
+          createdAt: new Date().toISOString(),
+          read: false
+        };
 
+        await createNotification(notificationData);
+      }
       const data = await response.json(); // Get response data
       console.log(data, 'data')
       socket.emit('sendMessage', data); // Emit actual saved message
@@ -106,10 +124,19 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         return [...prev.slice(0, -1), payload]; // Replace last message with payload
       });
     });
+   // If stored in public/sounds/
+
     socket.on("recievedMessage", (message) => {
-      console.log(message, 'message')
+      console.log(message, 'message');
+
+      // Play sound
+      messageTone.play().catch((err) => {
+        console.error("Failed to play message tone:", err);
+      });
+
+      setMessages((prev) => [...prev, message]);
+
       if (chatId) {
-        fetchMessages(1, 1);
         socket.emit('setDoubleCheck', { friendId, chatId, message });
       }
     });
@@ -168,7 +195,15 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
 
   const addReaction = async (messageId, emoji) => {
     try {
-      const response = await fetch(`${apiUrl}/${messageId}/reactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, emoji }) });
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId, emoji })
+      });
       if (!response.ok) throw new Error("Failed to add reaction");
       const updatedMessage = await response.json();
       setMessages((prev) => prev.map((msg) => (msg._id === messageId ? { ...msg, reaction: emoji, showReactions: false } : msg)));
@@ -213,12 +248,12 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         <button className="back-button" onClick={onBack}>
           <FaArrowLeft />
         </button>
-        
+
         <div className="user-info">
           <div className="user-avatar">
-            <img 
-              src={member.friendId.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"} 
-              alt={member.friendId.firstName} 
+            <img
+              src={member?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"}
+              alt={member?.userName}
             />
             {typingUser && typingUser !== userId && (
               <div className="typing-indicator">
@@ -228,15 +263,15 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
               </div>
             )}
           </div>
-          
+
           <div className="user-details">
-            <h3>{member.friendId.firstName} {member.friendId.lastName}</h3>
+            <h3>{member?.userName} </h3>
             <p>
               {typingUser && typingUser !== userId ? "typing..." : "online"}
             </p>
           </div>
         </div>
-        
+
         <div className="chat-actions">
           <button className="menu-button">
             <CiMenuKebab />
@@ -248,12 +283,12 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
       <div className="messages-area">
         {messages?.length === 0 ? (
           <div className="empty-state">
-            <p>Start a conversation with {member.friendId.firstName}!</p>
+            <p>Start a conversation with {member?.userName} !</p>
           </div>
         ) : (
           messages?.map((message, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className={`message-container ${message?.senderId === userId ? 'sent' : 'received'}`}
             >
               <div className="message-bubble">
@@ -285,7 +320,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
                   <span className="timestamp">
                     {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  
+
                   {message?.senderId === userId && (
                     <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
                       {message?.status === 'read' ? (
@@ -321,8 +356,8 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
                 {message?.showReactions && (
                   <div className="reactions-picker">
                     {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => (
-                      <span 
-                        key={emoji} 
+                      <span
+                        key={emoji}
                         onClick={() => addReaction(message?._id, emoji)}
                       >
                         {emoji}
@@ -376,13 +411,13 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
 
         {/* Input Controls */}
         <div className="input-controls">
-          <button 
+          <button
             className="attachment-button"
             onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}
           >
             <FontAwesomeIcon icon={faPaperclip} />
           </button>
-          
+
           <input
             type="text"
             ref={inputRef}
@@ -393,15 +428,15 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
             onFocus={handleTyping}
             onBlur={handleBlur}
           />
-          
-          <button 
+
+          <button
             className="emoji-button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           >
             <FontAwesomeIcon icon={faSmile} />
           </button>
-          
-          <button 
+
+          <button
             className="send-button"
             onClick={() => sendMessage(selectedFile)}
             disabled={!messageInput.trim() && !selectedFile}

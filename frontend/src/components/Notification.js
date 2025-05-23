@@ -7,11 +7,9 @@ const Notification = () => {
   const notifications = useSelector(state => state.notifications.notifications);
   const [showNotifications, setShowNotifications] = useState(false);
   const [prevNotificationCount, setPrevNotificationCount] = useState(0);
-
   const toggleNotifications = () => {
     setShowNotifications(prev => !prev);
   };
-
   // Play notification sound when new notifications arrive
   useEffect(() => {
     setPrevNotificationCount(notifications.length);
@@ -19,7 +17,7 @@ const Notification = () => {
   return (
     <div className="notification-container mx-5">
       <div className="notification-icon" onClick={toggleNotifications} style={{ cursor: 'pointer' }}>
-        <FaBell className="text-warning" size={24} />
+        <FaBell className="text-warning" size={24} />  
         {notifications.length > 0 && (
           <span className="badge badge-danger position-absolute top-0 start-100 translate-middle">
             {notifications.length}

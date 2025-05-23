@@ -6,7 +6,7 @@ const initialState = {
 };
 
 const authReducer = (state= initialState, action) => {
-  console.log(state ,action, 'action from userSlice')
+  
   switch (action.type) {
     case SET_USER:
       return {

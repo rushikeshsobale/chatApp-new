@@ -19,11 +19,17 @@ import PostDetail from './components/PostDetail.js';
 import ExplorePage from './pages/ExplorePage.js';
 import ForgotPassword from './components/ForgotPassword.js';
 import Onboarding from './components/Onboarding.js';
+import Friends from './pages/Friends.js';
+import { initializeSocket } from './store/socketSlice';
+import UserProfilePage from './pages/userProfile.js';
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const { socket, userId } = useSocket();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const dispatch = useDispatch();
+  useEffect(() => {
+    dispatch(initializeSocket());
+  }, []);
    useEffect(() => {
         const token = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
         if (token) {
@@ -46,7 +52,6 @@ const AppWrapper = () => {
       }
     };
   }, [socket]);
-
   return (
     <div className="" style={{background:'black'}}>
       <BrowserRouter>
@@ -58,18 +63,18 @@ const AppWrapper = () => {
           <Route path="/chats" element={<ChatComponent />} />
           <Route path="/ProfilePage/:userId" element={<ProfilePage />} />
           <Route path="/Profile" element={<ProfilePage />} />
-          
+          <Route path="/friends" element={<Friends />} />
           <Route path="/postDetails/:postId" element={<PostDetail/>} />
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/forgot-password" element={<ForgotPassword/>}/>
           <Route path="/onboarding" element={<Onboarding/>}/>
+          <Route path="/userProfile/:userId" element = {<UserProfilePage/>}/>
         </Routes>
         
       </BrowserRouter>
     </div>
   );
 };
-
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <Provider store={store}>
@@ -78,5 +83,4 @@ root.render(
     </SocketProvider>
   </Provider>
 );
-
 reportWebVitals();

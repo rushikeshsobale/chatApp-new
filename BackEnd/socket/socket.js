@@ -1,27 +1,31 @@
 const Messages = require("../Modules/Messages.js");
-let activeMembers = [];
-module.exports = (io) => {
-    io.on("connection", (socket) => {
-        console.log("A user connected:", socket.id);
+let onlineFriends = [];
+let onlineUsers = new Map();  
 
+module.exports = (io) => {
+    io.on("connection", (socket) => {      
         socket.on("joinRoom", (data) => {
-            const { userId } = data;
+            const { userId, friends } = data;
+            const _id = userId;
             const socketId = socket.id;
-            activeMembers.push({ socketId, userId });
+            onlineUsers.set(userId, socket.id);
+   
+            const onlineFriends = friends.filter(friend => onlineUsers.has(friend._id));
+            console.log( 'onlineFriends', onlineFriends, 'friends', friends, )
             socket.join(userId);
             try {
-                io.emit('status', { socketId, userId });
-                io.to(userId).emit('restatus', activeMembers);
+                io.emit('status', { socketId, _id });
+                io.to(userId).emit('restatus', onlineFriends);
             } catch (error) {
                 console.error('Error in joinRoom:', error);
             }
         });
 
         socket.on('sendMessage', (data) => {
-            console.log('Message received:', data);
-            const { chatId, senderId, receiverId, content } = data;
+          
+            const { chatId, senderId, receiverId, content,timestamp } = data;
             try {
-                io.to(receiverId).emit('recievedMessage', { content, senderId, receiverId, chatId });
+                io.to(receiverId).emit('recievedMessage', { content, senderId, receiverId, chatId, timestamp });
             } catch (err) {
                 console.error('Error sending message:', err.message);
             }
@@ -76,7 +80,7 @@ module.exports = (io) => {
         });
 
         socket.on('raisedRequest', ({ userId, senderId, message }) => {
-            const recipient = activeMembers.find(member => member.userId === userId);
+            const recipient = onlineFriends.find(member => member.userId === userId);
             if (recipient) {
                 io.to(recipient.userId).emit('friendRequestNotification', { senderId, message });
             } else {
@@ -84,9 +88,28 @@ module.exports = (io) => {
             }
         });
 
+    
+        socket.on('emit_notification', (data) => {
+            const { recipient } = data;
+            console.log(onlineUsers, 'onlineUsers')
+            const recipientSocketId = onlineUsers.get(recipient);
+            if (recipientSocketId) {
+                io.to(recipientSocketId).emit('got_a_notification', data);
+            } else {
+                console.log(`Recipient ${recipient} is not online.`);
+            }
+        });
         socket.on("disconnect", () => {
-            activeMembers = activeMembers.filter(member => member.socketId !== socket.id);
-            io.emit('userLeft', activeMembers);
+            console.log(onlineUsers, 'vegore disconnect')
+            onlineFriends = onlineFriends.filter(member => member.socketId !== socket.id);
+            for (const [userId, socketId] of onlineUsers.entries()) {
+                if (socketId === socket.id) {
+                    onlineUsers.delete(userId);
+                    break;
+                }
+            }
+            io.emit('userLeft', onlineFriends);
+            console.log(onlineUsers, 'from disconnect')
         });
 
         socket.on('error', (err) => {

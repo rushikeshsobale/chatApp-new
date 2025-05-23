@@ -19,8 +19,17 @@ require("./Mongo/Conn.js")
 const router = require('./routes/router.js');
 const authRoutes = require("./routes/authRoutes.js");
 const profileRoutes = require("./routes/profileRoutes.js"); 
-app.use(router);
-app.use("/profile", profileRoutes);
-app.use("/auth", authRoutes);
-
+const postRoutes = require("./routes/postRoutes.js");
+const storyRoutes = require("./routes/storyRoutes.js");
+const notificationRoutes = require("./Routes/notificationRoutes.js");
+const messageRoutes = require("./routes/messageRoutes.js");
+const groupRoutes = require("./routes/groupRoutes.js")
+ app.use(router);
+ app.use("/profile", profileRoutes);
+ app.use("/auth", authRoutes);
+ app.use("/post", postRoutes)
+ app.use("/stories", storyRoutes )
+ app.use("/notifications", notificationRoutes)
+ app.use("/messages", messageRoutes)
+ app.use("/group", groupRoutes)
 module.exports = app;

@@ -3,7 +3,7 @@
   max-width: 600px;
   margin: 0 auto;
   background-color: #fafafa;
-  min-height: 100vh;
+  min-height: 80vh;
 }
 
 /* Header */
@@ -17,6 +17,7 @@
   align-items: center;
   justify-content: space-between;
   z-index: 10;
+  
 }
 
 .back-button {

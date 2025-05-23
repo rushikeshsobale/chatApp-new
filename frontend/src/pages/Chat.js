@@ -11,9 +11,10 @@ import FriendList from "../components/FriendList";
 import ProfileDisplay from "../components/ProfileDisplay";
 import { useNavigate } from "react-router-dom";
 import UsersList from "./Users";
-
+import CreateGroupModal from "../components/CreateGroup";
+import GroupList from "../components/GroupList"
 const ChatComponent = () => {
-  const { socket, setSocket, setUserId, userId } = useSocket();
+  const { setSocket, setUserId, userId } = useSocket();
   const [userName, setUserName] = useState("");
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
@@ -26,7 +27,7 @@ const ChatComponent = () => {
   const token = localStorage.getItem("token");
   const dispatch = useDispatch();
   const apiUrl = process.env.REACT_APP_API_URL;
-
+  const socket = useSelector((state) => state.socket.socket);
   const fetchUserData = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/getUser`, {
@@ -40,17 +41,13 @@ const ChatComponent = () => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log(data, 'dayaa')
         setUserId(data._id);
-        setUserName(data.firstName);
+        setUserName(data.userName);
         setProfilePicture(data.profilePicture);
-        setFriends(data.friends);
+        setFriends(data.followers);
         dispatch(setUser({ userId: data._id, name: data.firstName }));
-        if (!socket) {
-          const socketConnection = io(`${apiUrl}/`, {
-            query: { id: data._id },
-          });
-          setSocket(socketConnection);
-        }
+
       } else {
         console.error("Failed to fetch user data:", response.statusText);
       }
@@ -65,13 +62,16 @@ const ChatComponent = () => {
 
   useEffect(() => {
     if (socket && userId) {
-      socket.on("restatus", (data) => setActiveUsers(data));
-      socket.emit("joinRoom", { userId });
-      socket.on("status", (data) =>
+      socket.on("restatus", (data) => {
+        setActiveUsers(data)
+      }
+      );
+      socket.emit("joinRoom", { userId, friends });
+      socket.on("status", (data) => {
         setActiveUsers((prevActiveUsers) => [...prevActiveUsers, data])
+      }
       );
       socket.on("userLeft", (activeMembers) => setActiveUsers(activeMembers));
-
       return () => {
         socket.off("status");
         socket.off("userLeft");
@@ -99,11 +99,11 @@ const ChatComponent = () => {
   };
 
   return (
-    <div className="chat-container">
+    <div className="chat-container ">
       <div className="chat-layout">
         {/* Sidebar/Friend List */}
         {(!isMobileView || !selectedFriend) && (
-        <div className={`friend-list-container ${isMobileView && selectedFriend ? 'hide-on-mobile' : ''}`}>
+          <div className={`friend-list-container ${isMobileView && selectedFriend ? 'hide-on-mobile' : ''}`}>
             <div className="friend-list-header">
               <h3>Connections</h3>
               <div className="active-users-count">
@@ -118,6 +118,14 @@ const ChatComponent = () => {
               handleFriendSelect={handleFriendSelect}
               handleBackToFriendList={handleBackToFriendList}
             />
+            <GroupList 
+          
+              activeUsers={activeUsers}
+              msgCounts={msgCounts}
+              selectedFriend={selectedFriend}
+              handleFriendSelect={handleFriendSelect}
+              handleBackToFriendList={handleBackToFriendList}/>
+            <CreateGroupModal  friends={friends}/>
           </div>
         )}
 
@@ -128,16 +136,16 @@ const ChatComponent = () => {
               member={selectedFriend}
               setSelectedFriend={setSelectedFriend}
               userId={userId}
-              userName={userName}
+          userName={userName}
               socket={socket}
               history={chatHistory}
               setMsgCounts={setMsgCounts}
               onBack={isMobileView ? handleBackToFriendList : () => setSelectedFriend(null)}
             />
           ) : (
-            <div className="users-list-container">
+            <div className="container bg-dark ">
               <div className="welcome-message">
-                <h2>Welcome, {userName}!</h2>
+                <h2>Welcome</h2>
                 <p>Select a friend to start chatting or discover new connections</p>
               </div>
               <UsersList />

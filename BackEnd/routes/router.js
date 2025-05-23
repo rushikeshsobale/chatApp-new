@@ -46,9 +46,11 @@ router.get("/suggestions", verifyToken, async (req, res) => {
   }
 });
 router.get("/getUser", verifyToken, async (req, res) => {
-  console.log(req.decoded, 'userIdd')
+  
   try {
     const user = await Muser.findById(req.decoded.userId)
+    .populate("followers", "userName profilePicture _id") 
+      .populate("following", "userName profilePicture _id");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -101,52 +103,7 @@ const storage = multer.diskStorage({
   },
 });
 
-router.put(
-  "/api/updateUser/:userId",
-  upload.single("profilePicture"),
-  async (req, res) => {
-    const { firstName, lastName, bio } = req.body;
-    const { userId } = req.params;
-    if (!userId || !firstName || !lastName) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "User ID, First Name, and Last Name are required",
-        });
-    }
-    try {
-      let mediaUrl = null; // Default to null if no media file is uploaded
-      if (req.file) {
-        mediaUrl = await uploadToS3(req.file);
-      }
-      // Prepare data for user update
-      const updatedData = {
-        firstName,
-        lastName,
-        bio,
-        profilePicture: mediaUrl || null, // Use media URL if available
-      };
-      const updatedUser = await Muser.findByIdAndUpdate(userId, updatedData, {
-        new: true,
-      });
-      if (!updatedUser) {
-        return res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
-      res.status(200).json({
-        success: true,
-        user: updatedUser,
-      });
-    } catch (error) {
-      console.error("Error updating user:", error);
-      res
-        .status(500)
-        .json({ success: false, message: "Internal server error" });
-    }
-  }
-);
+
 router.post("/sendRequest/:receiverId", verifyToken, async (req, res) => {
   try {
     const senderId = req.decoded.userId;
@@ -415,29 +372,9 @@ router.post("/deleteChat", async (req, res) => {
     return res.status(500).send("Server error");
   }
 });
-const uploadToS3 = async (file) => {
-  const encodedFileName = encodeURIComponent(file.originalname);
-  const mediaUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${
-    process.env.AWS_REGION
-  }.amazonaws.com/uploads/${Date.now()}-${encodedFileName}`;
-  const params = {
-    Bucket: process.env.S3_BUCKET_NAME, // Use environment variable here for consistency
-    Key: `uploads/${Date.now()}-${file.originalname}`,
-    Body: file.buffer,
-    ContentType: file.mimetype,
-    ACL: "public-read", // Ensure the file is publicly readable
-  };
-  try {
-    const command = new PutObjectCommand(params);
-    const data = await s3Client.send(command);
-    return mediaUrl; // Return the generated media URL
-  } catch (err) {
-    console.error("Error uploading to S3:", err);
-    throw err; // Ensure the error is thrown if the upload fails
-  }
-};
+
 router.post("/api/posts", upload.single("media"), async (req, res) => {
-  console.log(req.file, req.body, "fdffd");
+  console.log(req.file, "filee");
   const { text, userId } = req.body;
   if (!text || !userId) {
     return res
@@ -704,4 +641,4 @@ router.post("/updateMsgStatus/:chatId", async (req, res) => {
 
 module.exports = router;
 
-module.exports = router;
+
