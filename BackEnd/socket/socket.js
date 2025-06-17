@@ -1,17 +1,21 @@
 const Messages = require("../Modules/Messages.js");
 let onlineFriends = [];
-let onlineUsers = new Map();  
-
+let onlineUsers = new Map();
+let userFriendsMap = new Map();
 module.exports = (io) => {
-    io.on("connection", (socket) => {      
+    io.on("connection", (socket) => {
         socket.on("joinRoom", (data) => {
             const { userId, friends } = data;
             const _id = userId;
             const socketId = socket.id;
             onlineUsers.set(userId, socket.id);
-   
             const onlineFriends = friends.filter(friend => onlineUsers.has(friend._id));
-            console.log( 'onlineFriends', onlineFriends, 'friends', friends, )
+            const onlineFriendIds = onlineFriends.map(friend => friend._id);
+            const socketIds = onlineFriendIds.map(id => onlineUsers.get(id));
+
+            // Save online friends for this user
+            userFriendsMap.set(userId, onlineFriendIds);
+
             socket.join(userId);
             try {
                 io.emit('status', { socketId, _id });
@@ -20,19 +24,27 @@ module.exports = (io) => {
                 console.error('Error in joinRoom:', error);
             }
         });
-
         socket.on('sendMessage', (data) => {
-          
-            const { chatId, senderId, receiverId, content,timestamp } = data;
+
+            const { chatId, senderId, receiverId, content, timestamp } = data;
             try {
-                io.to(receiverId).emit('recievedMessage', { content, senderId, receiverId, chatId, timestamp });
+                io.to(receiverId).emit('recievedMessage', { content, senderId: { _id: senderId }, receiverId, chatId, timestamp });
             } catch (err) {
                 console.error('Error sending message:', err.message);
             }
         });
 
+        socket.on('groupMessage', (data) => {
+            const { senderId, message } = data;
+            const friends = userFriendsMap.get(senderId) || [];
+            const socketIds = friends.map(id => onlineUsers.get(id)).filter(Boolean);
+        
+            io.to(socketIds).emit("fetchMessage", data);
+        });
+        
         socket.on('setDoubleCheck', async (data) => {
             const { friendId, chatId, message } = data;
+
             try {
                 const messages = await Messages.find({ chatId })
                     .sort({ createdAt: -1 })
@@ -88,10 +100,10 @@ module.exports = (io) => {
             }
         });
 
-    
+
         socket.on('emit_notification', (data) => {
             const { recipient } = data;
-            console.log(onlineUsers, 'onlineUsers')
+
             const recipientSocketId = onlineUsers.get(recipient);
             if (recipientSocketId) {
                 io.to(recipientSocketId).emit('got_a_notification', data);
@@ -100,17 +112,31 @@ module.exports = (io) => {
             }
         });
         socket.on("disconnect", () => {
-            console.log(onlineUsers, 'vegore disconnect')
-            onlineFriends = onlineFriends.filter(member => member.socketId !== socket.id);
+            let disconnectedUserId = null;
+        
+            // Identify and remove user from maps
             for (const [userId, socketId] of onlineUsers.entries()) {
                 if (socketId === socket.id) {
+                    disconnectedUserId = userId;
                     onlineUsers.delete(userId);
+                    userFriendsMap.delete(userId);
                     break;
                 }
             }
-            io.emit('userLeft', onlineFriends);
-            console.log(onlineUsers, 'from disconnect')
+        
+            // Notify each online friend
+            if (disconnectedUserId) {
+                for (const [userId, friends] of userFriendsMap.entries()) {
+                    if (friends.includes(disconnectedUserId)) {
+                        const friendSocketId = onlineUsers.get(userId);
+                        if (friendSocketId) {
+                            io.to(friendSocketId).emit('userLeft', { userId: disconnectedUserId });
+                        }
+                    }
+                }
+            }
         });
+        
 
         socket.on('error', (err) => {
             console.error('Socket error:', err.message);

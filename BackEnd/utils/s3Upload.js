@@ -2,7 +2,12 @@ const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const crypto = require("crypto");
 const Media = require("../Modules/Media.js");
 require("dotenv").config();
-
+const sharp = require('sharp');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+const { promisify } = require('util');
+const fs = require('fs');
+const os = require('os');
 // Initialize S3 client
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -46,10 +51,9 @@ const uploadToS3 = async (file, options = {}) => {
     // Generate unique filename using hash and original filename
     const encodedFileName = encodeURIComponent(file.originalname);
     const uniqueFileName = generateUniqueName 
-      ? `${hash.substring(0, 16)}-${encodedFileName}`
+      ? `${hash.substring(0, 16)}`
       : encodedFileName;
-
-    // Set up S3 upload parameters
+ 
     const params = {
       Bucket: process.env.S3_BUCKET_NAME,
       Key: `${folder}/${uniqueFileName}`,
@@ -64,8 +68,6 @@ const uploadToS3 = async (file, options = {}) => {
     
     // Generate media URL
     const mediaUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`;
-    console.log(params.Key, command, 'command') 
-    // Save to Media collection if checking duplicates
     if (checkDuplicate) {
       await Media.create({ hash, url: mediaUrl });
     }
@@ -105,3 +107,69 @@ module.exports = {
   deleteFromS3,
   s3Client
 }; 
+
+const compressVideo = async (inputBuffer) => {
+  const tempDir = os.tmpdir();
+  const inputPath = path.join(tempDir, `input-${Date.now()}.mp4`);
+  const outputPath = path.join(tempDir, `output-${Date.now()}.mp4`);
+  // Write input buffer to temp file
+  await fs.promises.writeFile(inputPath, inputBuffer);
+  return new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+          .outputOptions([
+              '-c:v libx264', // Use H.264 codec
+              '-crf 28', // Constant Rate Factor (lower = better quality, 28 is a good balance)
+              '-preset medium', // Encoding preset
+              '-c:a aac', // Audio codec
+              '-b:a 128k', // Audio bitrate
+              '-vf scale=1080:1920:force_original_aspect_ratio=decrease', // Resize to story dimensions
+              '-pix_fmt yuv420p' // Pixel format for better compatibility
+          ])
+          .output(outputPath)
+          .on('end', async () => {
+              try {
+                  const compressedBuffer = await fs.promises.readFile(outputPath);
+                  // Clean up temp files
+                  await fs.promises.unlink(inputPath);
+                  await fs.promises.unlink(outputPath);
+                  resolve(compressedBuffer);
+              } catch (error) {
+                  reject(error);
+              }
+          })
+          .on('error', (err) => {
+              // Clean up temp files
+              fs.unlink(inputPath, () => {});
+              fs.unlink(outputPath, () => {});
+              reject(err);
+          })
+          .run();
+  });
+};
+
+// Middleware to compress media before upload
+const compressMedia = async (req, res, next) => {
+  if (!req.file) return next();
+  
+  try {
+      if (req.file.mimetype.startsWith('image/')) {
+          const compressedBuffer = await sharp(req.file.buffer)
+              .resize(1080, 1920, {
+                  fit: 'inside',
+                  withoutEnlargement: true
+              })
+              .jpeg({ quality: 80 })
+              .toBuffer();
+          
+          req.file.buffer = compressedBuffer;
+          req.file.size = compressedBuffer.length;
+      } else if (req.file.mimetype.startsWith('video/')) {
+          const compressedBuffer = await compressVideo(req.file.buffer);
+          req.file.buffer = compressedBuffer;
+          req.file.size = compressedBuffer.length;
+      }
+  } catch (error) {
+      console.error('Error compressing media:', error);
+  }
+  next();
+};

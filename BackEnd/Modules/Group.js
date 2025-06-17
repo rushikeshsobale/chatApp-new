@@ -9,19 +9,19 @@ const GroupSchema = new mongoose.Schema({
   members: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Muser',
       required: true,
     },
   ],
   admins: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Muer',
     },
   ],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Muserser',
     required: true,
   },
 }, {

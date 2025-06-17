@@ -12,13 +12,7 @@ const { uploadToS3 } = require("../utils/s3Upload");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+
 
 router.post("/mediaPost", upload.single("media"), async (req, res) => {
   const { text, userId } = req.body;

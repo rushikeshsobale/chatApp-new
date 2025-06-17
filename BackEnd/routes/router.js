@@ -374,7 +374,7 @@ router.post("/deleteChat", async (req, res) => {
 });
 
 router.post("/api/posts", upload.single("media"), async (req, res) => {
-  console.log(req.file, "filee");
+ 
   const { text, userId } = req.body;
   if (!text || !userId) {
     return res
@@ -522,41 +522,34 @@ router.get("/api/getPosts", async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
-
 router.post("/postMessage", upload.single("attachment"), async (req, res) => {
-  console.log(req.file, "request.file");
-  console.log(req.body, "request.body");
-
   try {
     let mediaUrl = null;
+    console.log(req.file, 'req.file')
     if (req.file) {
       mediaUrl = await uploadToS3(req.file);
     }
-    const { chatId, senderId, receiverId, content } = req.body;
+    const { chatId ,groupId, senderId, receiverId, content } = req.body;
     const attachment = req.file ? req.file.path : null; // Store file path
-    console.log(mediaUrl, "mediaUrl");
     const newMessage = new Message({
       chatId,
+      groupId,
       senderId,
       receiverId,
       content,
       mediaUrl,
     });
-
     await newMessage.save();
     res.status(201).json(newMessage);
   } catch (err) {
     res.status(500).json({ error: "Failed to send message" });
   }
 });
-
 // ✅ 2. Get messages from a chat (paginated)
-
 router.get("/getMessages/:chatId", async (req, res) => {
   try {
     const { chatId } = req.params;
     const { page = 1, limit = 20 } = req.query;
-
     const messages = await Message.find({ chatId })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)

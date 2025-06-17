@@ -1,57 +1,97 @@
 const express = require('express');
 const router = express.Router();
-const Messages = require('../Modules/Messages');
+const Message = require('../Modules/Messages');
 const verifyToken  = require('./verifyToken');
-
+const { uploadToS3 } = require("../utils/s3Upload");
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 // Get messages between two users
 router.get('/getMessages', verifyToken, async (req, res) => {
     try {
-        const { senderId, receiverId, page = 1, limit = 20 } = req.query;
-        
-        const messages = await Messages.find({
-            $or: [
-                { senderId, receiverId },
-                { senderId: receiverId, receiverId: senderId }
-            ]
-        })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+        // Destructure query parameters, with default values for page and limit
+        const { senderId, receiverId, groupId, page = 1, limit = 20 } = req.query;
 
+        // Initialize an empty query object
+        let query = {};
+
+        // Check if groupId is provided in the request
+        if (groupId) {
+            // If groupId is present, construct the query for group messages
+            // Assuming your Messages schema has a 'groupId' field
+            query = { groupId: groupId };
+        } else {
+            // If groupId is not present, construct the query for direct messages
+            // This handles messages sent by sender to receiver, or by receiver to sender
+            query = {
+                $or: [
+                    { senderId: senderId, receiverId: receiverId },
+                    { senderId: receiverId, receiverId: senderId }
+                ]
+            };
+        }
+
+        // Calculate the number of documents to skip for pagination
+        const skipCount = (parseInt(page) - 1) * parseInt(limit);
+        const messages = await Messages.find(query)
+            .populate("senderId", "userName profilePicture")
+            .sort({ createdAt: -1 }) // Sort by creation date, newest first
+            .skip(skipCount)         // Skip documents for pagination
+            .limit(parseInt(limit)); // Limit the number of documents per page
+
+        // Send the fetched messages as a JSON response with a 200 status code
         res.status(200).json(messages);
     } catch (error) {
+        // Log any errors that occur during the process
         console.error('Error fetching messages:', error);
+        // Send an error response with a 500 status code
         res.status(500).json({ error: 'Failed to fetch messages' });
     }
 });
 
-// Send a new message
-router.post('/postMessage', verifyToken, async (req, res) => {
+router.post("/postMessage",verifyToken, upload.single("attachment"), async (req, res) => {
     try {
-        const { senderId, receiverId, content } = req.body;
-        let attachment = null;
-
-        // Handle file upload if present
-        if (req.file) {
-            attachment = req.file.path;
-        }
-
-        const newMessage = new Messages({
-            senderId,
-            receiverId,
-            content,
-            attachment,
-            status: 'sent',
-            timestamp: new Date()
+      let mediaUrl = null;
+      console.log(req.file, 'req.file')
+      if (req.file) {
+        const uploadResult = await uploadToS3(req.file, {
+          folder: "posts",
+          checkDuplicate: true
         });
-
-        const savedMessage = await newMessage.save();
-        res.status(201).json(savedMessage);
-    } catch (error) {
-        console.error('Error sending message:', error);
-        res.status(500).json({ error: 'Failed to send message' });
+        mediaUrl = uploadResult.url;
+      }
+      const { chatId ,groupId, senderId, receiverId, content } = req.body;
+      const attachment = req.file ? req.file.path : null; // Store file path
+      const newMessage = new Message({
+        chatId,
+        groupId,
+        senderId,
+        receiverId,
+        content,
+        mediaUrl,
+        hash: uploadResult.hash,
+      });
+      await newMessage.save();
+      res.status(201).json(newMessage);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to send message" });
     }
-});
+  });
+  // ✅ 2. Get messages from a chat (paginated)
+  router.get("/getMessages/:chatId", async (req, res) => {
+    try {
+      const { chatId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+      const messages = await Message.find({ chatId })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit));
+      res.status(200).json(messages);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+  
 
 // Update message status (read/delivered)
 router.post('/updateMsgStatus', verifyToken, async (req, res) => {

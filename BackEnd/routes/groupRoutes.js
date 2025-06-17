@@ -110,7 +110,11 @@ router.put('/:id/name', async (req, res) => {
   // Get all groups for a user
   router.get('/getAllGroups', verifyToken, async (req, res) => {
     try {
-      const groups = await Group.find({ members: req.decoded.userId });
+      const groups = await Group.find({ members: req.decoded.userId })
+      .populate({
+        path: 'members',
+        select: 'userName profilePicture' // Specify the fields you want here
+      });;
       res.json(groups);
     } catch (err) {
       res.status(500).json({ error: 'Error fetching groups' });
