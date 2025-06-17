@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../services/apiClient'; // adjust path as needed
 import {getAllGroups} from '../services/groupServices'
 import "../css/Chat.css";
-const GroupList = () => {
+const GroupList = ({handleGroupSelect,msgCounts,handleBackToFriendList}) => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,6 +37,7 @@ const GroupList = () => {
             <div
               key={group._id}
               className=" friend-item"
+              onClick={() => handleGroupSelect(group)}
             > 
             <div className="friend-avatar">
                   <div className={`avatar-container`}>
@@ -54,10 +55,7 @@ const GroupList = () => {
                   </div>
                   <p>Members: {group.members?.length || 0}</p>
                   {/* <p>Created by: {group.createdBy?.username || 'Unknown'}</p> */}
-              
                 </div>
-
-                
             </div>
           ))}
         </div>

@@ -13,11 +13,13 @@ import { useNavigate } from "react-router-dom";
 import UsersList from "./Users";
 import CreateGroupModal from "../components/CreateGroup";
 import GroupList from "../components/GroupList"
+import GroupChatUi from "../components/GroupChatUi"
 const ChatComponent = () => {
   const { setSocket, setUserId, userId } = useSocket();
   const [userName, setUserName] = useState("");
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [msgCounts, setMsgCounts] = useState({});
   const [profilePicture, setProfilePicture] = useState("");
@@ -71,7 +73,10 @@ const ChatComponent = () => {
         setActiveUsers((prevActiveUsers) => [...prevActiveUsers, data])
       }
       );
-      socket.on("userLeft", (activeMembers) => setActiveUsers(activeMembers));
+      socket.on("userLeft", ({ userId }) => {
+        setActiveUsers((prev) => prev.filter((user) => user._id !== userId));
+      });
+
       return () => {
         socket.off("status");
         socket.off("userLeft");
@@ -91,11 +96,17 @@ const ChatComponent = () => {
   }, []);
 
   const handleFriendSelect = (friend) => {
+    setSelectedGroup(null)
     setSelectedFriend(friend);
   };
+  const handleGroupSelect = (group) => {
+    setSelectedFriend(null);
+    setSelectedGroup(group);
+  }
 
   const handleBackToFriendList = () => {
     setSelectedFriend(null);
+    setSelectedGroup(null);
   };
 
   return (
@@ -118,36 +129,46 @@ const ChatComponent = () => {
               handleFriendSelect={handleFriendSelect}
               handleBackToFriendList={handleBackToFriendList}
             />
-            <GroupList 
-          
-              activeUsers={activeUsers}
+            <GroupList
               msgCounts={msgCounts}
-              selectedFriend={selectedFriend}
-              handleFriendSelect={handleFriendSelect}
-              handleBackToFriendList={handleBackToFriendList}/>
-            <CreateGroupModal  friends={friends}/>
+              handleGroupSelect={handleGroupSelect}
+              handleBackToFriendList={handleBackToFriendList} />
+
+            <CreateGroupModal friends={friends} />
           </div>
         )}
 
         {/* Main Chat Area */}
-        <div className={`main-chat-area ${isMobileView && !selectedFriend ? 'hide-on-mobile' : ''}`}>
-          {selectedFriend ? (
+        <div className={`main-chat-area ${isMobileView && !selectedFriend && !selectedGroup ? 'hide-on-mobile' : ''}`}>
+          {selectedGroup ? (
+            <GroupChatUi
+              group={selectedGroup}
+              setSelectedGroup={setSelectedGroup}
+              userId={userId}
+              userName={userName}
+              socket={socket}
+              history={chatHistory}
+              setMsgCounts={setMsgCounts}
+              onBack={isMobileView ? handleBackToFriendList : () => setSelectedGroup(null)}
+            />
+          ) : selectedFriend ? (
             <ChatUi
               member={selectedFriend}
               setSelectedFriend={setSelectedFriend}
               userId={userId}
-          userName={userName}
+              userName={userName}
               socket={socket}
               history={chatHistory}
               setMsgCounts={setMsgCounts}
               onBack={isMobileView ? handleBackToFriendList : () => setSelectedFriend(null)}
             />
           ) : (
-            <div className="container bg-dark ">
+            <div className="container bg-dark welcome-container"> {/* Added a class for specific styling if needed */}
               <div className="welcome-message">
                 <h2>Welcome</h2>
-                <p>Select a friend to start chatting or discover new connections</p>
+                <p>Select a friend or a group to start chatting, or discover new connections</p>
               </div>
+              {/* You might want to pass props to UsersList if it needs to interact with state */}
               <UsersList />
             </div>
           )}

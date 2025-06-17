@@ -21,22 +21,21 @@ import {
 import { CiMenuKebab } from "react-icons/ci";
 import { FaArrowLeft } from 'react-icons/fa';
 
-const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, onBack }) => {
+const GroupChatUi = ({ group, userId, socket, setMsgCounts, onBack }) => {
   const [messageInput, setMessageInput] = useState('');
-  const friendId = member._id;
   const [messages, setMessages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUser, setTypingUser] = useState('');
   const messagesEndRef = useRef(null);
   const apiUrl = process.env.REACT_APP_API_URL;
-  
+
   const inputRef = useRef(null);
   const messageTone = new Audio('https://bigsoundbank.com/UPLOAD/mp3/1313.mp3');
 
   const fetchMessages = async (page = 1, limit = 20) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/messages/getMessages?page=${page}&limit=${limit}&senderId=${userId}&receiverId=${friendId}`, {
+      const response = await fetch(`${apiUrl}/messages/getMessages?page=${page}&limit=${limit}&senderId=${userId}&receiverId=${null}&groupId=${group._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -53,56 +52,48 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
   };
 
   useEffect(() => {
-    console.log(messages)
-  }, [messages])
+    fetchMessages();
+  }, [group._id])
 
 
   const sendMessage = async (attachment) => {
-
     if (!messageInput.trim()) return;
-
     try {
       const formData = new FormData();
-      formData.append('groupId', groupId);
+      formData.append('groupId', group._id);
       formData.append('senderId', userId);
-      formData.append('receiverId', friendId);
       formData.append('content', messageInput);
       // Append file if exists  
       if (attachment) {
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
-
-      setMessages((prev) => [...prev, { groupId, senderId: userId, receiverId: friendId, content: messageInput, attachment, timestamp: Date.now() }]);
-
+      setMessages((prev) => [...prev, { senderId: { _id: userId }, content: messageInput, attachment, timestamp: Date.now() }]);
+      const token = localStorage.getItem('token');
       const response = await fetch(`${apiUrl}/postMessage`, {
         method: 'POST',
-        body: formData, // Removed incorrect 'Content-Type' header
+        body: formData,
       });
-
       if (!response.ok) throw new Error('Failed to send message');
       if (response.ok) {
         const notificationData = {
-          recipient: friendId,
+          recipient: group._id,
           sender: userId,
           type: 'message',
-          message: `${member.userName} has messaged you `,
+          message: `${group.name} has messaged you `,
           createdAt: new Date().toISOString(),
           read: false
         };
-
         await createNotification(notificationData);
       }
       const data = await response.json(); // Get response data
-      console.log(data, 'data')
-      socket.emit('sendMessage', data); // Emit actual saved message
-
+      socket.emit('groupMessage', data); // Emit actual saved message
       setMessageInput('');
+      console.log(data, 'data from groupMessage')
+
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
-
-
   const updateMsgStatus = async (chatId) => {
     try {
       const response = await fetch(`${apiUrl}/updateMsgStatus/${chatId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
@@ -112,32 +103,14 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
     }
   };
   useEffect(() => {
-    socket.on("setDoubleCheckRecieved", (payload) => {
-      console.log(payload, 'payload');
-      setMessages((prev) => {
-        if (prev.length === 0) return [payload]; // If no messages, just add it
-        return [...prev.slice(0, -1), payload]; // Replace last message with payload
-      });
-    });
-   // If stored in public/sounds/
-
-    socket.on("recievedMessage", (message) => {
-      console.log(message, 'message');
-
-      // Play sound
-      messageTone.play().catch((err) => {
-        console.error("Failed to play message tone:", err);
-      });
-
-      setMessages((prev) => [...prev, message]);
-
-      if (chatId) {
-        socket.emit('setDoubleCheck', { friendId, chatId, message });
+    socket.on('fetchMessage', (data) => {
+      if (data.senderId !== userId) {  // assuming you track current user ID
+        setMessages((prev) => [...prev, data]);
       }
     });
     return () => {
-      socket.off("recievedMessage")
-      socket.off('setDoubleCheckRecieved')
+      socket.off('groupMessage')
+      socket.off('fetchMessage')
     }
   }, []);
 
@@ -150,7 +123,6 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
       console.error("Error deleting message:", error);
     }
   };
-
   const reactToMessage = async (messageId, emoji) => {
     try {
       const response = await fetch(`${apiUrl}/${messageId}/reactions`, {
@@ -164,30 +136,25 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
       console.error("Error reacting to message:", error);
     }
   };
+  // const handleTyping = () => socket.emit("typing", { userId: friendId, myId: userId });
+  // const handleBlur = () => socket.emit("stopped_typing", { myId: userId, userId: friendId });
 
-  const handleTyping = () => socket.emit("typing", { userId: friendId, myId: userId });
-  const handleBlur = () => socket.emit("stopped_typing", { myId: userId, userId: friendId });
-
-  useEffect(() => {
-    socket.on("typing", ({ myId }) => setTypingUser(myId));
-    socket.on("stopped_typing", () => setTypingUser(null));
-    return () => {
-      socket.off("typing");
-      socket.off("stopped_typing");
-    };
-  }, []);
+  // useEffect(() => {
+  //   socket.on("typing", ({ myId }) => setTypingUser(myId));
+  //   socket.on("stopped_typing", () => setTypingUser(null));
+  //   return () => {
+  //     socket.off("typing");
+  //     socket.off("stopped_typing");
+  //   };
+  // }, []);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-
   useEffect(() => {
     scrollToBottom();
-    setMsgCounts((prevCounts) => ({ ...prevCounts, [friendId]: 0 }));
+    // setMsgCounts((prevCounts) => ({ ...prevCounts, [friendId]: 0 }));
   }, [messages]);
-
   const handleEmojiClick = (emojiObject) => setMessageInput((prev) => prev + emojiObject.emoji);
-
   const toggleReactions = (messageId) => setMessages((prev) => prev.map((msg) => (msg._id === messageId ? { ...msg, showReactions: !msg.showReactions } : msg)));
-
   const addReaction = async (messageId, emoji) => {
     try {
       const token = localStorage.getItem('token');
@@ -207,11 +174,9 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
       console.error("Error adding reaction:", error);
     }
   };
-
   const forwardMessage = () => {
 
   }
-
   const [selectedFile, setSelectedFile] = useState(null);
   const [showAttachmentPopup, setShowAttachmentPopup] = useState(false);
 
@@ -247,8 +212,9 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
         <div className="user-info">
           <div className="user-avatar">
             <img
-              src={member?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"}
-              alt={member?.userName}
+              src={group?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"}
+              alt={group?.name}
+              style={{ height: '1px', width: '60px' }}
             />
             {typingUser && typingUser !== userId && (
               <div className="typing-indicator">
@@ -260,10 +226,11 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
           </div>
 
           <div className="user-details">
-            <h3>{member?.userName} </h3>
-            <p>
+            <h3>{group.name}</h3>
+            <span>{group.members.map((member) => member.userName).join(', ')} </span>
+            {/* <p>
               {typingUser && typingUser !== userId ? "typing..." : "online"}
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -278,22 +245,29 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
       <div className="messages-area">
         {messages?.length === 0 ? (
           <div className="empty-state">
-            <p>Start a conversation with {member?.userName} !</p>
+            <p>Start a conversation with !</p>
           </div>
         ) : (
           messages?.map((message, index) => (
             <div
               key={index}
-              className={`message-container ${message?.senderId === userId ? 'sent' : 'received'}`}
+              className={`message-container ${message?.senderId._id === userId ? 'sent' : 'received'}`}
             >
-              <div className="message-bubble">
+              <div className="message-bubble ">
+                {message?.senderId._id !== userId && <> <img
+                  src={message.senderId.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"}
+                  alt={message.senderId.userName}
+                  style={{ width: '20px', height: '20px', borderRadius: '50%', marginLeft: '10px' }}
+                />
+                  <span className='mx-1'>{message.senderId.userName}</span>
+                </>
+                }
                 {/* Message Content */}
                 {message?.content && (
-                  <div className="message-text">{message.content}</div>
+                  <div className="message-text fs-5 mt-2">{message.content}</div>
                 )}
-
                 {/* Attachment */}
-                {message?.attachment && (
+                {/* {typeof message?.attachment === 'string' && (
                   <div className="message-attachment">
                     {message.attachment.match(/\.(png|jpe?g|gif)$/i) ? (
                       <img src={message.attachment} alt="Attachment" />
@@ -308,14 +282,13 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
                       </a>
                     )}
                   </div>
-                )}
+                )} */}
 
                 {/* Message Meta */}
                 <div className="message-meta">
                   <span className="timestamp">
                     {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-
                   {message?.senderId === userId && (
                     <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
                       {message?.status === 'read' ? (
@@ -326,7 +299,6 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
                     </span>
                   )}
                 </div>
-
                 {/* Message Actions */}
                 <div className="message-actions">
                   <div className="dropdown">
@@ -346,7 +318,6 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
                     </div>
                   </div>
                 </div>
-
                 {/* Reactions */}
                 {message?.showReactions && (
                   <div className="reactions-picker">
@@ -360,7 +331,6 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
                     ))}
                   </div>
                 )}
-
                 {message?.reactions?.length > 0 && (
                   <div className="message-reactions">
                     {message.reactions.map((reaction, i) => (
@@ -374,7 +344,6 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
         )}
         <div ref={messagesEndRef} />
       </div>
-
       {/* Input Area */}
       <div className="input-area">
         {/* Attachment Popup */}
@@ -420,8 +389,8 @@ const GroupChatUi = ({ group, userId, socket, setMsgCounts, setSelectedFriend, o
             placeholder="Type a message..."
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            onFocus={handleTyping}
-            onBlur={handleBlur}
+          // onFocus={handleTyping}
+          // onBlur={handleBlur}
           />
 
           <button

@@ -35,7 +35,6 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
   useEffect(() => {
     setChatId([userId, friendId].sort().join("_"));
   }, [userId, friendId]);
-
   const fetchMessages = async (page = 1, limit = 20) => {
     try {
       const token = localStorage.getItem('token');
@@ -47,25 +46,19 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
       });
       if (!response.ok) throw new Error("Failed to fetch messages");
       const data = await response.json();
-
       setMessages(data.reverse());
-
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
 
-  useEffect(() => {
-    console.log(messages)
-  }, [messages])
+ 
   useEffect(() => {
     if (chatId) fetchMessages();
   }, [chatId]);
 
   const sendMessage = async (attachment) => {
-
     if (!messageInput.trim()) return;
-
     try {
       const formData = new FormData();
       formData.append('chatId', chatId);
@@ -77,13 +70,11 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
 
-      setMessages((prev) => [...prev, { chatId, senderId: userId, receiverId: friendId, content: messageInput, attachment, timestamp: Date.now() }]);
-
+      setMessages((prev) => [...prev, { chatId, senderId:{_id:userId} , receiverId: friendId, content: messageInput, attachment, timestamp: Date.now() }]);
       const response = await fetch(`${apiUrl}/postMessage`, {
         method: 'POST',
         body: formData, // Removed incorrect 'Content-Type' header
       });
-
       if (!response.ok) throw new Error('Failed to send message');
       if (response.ok) {
         const notificationData = {
@@ -94,20 +85,16 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
           createdAt: new Date().toISOString(),
           read: false
         };
-
         await createNotification(notificationData);
       }
       const data = await response.json(); // Get response data
-      console.log(data, 'data')
-      socket.emit('sendMessage', data); // Emit actual saved message
 
+      socket.emit('sendMessage', data); // Emit actual saved message
       setMessageInput('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
-
-
   const updateMsgStatus = async (chatId) => {
     try {
       const response = await fetch(`${apiUrl}/updateMsgStatus/${chatId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
@@ -118,24 +105,17 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
   };
   useEffect(() => {
     socket.on("setDoubleCheckRecieved", (payload) => {
-      console.log(payload, 'payload');
       setMessages((prev) => {
         if (prev.length === 0) return [payload]; // If no messages, just add it
         return [...prev.slice(0, -1), payload]; // Replace last message with payload
       });
     });
    // If stored in public/sounds/
-
     socket.on("recievedMessage", (message) => {
-      console.log(message, 'message');
-
-      // Play sound
       messageTone.play().catch((err) => {
         console.error("Failed to play message tone:", err);
       });
-
       setMessages((prev) => [...prev, message]);
-
       if (chatId) {
         socket.emit('setDoubleCheck', { friendId, chatId, message });
       }
@@ -236,11 +216,16 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         setSelectedFile(file);
       }
     };
-
     input.click();
   };
-  // ... (keep all your existing useEffect hooks and functions)
-
+  useEffect(() => {
+    if (selectedFile?.file instanceof File) {
+      const objectURL = URL.createObjectURL(selectedFile.file);
+      setSelectedFile(prev => ({ ...prev, url: objectURL }));
+      return () => URL.revokeObjectURL(objectURL); // cleanup
+    }
+  }, [selectedFile?.file]);
+  
   return (
     <div className="chat-ui-container">
       {/* Chat Header */}
@@ -289,7 +274,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
           messages?.map((message, index) => (
             <div
               key={index}
-              className={`message-container ${message?.senderId === userId ? 'sent' : 'received'}`}
+              className={`message-container ${message?.senderId._id === userId ? 'sent' : 'received'}`}
             >
               <div className="message-bubble">
                 {/* Message Content */}
@@ -298,7 +283,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
                 )}
 
                 {/* Attachment */}
-                {message?.attachment && (
+                {/* {message?.attachment && (
                   <div className="message-attachment">
                     {message.attachment.match(/\.(png|jpe?g|gif)$/i) ? (
                       <img src={message.attachment} alt="Attachment" />
@@ -313,7 +298,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
                       </a>
                     )}
                   </div>
-                )}
+                )} */}
 
                 {/* Message Meta */}
                 <div className="message-meta">
@@ -321,7 +306,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
                     {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
 
-                  {message?.senderId === userId && (
+                  {message?.senderId._id === userId && (
                     <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
                       {message?.status === 'read' ? (
                         <FontAwesomeIcon icon={faCheckDouble} />

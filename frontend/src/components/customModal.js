@@ -10,6 +10,7 @@ const PostModal = ({ showModal, onClose, handleAddPost }) => {
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      console.log(file, 'file')
       const url = URL.createObjectURL(file); // Generate a preview URL
       setMedia({ file, url, type: file.type });
     }
