@@ -675,7 +675,7 @@ const ProfilePage = () => {
                   {Array.from(
                     new Map(
                       stories
-                        .filter(story => story.userId._id !== userId)
+                        // .filter(story => story.userId._id !== userId)
                         .map(story => [story.userId._id, story])
                     ).values()
                   ).map((story) => (

@@ -62,6 +62,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
     try {
       const formData = new FormData();
       formData.append('chatId', chatId);
+      formData.append('groupId', '')
       formData.append('senderId', userId);
       formData.append('receiverId', friendId);
       formData.append('content', messageInput);
@@ -69,11 +70,11 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
       if (attachment) {
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
-
       setMessages((prev) => [...prev, { chatId, senderId:{_id:userId} , receiverId: friendId, content: messageInput, attachment, timestamp: Date.now() }]);
-      const response = await fetch(`${apiUrl}/postMessage`, {
+      console.log(messages,'mssad')
+      const response = await fetch(`${apiUrl}/messages/postMessage`, {
         method: 'POST',
-        body: formData, // Removed incorrect 'Content-Type' header
+        body: formData, 
       });
       if (!response.ok) throw new Error('Failed to send message');
       if (response.ok) {
@@ -88,7 +89,6 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         await createNotification(notificationData);
       }
       const data = await response.json(); // Get response data
-
       socket.emit('sendMessage', data); // Emit actual saved message
       setMessageInput('');
     } catch (error) {

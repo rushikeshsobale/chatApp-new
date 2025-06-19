@@ -32,7 +32,7 @@ router.get('/getMessages', verifyToken, async (req, res) => {
 
         // Calculate the number of documents to skip for pagination
         const skipCount = (parseInt(page) - 1) * parseInt(limit);
-        const messages = await Messages.find(query)
+        const messages = await Message.find(query)
             .populate("senderId", "userName profilePicture")
             .sort({ createdAt: -1 }) // Sort by creation date, newest first
             .skip(skipCount)         // Skip documents for pagination
@@ -48,10 +48,10 @@ router.get('/getMessages', verifyToken, async (req, res) => {
     }
 });
 
-router.post("/postMessage",verifyToken, upload.single("attachment"), async (req, res) => {
+router.post("/postMessage", upload.single("attachment"), async (req, res) => {
     try {
       let mediaUrl = null;
-      console.log(req.file, 'req.file')
+    
       if (req.file) {
         const uploadResult = await uploadToS3(req.file, {
           folder: "posts",
@@ -59,8 +59,9 @@ router.post("/postMessage",verifyToken, upload.single("attachment"), async (req,
         });
         mediaUrl = uploadResult.url;
       }
+      console.log(mediaUrl, 'mediaUrl')
       const { chatId ,groupId, senderId, receiverId, content } = req.body;
-      const attachment = req.file ? req.file.path : null; // Store file path
+      console.log(req.body, 'requsted body')
       const newMessage = new Message({
         chatId,
         groupId,
@@ -68,9 +69,10 @@ router.post("/postMessage",verifyToken, upload.single("attachment"), async (req,
         receiverId,
         content,
         mediaUrl,
-        hash: uploadResult.hash,
+       
       });
-      await newMessage.save();
+     const response = await newMessage.save();
+     console.log(response, 'response')
       res.status(201).json(newMessage);
     } catch (err) {
       res.status(500).json({ error: "Failed to send message" });
@@ -109,7 +111,7 @@ router.post('/updateMsgStatus', verifyToken, async (req, res) => {
 
         const messageIds = messages.map(msg => msg._id);
 
-        await Messages.updateMany(
+        await messages.updateMany(
             { _id: { $in: messageIds } },
             { $set: { status } }
         );
@@ -194,7 +196,7 @@ router.delete('/clearChat', verifyToken, async (req, res) => {
             return res.status(404).json({ error: 'Chat not found or unauthorized' });
         }
 
-        await Messages.deleteMany({
+        await message.deleteMany({
             $or: [
                 { senderId, receiverId },
                 { senderId: receiverId, receiverId: senderId }
