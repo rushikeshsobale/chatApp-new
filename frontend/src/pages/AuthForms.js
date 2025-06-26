@@ -152,7 +152,7 @@ const AuthPage = () => {
             {isLogin
               ? "Welcome Back"
               : authStep === 1
-              ? "Create Account"
+              ? "Create Account Here"
               : authStep === 2
               ? "Verify Email"
               : "Complete Profile"}

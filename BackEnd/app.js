@@ -21,7 +21,7 @@ const authRoutes = require("./routes/authRoutes.js");
 const profileRoutes = require("./routes/profileRoutes.js"); 
 const postRoutes = require("./routes/postRoutes.js");
 const storyRoutes = require("./routes/storyRoutes.js");
-const notificationRoutes = require("./Routes/notificationRoutes.js");
+const notificationRoutes = require("./routes/notificationRoutes.js");
 const messageRoutes = require("./routes/messageRoutes.js");
 const groupRoutes = require("./routes/groupRoutes.js")
  app.use(router);

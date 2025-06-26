@@ -1,5 +1,5 @@
-const Group = require('../modules/Group');
-const express = require('express');
+const express = require("express")
+const Group = require('../Modules/Group');
 const verifyToken = require('./verifyToken');
 const router = express.Router();
 

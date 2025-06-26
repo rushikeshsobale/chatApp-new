@@ -1,14 +1,14 @@
 // src/api.js
 import axios from 'axios';
-
+console.log(process.env.REACT_APP_API_URL, '.env')
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5500',
+  baseURL: process.env.REACT_APP_API_URL || 'http://52.66.203.182/:5500',
   timeout: 10000, // 10 seconds
   headers: {
     'Content-Type': 'application/json',
   },
 });
-
+console.log(api, 'apiclient')
 // Add request interceptor for auth tokens
 api.interceptors.request.use(
   (config) => {

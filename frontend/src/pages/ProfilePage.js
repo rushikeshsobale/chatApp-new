@@ -222,11 +222,15 @@ const ProfilePage = () => {
   };
 
   const handleAddPost = (text, media) => {
-    const userId = userData._id;
+      const userId = userData._id;
     const formData = new FormData();
+    formData.append("userId", userId)
+    if(text){
+      formData.append("text", text)
+    }
     if (media) {
       formData.append("media", media.file);
-    }
+    }  
     fetch(`${apiUrl}/post/mediaPost`, {
       method: "POST",
       body: formData,

@@ -17,10 +17,10 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post("/mediaPost", upload.single("media"), async (req, res) => {
   const { text, userId } = req.body;
   
-  if (!text || !userId) {
+  if (!userId) {
     return res.status(400).json({
       success: false,
-      message: "Text and userId are required",
+      message: "userId are required",
     });
   }
 
