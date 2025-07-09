@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import ReactDOM from 'react-dom/client';
 import './css/index.css';
 import reportWebVitals from './reportWebVitals';
@@ -13,31 +13,30 @@ import ProfilePage from './pages/ProfilePage.js';
 import { store } from './store/store';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { updateNotifications } from './store/notificationSlice';
-import { useSocket, SocketProvider } from './components/socketContext.js';
 import PostFeed from './pages/PostFeed.js';
 import PostDetail from './components/PostDetail.js';
 import ExplorePage from './pages/ExplorePage.js';
 import ForgotPassword from './components/ForgotPassword.js';
 import Onboarding from './components/Onboarding.js';
 import Friends from './pages/Friends.js';
-import { initializeSocket } from './store/socketSlice';
+
 import UserProfilePage from './pages/userProfile.js';
+import { UserProvider, UserContext} from './contexts/UserContext';
+
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
-  const { socket, userId } = useSocket();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const dispatch = useDispatch();
-  useEffect(() => {
-    dispatch(initializeSocket());
-  }, []);
+  const { socket} = useContext(UserContext);
    useEffect(() => {
-        const token = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
+        const token = localStorage.getItem('token');
         if (token) {
           setIsAuthenticated(true); 
         } 
       }, [isLoggedIn]);
   useEffect(() => {
     if (socket) {
+     
       socket.on('friendRequestNotification', (data) => {
         dispatch(updateNotifications(data));
         const audio = new Audio('/mixkit-bell-notification-933.wav');
@@ -58,6 +57,7 @@ const AppWrapper = () => {
         {/* Conditionally render Navbar only when isAuthenticated and isLoggedIn are true */}
         { isAuthenticated && <Navbar />}
         <Routes>
+         {isAuthenticated ? <Route path="/" element={<ProfilePage/>} /> : <Route path="/" element={<AuthForms/>} />}
           <Route path="/login" element={<AuthForms />} />
           <Route path="/home" element={<PostFeed />} />
           <Route path="/chats" element={<ChatComponent />} />
@@ -78,9 +78,9 @@ const AppWrapper = () => {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <Provider store={store}>
-    <SocketProvider>
-      <AppWrapper /> {/* Wrap your app with the socket listener setup */}
-    </SocketProvider>
+    <UserProvider>
+      <AppWrapper />
+    </UserProvider>
   </Provider>
 );
 reportWebVitals();

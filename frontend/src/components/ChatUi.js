@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef,useContext } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { addMessage, updateMessageStatus } from '../store/store';
 import EmojiPicker from 'emoji-picker-react';
@@ -20,8 +20,10 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { CiMenuKebab } from "react-icons/ci";
 import { FaArrowLeft } from 'react-icons/fa';
-
-const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBack }) => {
+import { UserContext } from '../contexts/UserContext'; 
+const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
+  
+    const { socket, userId } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
   const friendId = member._id;
   const [messages, setMessages] = useState([]);
@@ -71,7 +73,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
       setMessages((prev) => [...prev, { chatId, senderId:{_id:userId} , receiverId: friendId, content: messageInput, attachment, timestamp: Date.now() }]);
-      console.log(messages,'mssad')
+      
       const response = await fetch(`${apiUrl}/messages/postMessage`, {
         method: 'POST',
         body: formData, 
@@ -89,6 +91,7 @@ const ChatUi = ({ member, userId, socket, setMsgCounts, setSelectedFriend, onBac
         await createNotification(notificationData);
       }
       const data = await response.json(); // Get response data
+      console.log(socket, 'socket')
       socket.emit('sendMessage', data); // Emit actual saved message
       setMessageInput('');
     } catch (error) {

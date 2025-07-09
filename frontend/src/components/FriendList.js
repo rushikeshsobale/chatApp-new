@@ -2,8 +2,7 @@ import React from "react";
 import "../css/Chat.css";
 
 const FriendList = ({ friends, activeUsers, msgCounts, selectedFriend, handleFriendSelect }) => {
- 
-   console.log(activeUsers,'active users')
+  console.log(activeUsers)
   return (
     <div className="friend-list-container">
       <div className="friend-list-header">
@@ -12,13 +11,11 @@ const FriendList = ({ friends, activeUsers, msgCounts, selectedFriend, handleFri
           {activeUsers.length} active
         </div>
       </div>
-      
       <div className="friends-scroll-container">
         {friends
           ?.map((friend, index) => {
-            const isActive = activeUsers.some((user) => user._id === friend?._id);
-            const unreadCount = msgCounts[friend?._id] || 0;
-            
+            const isActive = activeUsers.some((user) => user === friend?._id);
+            const unreadCount = msgCounts[friend?._id] || 0;      
             return (
               <div
                 key={index}

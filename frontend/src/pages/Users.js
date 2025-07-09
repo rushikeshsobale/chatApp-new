@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext} from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -13,7 +13,7 @@ import {
 } from "react-icons/fa";
 import "../css/users.css";
 import { useSelector } from "react-redux";
-import { useSocket } from "../components/socketContext";
+import { UserContext } from "../contexts/UserContext";
 
 const UsersList = () => {
   const senderId = useSelector((state) => state.auth?.userId?.userId);
@@ -29,7 +29,7 @@ const UsersList = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const navigate = useNavigate();
-  const { socket } = useSocket();
+  const { socket } = useContext(UserContext);
   const token = localStorage.getItem("token");
   const [viewMode, setViewMode] = useState("grid");
 

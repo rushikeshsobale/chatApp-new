@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FaUserEdit, FaUserFriends, FaPlus, FaSearch, FaBell, FaHome, FaCompass, FaVideo, FaStore, FaGamepad, FaBookmark, FaPen } from "react-icons/fa";
 import { IoMdNotifications } from "react-icons/io";
@@ -30,7 +30,7 @@ import { fetchSuggestions } from "../services/profileService";
 import FollowModal from "../components/FollowModal";
 import CreateStory from "../components/CreateStory";
 import { getNotifications, updateNotification } from "../services/notificationService";
-import { useSelector } from "react-redux";
+import { UserContext } from "../contexts/UserContext";
 const ProfilePage = () => {
   const [newPost, setNewPost] = useState("");
   const [media, setMedia] = useState(null);
@@ -61,10 +61,10 @@ const ProfilePage = () => {
   const userId = user?.userId;
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
-  const socket = useSelector((state) => state.socket.socket);
+  const { socket } = useContext(UserContext);
   // Fetch User Data
   useEffect(() => {
-    if (location.pathname === "/profile") {
+    if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
     } else {
       fetchUser2Data();
@@ -75,6 +75,7 @@ const ProfilePage = () => {
     fetchPosts()
     // fetchTrendingTopics();
     // fetchEvents();
+    
   }, [location.pathname]);
   const getSuggestions = async () => {
     const suggestions = await fetchSuggestions(); // Wait for the data
@@ -92,8 +93,12 @@ const ProfilePage = () => {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log(data, 'data fff')
         setUserData(data);
         setFriends(data.friends);
+        const userId = data._id;
+        const friends = data.followers;
+       
       } else {
         console.error("Failed to fetch user data:", response.statusText);
       }
@@ -101,6 +106,7 @@ const ProfilePage = () => {
       console.error("Error:", error);
     }
   };
+  
   const fetchUser2Data = async () => {
     try {
       const response = await fetch(`${apiUrl}/getProfileUser/${userId}`, {
@@ -183,11 +189,9 @@ const ProfilePage = () => {
   };
 
   useEffect(() => {
-     console.log(socket, 'socket')
     if (!socket) return;
-    console.log(socket, 'socketon')
     socket.on('got_a_notification', (data) => {
-      console.log(data, 'from socket');
+      
       fetchNotifications();
     });
   
@@ -196,6 +200,7 @@ const ProfilePage = () => {
       socket.off('got_a_notification');
     };
   }, [socket]);
+
   
   const fetchEvents = async () => {
     try {
@@ -665,36 +670,7 @@ const ProfilePage = () => {
               overflow: "auto",
             }}>
             {/* Stories */}
-            <div className="card border-0 shadow-sm mb-3">
-              <div className="card-body">
-                <Swiper
-                  slidesPerView={8}
-                  spaceBetween={6}
-                  pagination={{ clickable: true }}
-                  modules={[Pagination]}
-                  className="stories-swiper"
-                >
-                  {/* Add Story Button */}
-                  {/* Other users' stories */}
-                  {Array.from(
-                    new Map(
-                      stories
-                        // .filter(story => story.userId._id !== userId)
-                        .map(story => [story.userId._id, story])
-                    ).values()
-                  ).map((story) => (
-                    <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
-                      <span>{story.userId.userName}</span>
-                      <StoryCircle
-                        story={story}
-                        onClick={handleStoryClick}
-                        currentUserId={userId}
-                      />
-                    </SwiperSlide>
-                  ))}
-                </Swiper>
-              </div>
-            </div>
+           
             {userData && (
               <div
                 className="profile-header position-relative overflow-hidden mb-3"
@@ -786,6 +762,36 @@ const ProfilePage = () => {
                 </div>
               </div>
             )}
+            <div className="card border-0 shadow-sm mb-3">
+            <div className="card-body">
+              <Swiper
+                slidesPerView={8}
+                spaceBetween={6}
+                pagination={{ clickable: true }}
+                modules={[Pagination]}
+                className="stories-swiper"
+              >
+                {/* Add Story Button */}
+                {/* Other users' stories */}
+                {Array.from(
+                  new Map(
+                    stories
+                      // .filter(story => story.userId._id !== userId)
+                      .map(story => [story.userId._id, story])
+                  ).values()
+                ).map((story) => (
+                  <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
+                    <span>{story.userId.userName}</span>
+                    <StoryCircle
+                      story={story}
+                      onClick={handleStoryClick}
+                      currentUserId={userId}
+                    />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
+          </div>
             <button
               className="btn btn-primary rounded-circle position-fixed"
               style={{

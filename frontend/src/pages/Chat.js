@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useContext } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useDispatch, useSelector } from "react-redux";
 import { addMessage, setInitialMessages } from "../store/store";
-import { useSocket } from "../components/socketContext";
 import { setUser } from "../store/action";
 import io from "socket.io-client";
 import "../css/Chat.css";
@@ -14,22 +13,21 @@ import UsersList from "./Users";
 import CreateGroupModal from "../components/CreateGroup";
 import GroupList from "../components/GroupList"
 import GroupChatUi from "../components/GroupChatUi"
+import { UserContext } from "../contexts/UserContext";
 const ChatComponent = () => {
-  const { setSocket, setUserId, userId } = useSocket();
   const [userName, setUserName] = useState("");
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [activeUsers, setActiveUsers] = useState([]);
   const [msgCounts, setMsgCounts] = useState({});
   const [profilePicture, setProfilePicture] = useState("");
   const [isMobileView, setIsMobileView] = useState(false);
+  const { socket, userId, activeUsers } = useContext(UserContext);
   const navigate = useNavigate();
   const chatHistory = useSelector((state) => state.chat.chatHistory);
   const token = localStorage.getItem("token");
   const dispatch = useDispatch();
   const apiUrl = process.env.REACT_APP_API_URL;
-  const socket = useSelector((state) => state.socket.socket);
   const fetchUserData = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/getUser`, {
@@ -40,61 +38,32 @@ const ChatComponent = () => {
           "Content-Type": "application/json",
         },
       });
-
       if (response.ok) {
-        const data = await response.json();
-        console.log(data, 'dayaa')
-        setUserId(data._id);
+        const data = await response.json();   
         setUserName(data.userName);
         setProfilePicture(data.profilePicture);
         setFriends(data.followers);
         dispatch(setUser({ userId: data._id, name: data.firstName }));
-
       } else {
         console.error("Failed to fetch user data:", response.statusText);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  }, [token, socket, setSocket, setUserId, dispatch]);
-
+  }, [token, socket,dispatch]);
+  
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
-
-  useEffect(() => {
-    if (socket && userId) {
-      socket.on("restatus", (data) => {
-        setActiveUsers(data)
-      }
-      );
-      socket.emit("joinRoom", { userId, friends });
-      socket.on("status", (data) => {
-        setActiveUsers((prevActiveUsers) => [...prevActiveUsers, data])
-      }
-      );
-      socket.on("userLeft", ({ userId }) => {
-        setActiveUsers((prev) => prev.filter((user) => user._id !== userId));
-      });
-
-      return () => {
-        socket.off("status");
-        socket.off("userLeft");
-      };
-    }
-  }, [socket, userId]);
-
+  
   useEffect(() => {
     const handleResize = () => {
       setIsMobileView(window.innerWidth < 768);
     };
-
     window.addEventListener("resize", handleResize);
     handleResize();
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
   const handleFriendSelect = (friend) => {
     setSelectedGroup(null)
     setSelectedFriend(friend);
@@ -103,12 +72,10 @@ const ChatComponent = () => {
     setSelectedFriend(null);
     setSelectedGroup(group);
   }
-
   const handleBackToFriendList = () => {
     setSelectedFriend(null);
     setSelectedGroup(null);
   };
-
   return (
     <div className="chat-container ">
       <div className="chat-layout">
@@ -177,5 +144,4 @@ const ChatComponent = () => {
     </div>
   );
 };
-
 export default ChatComponent;

@@ -1,16 +1,17 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { FaUserPlus, FaUserCheck, FaUserClock } from "react-icons/fa";
 import { sendFollowRequest } from "../services/profileService";
 import { createNotification } from "../services/notificationService";
 import { useSelector } from "react-redux";
 import UserProfilePage from "../pages/userProfile";
 import { useNavigate } from "react-router-dom";
+import { UserContext } from "../contexts/UserContext";
 const FriendSuggestion = ({ suggestions, token }) => {
     const [followStatus, setFollowStatus] = useState({});
     const [showAll, setShowAll] = useState(false);
     const currentUser = JSON.parse(localStorage.getItem('user'));
     const userId = currentUser?._id || currentUser?.userId;
-    const socket = useSelector((state) => state.socket.socket);
+    const {socket} = useContext(UserContext)
     const Navigate = useNavigate();
     const handleFollow = async (user) => {
         
