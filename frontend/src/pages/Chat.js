@@ -1,19 +1,18 @@
 import React, { useEffect, useState, useCallback, useContext } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useDispatch, useSelector } from "react-redux";
-import { addMessage, setInitialMessages } from "../store/store";
 import { setUser } from "../store/action";
-import io from "socket.io-client";
 import "../css/Chat.css";
 import ChatUi from "../components/ChatUi";
 import FriendList from "../components/FriendList";
-import ProfileDisplay from "../components/ProfileDisplay";
 import { useNavigate } from "react-router-dom";
 import UsersList from "./Users";
 import CreateGroupModal from "../components/CreateGroup";
 import GroupList from "../components/GroupList"
 import GroupChatUi from "../components/GroupChatUi"
 import { UserContext } from "../contexts/UserContext";
+import { fetchUnseenMessages } from "../services/messageService";
+import { updateMessageStatus } from "../services/messageService";
 const ChatComponent = () => {
   const [userName, setUserName] = useState("");
   const [friends, setFriends] = useState([]);
@@ -22,8 +21,7 @@ const ChatComponent = () => {
   const [msgCounts, setMsgCounts] = useState({});
   const [profilePicture, setProfilePicture] = useState("");
   const [isMobileView, setIsMobileView] = useState(false);
-  const { socket, userId, activeUsers } = useContext(UserContext);
-  const navigate = useNavigate();
+  const { socket, userId, activeUsers, unseenMessages, setUnseenMessages, loadUnseenMessages} = useContext(UserContext);
   const chatHistory = useSelector((state) => state.chat.chatHistory);
   const token = localStorage.getItem("token");
   const dispatch = useDispatch();
@@ -39,7 +37,7 @@ const ChatComponent = () => {
         },
       });
       if (response.ok) {
-        const data = await response.json();   
+        const data = await response.json();
         setUserName(data.userName);
         setProfilePicture(data.profilePicture);
         setFriends(data.followers);
@@ -50,12 +48,10 @@ const ChatComponent = () => {
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  }, [token, socket,dispatch]);
-  
+  }, [token, socket, dispatch]);
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
-  
   useEffect(() => {
     const handleResize = () => {
       setIsMobileView(window.innerWidth < 768);
@@ -64,10 +60,22 @@ const ChatComponent = () => {
     handleResize();
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-  const handleFriendSelect = (friend) => {
-    setSelectedGroup(null)
-    setSelectedFriend(friend);
-  };
+  const handleFriendSelect = async (friend, lastUnseenMsg = []) => {
+  setSelectedGroup(null);
+  setSelectedFriend(friend);
+  const messageIds = lastUnseenMsg.map(msg => msg._id);
+  if (messageIds.length > 0) {
+    try {
+      await updateMessageStatus(messageIds);  // ✅ wait until done
+      await loadUnseenMessages();             // ✅ now refresh unseen messages
+    } catch (error) {
+      console.error('Error updating message status:', error);
+    }
+  } else {
+    // If no unseen messages, still set the friend without updating
+    loadUnseenMessages();
+  }
+};
   const handleGroupSelect = (group) => {
     setSelectedFriend(null);
     setSelectedGroup(group);
@@ -92,6 +100,7 @@ const ChatComponent = () => {
               friends={friends}
               activeUsers={activeUsers}
               msgCounts={msgCounts}
+              unseenMessages={unseenMessages}
               selectedFriend={selectedFriend}
               handleFriendSelect={handleFriendSelect}
               handleBackToFriendList={handleBackToFriendList}
@@ -100,11 +109,9 @@ const ChatComponent = () => {
               msgCounts={msgCounts}
               handleGroupSelect={handleGroupSelect}
               handleBackToFriendList={handleBackToFriendList} />
-
             <CreateGroupModal friends={friends} />
           </div>
         )}
-
         {/* Main Chat Area */}
         <div className={`main-chat-area ${isMobileView && !selectedFriend && !selectedGroup ? 'hide-on-mobile' : ''}`}>
           {selectedGroup ? (

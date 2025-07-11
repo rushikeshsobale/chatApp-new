@@ -1,7 +1,6 @@
 import React from 'react';
 import { Modal } from 'react-bootstrap';
 import { FaUserPlus, FaUserCheck } from 'react-icons/fa';
-
 const FollowModal = ({ show, onHide, title, users, currentUserId, onFollow, onUnfollow }) => {
   return (
     <Modal
@@ -34,7 +33,7 @@ const FollowModal = ({ show, onHide, title, users, currentUserId, onFollow, onUn
                     <p className="mb-0 text-muted small">{user.firstName} {user.lastName}</p>
                   </div>
                 </div>
-                {user._id !== currentUserId && (
+                {user._id !== currentUserId && title=='Followers' && (
                   <button
                     className={`btn ${user.isFollowing ? 'btn-outline-secondary' : 'btn-primary'} btn-sm rounded-pill px-3`}
                     onClick={() => user.isFollowing ? onUnfollow(user._id) : onFollow(user._id)}

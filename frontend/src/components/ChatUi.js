@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useRef,useContext } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { addMessage, updateMessageStatus } from '../store/store';
+import { addMessage } from '../store/store';
 import EmojiPicker from 'emoji-picker-react';
 import '../css/Chat.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { createNotification } from '../services/notificationService'
+import { updateMessageStatus } from '../services/messageService';
 import {
   faCheckDouble,
   faEllipsisV,
@@ -20,16 +21,17 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { CiMenuKebab } from "react-icons/ci";
 import { FaArrowLeft } from 'react-icons/fa';
-import { UserContext } from '../contexts/UserContext'; 
+import { UserContext } from '../contexts/UserContext';
 const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
-  
-    const { socket, userId } = useContext(UserContext);
+  const { socket, userId } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
   const friendId = member._id;
   const [messages, setMessages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUser, setTypingUser] = useState('');
   const messagesEndRef = useRef(null);
+   const [selectedFile, setSelectedFile] = useState(null);
+  const [showAttachmentPopup, setShowAttachmentPopup] = useState(false);
   const apiUrl = process.env.REACT_APP_API_URL;
   const [chatId, setChatId] = useState([userId, friendId].sort().join("_"));
   const inputRef = useRef(null);
@@ -48,13 +50,19 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       });
       if (!response.ok) throw new Error("Failed to fetch messages");
       const data = await response.json();
-      setMessages(data.reverse());
+      if(limit==1){
+        console.log(data[0], 'eaaas')
+        setMessages((pre)=>[...pre, data[0]])
+      }else{
+         setMessages(data.reverse());
+      }
+     
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
 
- 
+
   useEffect(() => {
     if (chatId) fetchMessages();
   }, [chatId]);
@@ -72,11 +80,30 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       if (attachment) {
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
-      setMessages((prev) => [...prev, { chatId, senderId:{_id:userId} , receiverId: friendId, content: messageInput, attachment, timestamp: Date.now() }]);
-      
+    
+     setMessages((prev) => [
+  ...prev,
+  {
+    chatId,
+    senderId: { _id: userId },
+    receiverId: friendId,
+    content: messageInput,
+    ...(attachment && {   // ✅ Only add attachment if it exists
+      attachment: {
+        name: URL.createObjectURL(attachment),  // ✅ This should be 'url', not 'name'
+        type: attachment.type.startsWith('image')
+          ? 'image'
+          : attachment.type.startsWith('video')
+          ? 'video'
+          : 'file',
+      }
+    }),
+    timestamp: Date.now(),
+  },
+]);
       const response = await fetch(`${apiUrl}/messages/postMessage`, {
         method: 'POST',
-        body: formData, 
+        body: formData,
       });
       if (!response.ok) throw new Error('Failed to send message');
       if (response.ok) {
@@ -91,34 +118,29 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
         await createNotification(notificationData);
       }
       const data = await response.json(); // Get response data
-      console.log(socket, 'socket')
+      
       socket.emit('sendMessage', data); // Emit actual saved message
       setMessageInput('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
-  const updateMsgStatus = async (chatId) => {
-    try {
-      const response = await fetch(`${apiUrl}/updateMsgStatus/${chatId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-      if (!response.ok) console.log('Error updating message status');
-    } catch (err) {
-      console.log(err, 'error');
-    }
-  };
+
   useEffect(() => {
     socket.on("setDoubleCheckRecieved", (payload) => {
+
       setMessages((prev) => {
         if (prev.length === 0) return [payload]; // If no messages, just add it
         return [...prev.slice(0, -1), payload]; // Replace last message with payload
       });
     });
-   // If stored in public/sounds/
+    // If stored in public/sounds/ 
     socket.on("recievedMessage", (message) => {
+
       messageTone.play().catch((err) => {
         console.error("Failed to play message tone:", err);
       });
-      setMessages((prev) => [...prev, message]);
+      fetchMessages(1, 1)
       if (chatId) {
         socket.emit('setDoubleCheck', { friendId, chatId, message });
       }
@@ -166,16 +188,13 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
   }, []);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-
   useEffect(() => {
     scrollToBottom();
     setMsgCounts((prevCounts) => ({ ...prevCounts, [friendId]: 0 }));
+    console.log(messages, 'messages')
   }, [messages]);
-
   const handleEmojiClick = (emojiObject) => setMessageInput((prev) => prev + emojiObject.emoji);
-
   const toggleReactions = (messageId) => setMessages((prev) => prev.map((msg) => (msg._id === messageId ? { ...msg, showReactions: !msg.showReactions } : msg)));
-
   const addReaction = async (messageId, emoji) => {
     try {
       const token = localStorage.getItem('token');
@@ -195,13 +214,11 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       console.error("Error adding reaction:", error);
     }
   };
-
   const forwardMessage = () => {
 
   }
 
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [showAttachmentPopup, setShowAttachmentPopup] = useState(false);
+ 
 
   const handleFileSelect = (type) => {
     setShowAttachmentPopup(false); // Close popup
@@ -228,7 +245,20 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       return () => URL.revokeObjectURL(objectURL); // cleanup
     }
   }, [selectedFile?.file]);
-  
+
+  const handleMarkMessagesAsRead = async (messages) => {
+    const messageIds = messages.map(msg => msg._id);
+
+    if (messageIds.length > 0) {
+      try {
+        const result = await updateMessageStatus(messageIds, 'read');
+        console.log(result.message);  // "Message status updated successfully"
+      } catch (err) {
+        console.error('Error marking messages as read:', err);
+      }
+    }
+  };
+
   return (
     <div className="chat-ui-container">
       {/* Chat Header */}
@@ -277,7 +307,7 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
           messages?.map((message, index) => (
             <div
               key={index}
-              className={`message-container ${message?.senderId._id === userId ? 'sent' : 'received'}`}
+              className={`message-container ${message?.senderId?._id === userId ? 'sent' : 'received'}`}
             >
               <div className="message-bubble">
                 {/* Message Content */}
@@ -286,22 +316,37 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
                 )}
 
                 {/* Attachment */}
-                {/* {message?.attachment && (
+                {message?.attachment && (
                   <div className="message-attachment">
-                    {message.attachment.match(/\.(png|jpe?g|gif)$/i) ? (
-                      <img src={message.attachment} alt="Attachment" />
-                    ) : message.attachment.match(/\.(mp4|webm)$/i) ? (
-                      <video controls>
-                        <source src={message.attachment} type="video/mp4" />
+                    {message.attachment.type === 'image' && (
+                      <img
+                        src={message.attachment.name}
+                        alt={message.attachment.name || 'Attachment'}
+                        className="media-image"
+                      />
+                    )}
+
+                    {message.attachment.type === 'video' && (
+                      <video controls className="media-video">
+                        <source src={message.attachment.name} type="video/mp4" />
+                        Your browser does not support the video tag.
                       </video>
-                    ) : (
-                      <a href={message.attachment} target="_blank" rel="noopener noreferrer">
-                        <FontAwesomeIcon icon={faFileAlt} />
-                        <span>Download File</span>
+                    )}
+
+                    {(!message.attachment.type || message.attachment.type === 'file') && (
+                      <a
+                        href={message.attachment.name}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="media-file"
+                      >
+                        <FontAwesomeIcon icon={faFileAlt} />{' '}
+                        <span>{message.attachment.name || 'Download File'}</span>
                       </a>
                     )}
                   </div>
-                )} */}
+                )}
+
 
                 {/* Message Meta */}
                 <div className="message-meta">
@@ -309,7 +354,7 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
                     {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
 
-                  {message?.senderId._id === userId && (
+                  {message?.senderId?._id === userId && (
                     <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
                       {message?.status === 'read' ? (
                         <FontAwesomeIcon icon={faCheckDouble} />

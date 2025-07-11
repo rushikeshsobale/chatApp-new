@@ -61,9 +61,10 @@ const ProfilePage = () => {
   const userId = user?.userId;
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
-  const { socket } = useContext(UserContext);
+  const { socket, setFlag } = useContext(UserContext);
   // Fetch User Data
   useEffect(() => {
+     setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
     } else {
@@ -438,7 +439,6 @@ const ProfilePage = () => {
         .includes(searchTerm.toLowerCase()) ||
       friend.friendId.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
   const tabs = [
     { id: "grid", label: "Grid", icon: <IoGridSharp size={24} /> },
     { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={24} /> },
