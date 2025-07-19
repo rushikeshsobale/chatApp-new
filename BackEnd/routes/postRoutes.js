@@ -9,24 +9,17 @@ const crypto = require("crypto");
 const Media = require("../Modules/Media.js");
 const Post = require("../Modules/Post.js");
 const { uploadToS3 } = require("../utils/s3Upload");
-
 const upload = multer({ storage: multer.memoryStorage() });
-
-
-
 router.post("/mediaPost", upload.single("media"), async (req, res) => {
   const { text, userId } = req.body;
-  
   if (!userId) {
     return res.status(400).json({
       success: false,
       message: "userId are required",
     });
   }
-
   try {
     let mediaUrl = null;
-   
     if (req.file) {
       const uploadResult = await uploadToS3(req.file, {
         folder: "posts",
@@ -34,15 +27,12 @@ router.post("/mediaPost", upload.single("media"), async (req, res) => {
       });
       mediaUrl = uploadResult.url;
     }
-
     const newPost = new Post({
       text,
       media: mediaUrl,
       userId,
     });
-
     const savedPost = await newPost.save();
-
     return res.status(201).json({
       success: true,
       post: savedPost,

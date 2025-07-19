@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Message = require('../Modules/Messages');
-const verifyToken  = require('./verifyToken');
+const verifyToken = require('./verifyToken');
 const { uploadToS3 } = require("../utils/s3Upload");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
@@ -50,70 +50,69 @@ router.get('/getMessages', verifyToken, async (req, res) => {
 
 router.post("/postMessage", upload.single("attachment"), async (req, res) => {
     try {
-      let mediaUrl = null;
-    
-      if (req.file) {
-        const uploadResult = await uploadToS3(req.file, {
-          folder: "posts",
-          checkDuplicate: true
+        const { chatId, groupId, senderId, receiverId, content } = req.body;
+        let attachment = null;
+        if (req.file) {
+            const uploadResult = await uploadToS3(req.file, {
+                folder: "posts",
+                checkDuplicate: true
+            });
+            const mimeType = req.file.mimetype;   // e.g., "image/png" or "video/mp4"
+            let type = "file";                    // default fallback
+            if (mimeType.startsWith("image/")) {
+                type = "image";
+            } else if (mimeType.startsWith("video/")) {
+                type = "video";
+            }
+            attachment = {
+                name: uploadResult.url,
+                type: type
+            };
+        }
+        const newMessage = new Message({
+            chatId,
+            groupId,
+            senderId,
+            receiverId,
+            content,
+            attachment,   // 👈 storing whole object here
         });
-        mediaUrl = uploadResult.url;
-      }
-      console.log(mediaUrl, 'mediaUrl')
-      const { chatId ,groupId, senderId, receiverId, content } = req.body;
-      console.log(req.body, 'requsted body')
-      const newMessage = new Message({
-        chatId,
-        groupId,
-        senderId,
-        receiverId,
-        content,
-        mediaUrl,
-       
-      });
-     const response = await newMessage.save();
-     console.log(response, 'response')
-      res.status(201).json(newMessage);
+        const response = await newMessage.save();
+      
+        res.status(201).json(newMessage);
     } catch (err) {
-      res.status(500).json({ error: "Failed to send message" });
+        res.status(500).json({ error: "Failed to send message" });
     }
-  });
-  // ✅ 2. Get messages from a chat (paginated)
-  router.get("/getMessages/:chatId", async (req, res) => {
+});
+// ✅ 2. Get messages from a chat (paginated)
+router.get("/getMessages/:chatId", async (req, res) => {
     try {
-      const { chatId } = req.params;
-      const { page = 1, limit = 20 } = req.query;
-      const messages = await Message.find({ chatId })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(Number(limit));
-      res.status(200).json(messages);
+        const { chatId } = req.params;
+        const { page = 1, limit = 20 } = req.query;
+        const messages = await Message.find({ chatId })
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(Number(limit));
+        res.status(200).json(messages);
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Failed to fetch messages" });
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch messages" });
     }
-  });
-  
+});
+
 
 // Update message status (read/delivered)
 router.post('/updateMsgStatus', verifyToken, async (req, res) => {
     try {
-        const { senderId, receiverId, status } = req.body;
+        const { messageIds, status } = req.body;
 
-        const messages = await Messages.find({
-            $or: [
-                { senderId, receiverId },
-                { senderId: receiverId, receiverId: senderId }
-            ]
-        })
-        .sort({ createdAt: -1 })
-        .limit(15);
+        if (!Array.isArray(messageIds) || messageIds.length === 0) {
+            return res.status(400).json({ error: 'messageIds array is required and cannot be empty' });
+        }
 
-        const messageIds = messages.map(msg => msg._id);
-
-        await messages.updateMany(
+        await Message.updateMany(
             { _id: { $in: messageIds } },
-            { $set: { status } }
+            { $set: { status: status || 'read' } }  // default to 'read' if status not provided
         );
 
         res.status(200).json({ message: 'Message status updated successfully' });
@@ -123,14 +122,37 @@ router.post('/updateMsgStatus', verifyToken, async (req, res) => {
     }
 });
 
+
+router.get('/unseenMessages', async (req, res) => {
+    const { receiverId } = req.query;
+
+    if (!receiverId) {
+        return res.status(400).json({ success: false, message: 'receiverId is required' });
+    }
+
+    try {
+        const unseenMessages = await Message.find({
+            status: 'sent',
+            receiverId: receiverId
+        });
+
+        res.status(200).json({
+            success: true,
+            messages: unseenMessages
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+})
 // Delete a message
 router.delete('/deleteMessage/:messageId', verifyToken, async (req, res) => {
     try {
         const { messageId } = req.params;
         const { userId } = req.body; // To verify ownership
 
-        const message = await Messages.findById(messageId);
-        
+        const message = await Message.findById(messageId);
+
         if (!message) {
             return res.status(404).json({ error: 'Message not found' });
         }
@@ -154,7 +176,7 @@ router.post('/:messageId/reactions', verifyToken, async (req, res) => {
         const { messageId } = req.params;
         const { userId, emoji } = req.body;
 
-        const message = await Messages.findById(messageId);
+        const message = await Message.findById(messageId);
         if (!message) {
             return res.status(404).json({ error: 'Message not found' });
         }
@@ -185,7 +207,7 @@ router.delete('/clearChat', verifyToken, async (req, res) => {
     try {
         const { senderId, receiverId } = req.body;
         // Verify that the user is part of the chat
-        const message = await Messages.findOne({
+        const message = await Message.findOne({
             $or: [
                 { senderId, receiverId },
                 { senderId: receiverId, receiverId: senderId }
@@ -202,7 +224,7 @@ router.delete('/clearChat', verifyToken, async (req, res) => {
                 { senderId: receiverId, receiverId: senderId }
             ]
         });
-        
+
         res.status(200).json({ message: 'Chat history cleared successfully' });
     } catch (error) {
         console.error('Error clearing chat history:', error);

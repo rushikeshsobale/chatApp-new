@@ -31,6 +31,7 @@ import FollowModal from "../components/FollowModal";
 import CreateStory from "../components/CreateStory";
 import { getNotifications, updateNotification } from "../services/notificationService";
 import { UserContext } from "../contexts/UserContext";
+import BirthdaysCard from "../components/BirthdaysCard";
 const ProfilePage = () => {
   const [newPost, setNewPost] = useState("");
   const [media, setMedia] = useState(null);
@@ -64,7 +65,7 @@ const ProfilePage = () => {
   const { socket, setFlag } = useContext(UserContext);
   // Fetch User Data
   useEffect(() => {
-     setFlag(true)
+    setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
     } else {
@@ -76,7 +77,7 @@ const ProfilePage = () => {
     fetchPosts()
     // fetchTrendingTopics();
     // fetchEvents();
-    
+
   }, [location.pathname]);
   const getSuggestions = async () => {
     const suggestions = await fetchSuggestions(); // Wait for the data
@@ -94,12 +95,12 @@ const ProfilePage = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log(data, 'data fff')
+
         setUserData(data);
         setFriends(data.friends);
         const userId = data._id;
         const friends = data.followers;
-       
+
       } else {
         console.error("Failed to fetch user data:", response.statusText);
       }
@@ -107,7 +108,7 @@ const ProfilePage = () => {
       console.error("Error:", error);
     }
   };
-  
+
   const fetchUser2Data = async () => {
     try {
       const response = await fetch(`${apiUrl}/getProfileUser/${userId}`, {
@@ -192,17 +193,17 @@ const ProfilePage = () => {
   useEffect(() => {
     if (!socket) return;
     socket.on('got_a_notification', (data) => {
-      
+
       fetchNotifications();
     });
-  
+
     // Optional: Cleanup listener on unmount
     return () => {
       socket.off('got_a_notification');
     };
   }, [socket]);
 
-  
+
   const fetchEvents = async () => {
     try {
       const response = await fetch(`${apiUrl}/api/events`);
@@ -228,15 +229,15 @@ const ProfilePage = () => {
   };
 
   const handleAddPost = (text, media) => {
-      const userId = userData._id;
+    const userId = userData._id;
     const formData = new FormData();
     formData.append("userId", userId)
-    if(text){
+    if (text) {
       formData.append("text", text)
     }
     if (media) {
       formData.append("media", media.file);
-    }  
+    }
     fetch(`${apiUrl}/post/mediaPost`, {
       method: "POST",
       body: formData,
@@ -370,9 +371,9 @@ const ProfilePage = () => {
   const handleMarkNotificationAsRead = async (notificationId) => {
     try {
       await updateNotification(notificationId, true);
-      setNotifications(prevNotifications => 
-        prevNotifications.map(notification => 
-          notification._id === notificationId 
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification =>
+          notification._id === notificationId
             ? { ...notification, read: true }
             : notification
         )
@@ -392,7 +393,7 @@ const ProfilePage = () => {
         },
       });
       if (response.ok) {
-        setNotifications(prevNotifications => 
+        setNotifications(prevNotifications =>
           prevNotifications.filter(notification => notification._id !== notificationId)
         );
         setUnreadCount(prev => Math.max(0, prev - 1));
@@ -484,93 +485,12 @@ const ProfilePage = () => {
             HiBUDDY
           </a>
           <div className="align-items-center">
-            <div className="input-group rounded-pill mx-3" style={{ width: "300px" }}>
-              <span className="input-group-text bg-light border-0 rounded-start-pill">
-                <FaSearch className="text-muted" />
-              </span>
-              <input
-                type="text"
-                className="form-control bg-light border-0 rounded-end-pill"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
             <div className="d-none d-lg-flex gap-4 mx-3">
               <a href="/home" className="text-dark"><FaHome size={22} /></a>
               <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a>
               <a href="/watch" className="text-dark"><FaVideo size={22} /></a>
               {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
               <a href="/games" className="text-dark"><FaGamepad size={22} /></a> */}
-            </div>
-
-            <div className="d-flex gap-3 ms-3">
-              <div className="position-relative">
-                <button
-                  className="btn p-0 position-relative"
-                  onClick={() => {
-                    setShowNotifications(!showNotifications);
-                    if (showNotifications) handleMarkNotificationAsRead(notifications[0]._id);
-                  }}
-                >
-                  <IoMdNotifications size={24} className="text-dark" />
-                  {unreadCount > 0 && (
-                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-                {showNotifications && (
-                  <div className="position-absolute end-0 mt-2 bg-white rounded shadow-lg p-3" style={{ width: "350px", zIndex: 1000 }}>
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h6 className="fw-bold mb-0">Notifications</h6>
-                      <button 
-                        className="btn btn-sm btn-link text-muted"
-                        onClick={() => setShowNotifications(false)}
-                      >
-                        <i className="bi bi-x-lg"></i>
-                      </button>
-                    </div>
-                    {notifications.length > 0 ? (
-                      notifications.map(notification => (
-                        <div 
-                          key={notification._id} 
-                          className="d-flex align-items-center mb-3 p-2 rounded hover-bg-light"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => !notification.read && handleMarkNotificationAsRead(notification._id)}
-                        >
-                          <img
-                            src={notification.sender?.profilePicture || "https://via.placeholder.com/40"}
-                            alt="Profile"
-                            className="rounded-circle me-3"
-                            style={{ width: "40px", height: "40px" }}
-                          />
-                          <div className="flex-grow-1">
-                            <p className="mb-0 small">{notification.message}</p>
-                            <small className="text-muted">{moment(notification.createdAt).fromNow()}</small>
-                          </div>
-                          <div className="d-flex align-items-center">
-                            {!notification.read && (
-                              <span className="badge bg-primary rounded-circle me-2" style={{ width: "8px", height: "8px" }}></span>
-                            )}
-                            <button 
-                              className="btn btn-sm btn-link text-muted p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteNotification(notification._id);
-                              }}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted small">No new notifications</p>
-                    )}
-                  </div>
-                )}
-              </div>
               <button className="btn p-0" onClick={() => navigate('/chats')}>
                 <RiMessengerLine size={24} className="text-dark" />
               </button>
@@ -600,66 +520,97 @@ const ProfilePage = () => {
           </div>
         </div>
       </nav>
-
       {/* Main Content */}
       <div className="container-fluid mt-3 ">
         <div className="row">
           {/* Left Sidebar */}
           <div className="col-lg-3 d-none d-lg-block">
             <div className="sticky-top" style={{ top: "70px" }}>
+              <BirthdaysCard userId={userId} />
               <div className="card border-0 shadow-sm mb-3">
-                <div className="card-body">
-                  <ul className="list-unstyled">
-                    <li className="mb-2">
-                      <a href="/friends" className="d-flex align-items-center text-decoration-none text-dark">
-                        <FaUserFriends className="me-2" />
-                        <span>Friends</span>
-                      </a>
-                    </li>
-                    <li className="mb-2">
-                      <a href="/saved" className="d-flex align-items-center text-decoration-none text-dark">
-                        <FaBookmark className="me-2" />
-                        <span>Saved</span>
-                      </a>
-                    </li>
-                    <li className="mb-2">
-                      <a href="/groups" className="d-flex align-items-center text-decoration-none text-dark">
-                        <i className="bi bi-people-fill me-2"></i>
-                        <span>Groups</span>
-                      </a>
-                    </li>
-                    <li className="mb-2">
-                      <a href="/marketplace" className="d-flex align-items-center text-decoration-none text-dark">
-                        <FaStore className="me-2" />
-                        <span>Marketplace</span>
-                      </a>
-                    </li>
+                <div className="card-header bg-white d-flex justify-content-between align-items-center">
+                  <h6 className="mb-0 fw-bold">Contacts</h6>
+                  <div>
+                    <button className="btn p-0 me-2"><i className="bi bi-search"></i></button>
+                    <button className="btn p-0"><i className="bi bi-three-dots"></i></button>
+                  </div>
+                </div>
+                <div className="card-body p-0">
+                  <ul className="list-unstyled mb-0">
+                    {friends?.slice(0, 5).map((friend) => (
+                      <li key={friend._id} className="p-3 border-bottom">
+                        <a href={`/profile/${friend.friendId._id}`} className="d-flex align-items-center text-decoration-none text-dark">
+                          <img
+                            src={friend.friendId.profilePicture || "https://via.placeholder.com/40"}
+                            alt="Profile"
+                            className="rounded-circle me-3"
+                            style={{ width: "35px", height: "35px", objectFit: "cover" }}
+                          />
+                          <span>{friend.friendId.firstName} {friend.friendId.lastName}</span>
+                        </a>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
-
-              <div className="card border-0 shadow-sm mb-3">
-                <div className="card-header bg-white">
-                  <h6 className="mb-0 fw-bold">Your Shortcuts</h6>
-                </div>
-                <div className="card-body">
-                  <ul className="list-unstyled">
-                    <li className="mb-2">
-                      <a href="/events" className="d-flex align-items-center text-decoration-none text-dark">
-                        <i className="bi bi-calendar-event me-2"></i>
-                        <span>Events</span>
-                      </a>
-                    </li>
-                    <li className="mb-2">
-                      <a href="/memories" className="d-flex align-items-center text-decoration-none text-dark">
-                        <i className="bi bi-clock-history me-2"></i>
-                        <span>Memories</span>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
+             <div className="position-relative card border-0 shadow-sm mb-3">
+              <div className="card-header bg-white d-flex justify-content-between align-items-center">
+                  <h6 className="mb-0 fw-bold">Notifications</h6>
+                <button
+                  className="btn p-0 position-relative"
+                  onClick={() => {
+                    setShowNotifications(!showNotifications);
+                    if (showNotifications) handleMarkNotificationAsRead(notifications[0]._id);
+                  }}
+                >
+                  <IoMdNotifications size={24} className="text-dark" />
+                  {unreadCount > 0 && (
+                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                 </div>
+                  <div className=" end-0 mt-2 p-3">
+                    {notifications.length > 0 ? (
+                      notifications.map(notification => (
+                        <div
+                          key={notification._id}
+                          className="d-flex align-items-center mb-3 p-2 rounded hover-bg-light"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => !notification.read && handleMarkNotificationAsRead(notification._id)}
+                        >
+                          <img
+                            src={notification.sender?.profilePicture || "https://via.placeholder.com/40"}
+                            alt="Profile"
+                            className="rounded-circle me-3"
+                            style={{ width: "40px", height: "40px" }}
+                          />
+                          <div className="flex-grow-1">
+                            <p className="mb-0 small">{notification.message}</p>
+                            <small className="text-muted">{moment(notification.createdAt).fromNow()}</small>
+                          </div>
+                          <div className="d-flex align-items-center">
+                            {!notification.read && (
+                              <span className="badge bg-primary rounded-circle me-2" style={{ width: "8px", height: "8px" }}></span>
+                            )}
+                            <button
+                              className="btn btn-sm btn-link text-muted p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteNotification(notification._id);
+                              }}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted small">No new notifications</p>
+                    )}
+                  </div>
               </div>
-              <TrendingTopics topics={trendingTopics} />
             </div>
           </div>
           {/* Main Content Area */}
@@ -670,7 +621,6 @@ const ProfilePage = () => {
               overflow: "auto",
             }}>
             {/* Stories */}
-           
             {userData && (
               <div
                 className="profile-header position-relative overflow-hidden mb-3"
@@ -763,35 +713,35 @@ const ProfilePage = () => {
               </div>
             )}
             <div className="card border-0 shadow-sm mb-3">
-            <div className="card-body">
-              <Swiper
-                slidesPerView={8}
-                spaceBetween={6}
-                pagination={{ clickable: true }}
-                modules={[Pagination]}
-                className="stories-swiper"
-              >
-                {/* Add Story Button */}
-                {/* Other users' stories */}
-                {Array.from(
-                  new Map(
-                    stories
-                      // .filter(story => story.userId._id !== userId)
-                      .map(story => [story.userId._id, story])
-                  ).values()
-                ).map((story) => (
-                  <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
-                    <span>{story.userId.userName}</span>
-                    <StoryCircle
-                      story={story}
-                      onClick={handleStoryClick}
-                      currentUserId={userId}
-                    />
-                  </SwiperSlide>
-                ))}
-              </Swiper>
+              <div className="card-body">
+                <Swiper
+                  slidesPerView={8}
+                  spaceBetween={6}
+                  pagination={{ clickable: true }}
+                  modules={[Pagination]}
+                  className="stories-swiper "
+                >
+                  {/* Add Story Button */}
+                  {/* Other users' stories */}
+                  {Array.from(
+                    new Map(
+                      stories
+                        // .filter(story => story.userId._id !== userId)
+                        .map(story => [story.userId._id, story])
+                    ).values()
+                  ).map((story) => (
+                    <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
+                      <span className="d-block m-auto">{story.userId.userName}</span>
+                      <StoryCircle
+                        story={story}
+                        onClick={handleStoryClick}
+                        currentUserId={userId}
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              </div>
             </div>
-          </div>
             <button
               className="btn btn-primary rounded-circle position-fixed"
               style={{
@@ -850,7 +800,7 @@ const ProfilePage = () => {
                 </div> */}
                 <div className="d-flex justify-content-between border-top pt-3">
                   <button
-                    className="btn btn-light rounded-pill d-flex align-items-center"
+                    className="btn btn-sm btn-light rounded-pill d-flex align-items-center fs-sm"
                     onClick={() => setShowCreateStory(true)}
                     style={{
                       transition: "all 0.3s ease",
@@ -926,7 +876,7 @@ const ProfilePage = () => {
                       }}
                     >
                       <div className="mb-1">{tab.icon}</div>
-                    
+
                       {activeTab === tab.id && (
                         <div
                           className="position-absolute w-100 bg-primary"
@@ -943,7 +893,6 @@ const ProfilePage = () => {
                 </div>
               </div>
             </div>
-
             {/* Profile Content */}
             <div className="mb-4 p-3">
               {activeTab === "grid" && (
@@ -976,7 +925,6 @@ const ProfilePage = () => {
               )}
               {activeTab === "slideshow" && (
                 <div className="row justify-content-center">
-                {console.log(posts, 'posts')}
                   {posts.map((post) => (
                     <div key={post._id} className="col-12 mb-4">
                       <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: "16px" }}>
@@ -1010,7 +958,6 @@ const ProfilePage = () => {
                           }}
                         />
 
-                        {/* Post Actions */}
                         <div className="card-body">
                           <div className="d-flex justify-content-between mb-3">
                             <div>
@@ -1076,53 +1023,10 @@ const ProfilePage = () => {
 
           {/* Right Sidebar */}
           <div className="col-lg-3 d-none d-lg-block">
-            <div className="sticky-top" style={{ top: "70px" }}>
-             {suggestions &&
+            <div className="sticky-top" style={{ top: "70px", zIndex:10 }}>
+              {suggestions &&
                 <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
-             }
-          
-              <div className="card border-0 shadow-sm mb-3">
-                <div className="card-header bg-white">
-                  <h6 className="mb-0 fw-bold">Birthdays</h6>
-                </div>
-                <div className="card-body">
-                  <div className="d-flex align-items-center">
-                    <i className="bi bi-gift-fill text-primary me-2" style={{ fontSize: "1.5rem" }}></i>
-                    <p className="mb-0 small">
-                      <span className="fw-bold">John Doe</span> and <span className="fw-bold">2 others</span> have birthdays today.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card border-0 shadow-sm mb-3">
-                <div className="card-header bg-white d-flex justify-content-between align-items-center">
-                  <h6 className="mb-0 fw-bold">Contacts</h6>
-                  <div>
-                    <button className="btn p-0 me-2"><i className="bi bi-search"></i></button>
-                    <button className="btn p-0"><i className="bi bi-three-dots"></i></button>
-                  </div>
-                </div>
-                <div className="card-body p-0">
-                  <ul className="list-unstyled mb-0">
-                    {friends?.slice(0, 5).map((friend) => (
-                      <li key={friend._id} className="p-3 border-bottom">
-                        <a href={`/profile/${friend.friendId._id}`} className="d-flex align-items-center text-decoration-none text-dark">
-                          <img
-                            src={friend.friendId.profilePicture || "https://via.placeholder.com/40"}
-                            alt="Profile"
-                            className="rounded-circle me-3"
-                            style={{ width: "35px", height: "35px", objectFit: "cover" }}
-                          />
-                          <span>{friend.friendId.firstName} {friend.friendId.lastName}</span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <EventCard events={events} />
+              }
             </div>
           </div>
         </div>

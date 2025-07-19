@@ -17,7 +17,6 @@ const CreateStory = ({ show, onHide, onCreateStory, userData }) => {
             setIsCompressing(true);
             try {
                 let processedFile = file;
-                
                 // Compress if it's an image
                 if (file.type.startsWith('image/')) {
                     processedFile = await compressImage(file, {
@@ -26,7 +25,6 @@ const CreateStory = ({ show, onHide, onCreateStory, userData }) => {
                         useWebWorker: true
                     });
                 }
-
                 setMedia(processedFile);
                 setMediaType(file.type.startsWith('image/') ? 'image' : 'video');
                 setPreviewUrl(URL.createObjectURL(processedFile));
@@ -67,7 +65,7 @@ const CreateStory = ({ show, onHide, onCreateStory, userData }) => {
             show={show}
             onHide={resetForm}
             centered
-            size="lg"
+            size="xl"
             className="create-story-modal"
         >
             <Modal.Header closeButton className="border-0">

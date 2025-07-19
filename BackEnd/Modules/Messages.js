@@ -14,15 +14,19 @@ const ReactionSchema = new Schema(
 // Message schema
 const MessageSchema = new Schema(
   {
-    chatId:{type:String},
-    groupId: { type: String},
-    senderId: { type: String, required: true,  ref: 'Muser', },
+    chatId: { type: String },
+    groupId: { type: String },
+    senderId: { type: String, required: true, ref: 'Muser', },
     receiverId: { type: String }, // Optional for group messages
     content: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
     messageType: { type: String, enum: ["text", "image", "video", "file"], default: "text" },
     status: { type: String, enum: ["sent", "delivered", "read"], default: "sent" },
-    mediaUrl:{ type: String },
+    attachment: {
+      name: { type: String },
+      type: { type: String, enum: ['image', 'video', 'file'], default: 'file' },
+     
+    },
     hash: { type: String, required: false },
     reactions: [ReactionSchema], // Embedded reactions
   },

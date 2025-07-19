@@ -53,6 +53,7 @@ const ChatComponent = () => {
     fetchUserData();
   }, [fetchUserData]);
   useEffect(() => {
+    loadUnseenMessages()
     const handleResize = () => {
       setIsMobileView(window.innerWidth < 768);
     };
@@ -67,7 +68,8 @@ const ChatComponent = () => {
   if (messageIds.length > 0) {
     try {
       await updateMessageStatus(messageIds);  // ✅ wait until done
-      await loadUnseenMessages();             // ✅ now refresh unseen messages
+      await loadUnseenMessages();    
+               // ✅ now refresh unseen messages
     } catch (error) {
       console.error('Error updating message status:', error);
     }
@@ -84,6 +86,22 @@ const ChatComponent = () => {
     setSelectedFriend(null);
     setSelectedGroup(null);
   };
+ 
+  useEffect(() => {
+  if (!socket) return;
+
+  const handleRecievedMessage = () => {
+    console.log("received message on frontend!");
+    loadUnseenMessages();
+  };
+
+  socket.on('recievedMessage', handleRecievedMessage);
+
+  return () => {
+    socket.off('recievedMessage', handleRecievedMessage); // Proper cleanup
+  };
+}, [selectedFriend]);
+
   return (
     <div className="chat-container ">
       <div className="chat-layout">
@@ -113,7 +131,7 @@ const ChatComponent = () => {
           </div>
         )}
         {/* Main Chat Area */}
-        <div className={`main-chat-area ${isMobileView && !selectedFriend && !selectedGroup ? 'hide-on-mobile' : ''}`}>
+        <div className={`main-chat-area  bg-dark ${isMobileView && !selectedFriend && !selectedGroup ? 'hide-on-mobile' : ''}`}>
           {selectedGroup ? (
             <GroupChatUi
               group={selectedGroup}

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 const StoryCircle = ({ story, onClick, currentUserId }) => {
     const hasUnseenStories = !story.viewers?.includes(currentUserId);
     const isOwnStory = story.userId._id === currentUserId;
-    console.log(isOwnStory, 'ownStorie')
+   
     return (
         <motion.div
             whileHover={{ scale: 1.05 }}

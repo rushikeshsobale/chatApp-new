@@ -14,7 +14,6 @@ const FriendSuggestion = ({ suggestions, token }) => {
     const {socket} = useContext(UserContext)
     const Navigate = useNavigate();
     const handleFollow = async (user) => {
-        
         const result = await sendFollowRequest(user._id, token);
         if (result) {
             setFollowStatus((prevState) => ({
@@ -42,9 +41,9 @@ const FriendSuggestion = ({ suggestions, token }) => {
             }
         }
     };
-    const displayedSuggestions = showAll ? suggestions : suggestions?.slice(0, 1);
+    const displayedSuggestions = showAll ? suggestions : suggestions?.slice(0, 4);
     return (
-        <div className="card border-0 shadow-sm mb-3">
+        <div className="card border-0 shadow-sm mb-3 " >
             <div className="card-header bg-white d-flex justify-content-between align-items-center">
                 <h6 className="mb-0 fw-bold">Suggestions For You</h6>
                 {suggestions?.length > 1 && (

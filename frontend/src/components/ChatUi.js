@@ -22,27 +22,28 @@ import {
 import { CiMenuKebab } from "react-icons/ci";
 import { FaArrowLeft } from 'react-icons/fa';
 import { UserContext } from '../contexts/UserContext';
-const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
-  const { socket, userId } = useContext(UserContext);
+const ChatUi = ({ member, setMsgCounts, onBack }) => {
+  const { socket, loadUnseenMessages } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
-  const friendId = member._id;
   const [messages, setMessages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUser, setTypingUser] = useState('');
   const messagesEndRef = useRef(null);
-   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [showAttachmentPopup, setShowAttachmentPopup] = useState(false);
   const apiUrl = process.env.REACT_APP_API_URL;
-  const [chatId, setChatId] = useState([userId, friendId].sort().join("_"));
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userId = user?.userId;
+  const [chatId, setChatId] = useState([userId, member._id].sort().join("_"));
   const inputRef = useRef(null);
   const messageTone = new Audio('https://bigsoundbank.com/UPLOAD/mp3/1313.mp3');
   useEffect(() => {
-    setChatId([userId, friendId].sort().join("_"));
-  }, [userId, friendId]);
+    setChatId([userId, member._id].sort().join("_"));
+  }, [userId, member._id]);
   const fetchMessages = async (page = 1, limit = 20) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/messages/getMessages?page=${page}&limit=${limit}&senderId=${userId}&receiverId=${friendId}`, {
+      const response = await fetch(`${apiUrl}/messages/getMessages?page=${page}&limit=${limit}&senderId=${userId}&receiverId=${member._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -50,23 +51,19 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       });
       if (!response.ok) throw new Error("Failed to fetch messages");
       const data = await response.json();
-      if(limit==1){
-        console.log(data[0], 'eaaas')
-        setMessages((pre)=>[...pre, data[0]])
-      }else{
-         setMessages(data.reverse());
+      if (limit == 1) {
+        setMessages((pre) => [...pre, data[0]])
+        handleMarkMessagesAsRead(data)
+      } else {
+        setMessages(data.reverse());
       }
-     
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
-
-
   useEffect(() => {
     if (chatId) fetchMessages();
   }, [chatId]);
-
   const sendMessage = async (attachment) => {
     if (!messageInput.trim()) return;
     try {
@@ -74,33 +71,32 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       formData.append('chatId', chatId);
       formData.append('groupId', '')
       formData.append('senderId', userId);
-      formData.append('receiverId', friendId);
+      formData.append('receiverId', member._id);
       formData.append('content', messageInput);
       // Append file if exists  
       if (attachment) {
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
-    
-     setMessages((prev) => [
-  ...prev,
-  {
-    chatId,
-    senderId: { _id: userId },
-    receiverId: friendId,
-    content: messageInput,
-    ...(attachment && {   // ✅ Only add attachment if it exists
-      attachment: {
-        name: URL.createObjectURL(attachment),  // ✅ This should be 'url', not 'name'
-        type: attachment.type.startsWith('image')
-          ? 'image'
-          : attachment.type.startsWith('video')
-          ? 'video'
-          : 'file',
-      }
-    }),
-    timestamp: Date.now(),
-  },
-]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          chatId,
+          senderId: { _id: userId },
+          receiverId: member._id,
+          content: messageInput,
+          ...(attachment && {   // ✅ Only add attachment if it exists
+            attachment: {
+              name: URL.createObjectURL(attachment),  // ✅ This should be 'url', not 'name'
+              type: attachment.type.startsWith('image')
+                ? 'image'
+                : attachment.type.startsWith('video')
+                  ? 'video'
+                  : 'file',
+            }
+          }),
+          timestamp: Date.now(),
+        },
+      ]);
       const response = await fetch(`${apiUrl}/messages/postMessage`, {
         method: 'POST',
         body: formData,
@@ -108,7 +104,7 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       if (!response.ok) throw new Error('Failed to send message');
       if (response.ok) {
         const notificationData = {
-          recipient: friendId,
+          recipient: member._id,
           sender: userId,
           type: 'message',
           message: `${member.userName} has messaged you `,
@@ -117,39 +113,40 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
         };
         await createNotification(notificationData);
       }
-      const data = await response.json(); // Get response data
-      
-      socket.emit('sendMessage', data); // Emit actual saved message
+      const data = await response.json();
+      socket.emit('sendMessage', data);
       setMessageInput('');
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
-
   useEffect(() => {
     socket.on("setDoubleCheckRecieved", (payload) => {
-
       setMessages((prev) => {
-        if (prev.length === 0) return [payload]; // If no messages, just add it
-        return [...prev.slice(0, -1), payload]; // Replace last message with payload
+        if (prev.length === 0) return [payload];
+        return [...prev.slice(0, -1), payload];
       });
     });
-    // If stored in public/sounds/ 
     socket.on("recievedMessage", (message) => {
-
-      messageTone.play().catch((err) => {
-        console.error("Failed to play message tone:", err);
-      });
-      fetchMessages(1, 1)
-      if (chatId) {
-        socket.emit('setDoubleCheck', { friendId, chatId, message });
+      if(message.senderId._id == member._id){
+        messageTone.play().catch((err) => {
+          console.error("Failed to play message tone:", err);
+        });
+        fetchMessages(1, 1)
+        if (chatId) {
+          const friendId = member._id
+          socket.emit('setDoubleCheck', { friendId, chatId, message });
+        }
+      }
+      else{
+       loadUnseenMessages()
       }
     });
     return () => {
       socket.off("recievedMessage")
       socket.off('setDoubleCheckRecieved')
     }
-  }, []);
+  }, [member._id]);
 
   const deleteMessage = async (messageId) => {
     try {
@@ -160,7 +157,6 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       console.error("Error deleting message:", error);
     }
   };
-
   const reactToMessage = async (messageId, emoji) => {
     try {
       const response = await fetch(`${apiUrl}/${messageId}/reactions`, {
@@ -169,14 +165,13 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       if (!response.ok) throw new Error("Failed to react to message");
       const updatedMessage = await response.json();
       setMessages((prev) => prev.map((msg) => (msg._id === messageId ? updatedMessage : msg)));
-
     } catch (error) {
       console.error("Error reacting to message:", error);
     }
   };
 
-  const handleTyping = () => socket.emit("typing", { userId: friendId, myId: userId });
-  const handleBlur = () => socket.emit("stopped_typing", { myId: userId, userId: friendId });
+  const handleTyping = () => socket.emit("typing", { userId: member._id, myId: userId });
+  const handleBlur = () => socket.emit("stopped_typing", { myId: userId, userId: member._id });
 
   useEffect(() => {
     socket.on("typing", ({ myId }) => setTypingUser(myId));
@@ -190,8 +185,8 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(() => {
     scrollToBottom();
-    setMsgCounts((prevCounts) => ({ ...prevCounts, [friendId]: 0 }));
-    console.log(messages, 'messages')
+    setMsgCounts((prevCounts) => ({ ...prevCounts, [member._id]: 0 }));
+
   }, [messages]);
   const handleEmojiClick = (emojiObject) => setMessageInput((prev) => prev + emojiObject.emoji);
   const toggleReactions = (messageId) => setMessages((prev) => prev.map((msg) => (msg._id === messageId ? { ...msg, showReactions: !msg.showReactions } : msg)));
@@ -217,15 +212,10 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
   const forwardMessage = () => {
 
   }
-
- 
-
   const handleFileSelect = (type) => {
     setShowAttachmentPopup(false); // Close popup
-
     const input = document.createElement("input");
     input.type = "file";
-
     if (type === "image") input.accept = "image/*";
     if (type === "video") input.accept = "video/*";
     if (type === "document") input.accept = ".pdf,.doc,.docx,.txt";
@@ -253,12 +243,16 @@ const ChatUi = ({ member, setMsgCounts, setSelectedFriend, onBack }) => {
       try {
         const result = await updateMessageStatus(messageIds, 'read');
         console.log(result.message);  // "Message status updated successfully"
+        if (result){
+            // socket.emit('setDoubleCheck', { friendId, chatId, message });
+        }
       } catch (err) {
         console.error('Error marking messages as read:', err);
       }
     }
   };
 
+  
   return (
     <div className="chat-ui-container">
       {/* Chat Header */}

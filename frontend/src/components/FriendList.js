@@ -55,7 +55,7 @@ const FriendList = ({
                 </div>
                 <div className="friend-status">
                   {isActive ? (
-                    <span className="active-indicator"></span>
+                    <span className=""></span>
                   ) : (
                     <span className="last-seen">Last seen recently</span>
                   )}

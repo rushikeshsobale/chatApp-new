@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Spinner, Card, ListGroup, Image, Button, Form, Alert } from 'react-bootstrap';
+import { Spinner, Button, Form, Alert } from 'react-bootstrap';
 import moment from 'moment';
 import axios from 'axios';
 import { createNotification } from '../services/notificationService';
-import { useSelector } from 'react-redux';
+import { UserContext } from '../contexts/UserContext';
 const PostDetail = () => {
   const { postId } = useParams();
   const [post, setPost] = useState(null);
@@ -17,7 +17,7 @@ const PostDetail = () => {
   const [isCommenting, setIsCommenting] = useState(false);
   const navigate = useNavigate();
   const apiUrl = process.env.REACT_APP_API_URL;
-  const socket = useSelector((state) => state.socket.socket);
+  const {socket} = useContext(UserContext)
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const userId = currentUser?._id || currentUser?.userId;
 

@@ -261,6 +261,7 @@ router.post("/login", async (req, res) => {
           userName: validateEmail.userName,
           requests: validateEmail.requests,
           friends: validateEmail.friends,
+          followers:validateEmail.followers
         },
         secretKey,
         { expiresIn: "3560d" }
