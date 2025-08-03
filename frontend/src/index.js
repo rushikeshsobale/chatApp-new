@@ -19,15 +19,13 @@ import ExplorePage from './pages/ExplorePage.js';
 import ForgotPassword from './components/ForgotPassword.js';
 import Onboarding from './components/Onboarding.js';
 import Friends from './pages/Friends.js';
-
 import UserProfilePage from './pages/userProfile.js';
 import { UserProvider, UserContext} from './contexts/UserContext';
-
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const dispatch = useDispatch();
-  const { socket} = useContext(UserContext);
+  const { socket, loadUnseenMessages} = useContext(UserContext);
    useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -36,7 +34,6 @@ const AppWrapper = () => {
       }, [isLoggedIn]);
   useEffect(() => {
     if (socket) {
-     
       socket.on('friendRequestNotification', (data) => {
         dispatch(updateNotifications(data));
         const audio = new Audio('/mixkit-bell-notification-933.wav');
@@ -51,6 +48,19 @@ const AppWrapper = () => {
       }
     };
   }, [socket]);
+  useEffect(() => {
+    if (!socket) {
+      console.log('no socket')
+      return
+    }
+    const handleRecievedMessage = () => {
+      console.log("received message on frontend!");
+      loadUnseenMessages();
+    };
+    socket.on('recievedMessage', handleRecievedMessage);
+   
+  }, [socket]);
+ 
   return (
     <div className="" style={{background:'black'}}>
       <BrowserRouter>

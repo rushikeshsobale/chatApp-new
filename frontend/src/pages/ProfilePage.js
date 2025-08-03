@@ -32,10 +32,12 @@ import CreateStory from "../components/CreateStory";
 import { getNotifications, updateNotification } from "../services/notificationService";
 import { UserContext } from "../contexts/UserContext";
 import BirthdaysCard from "../components/BirthdaysCard";
+import { getUserData, getProfileUserData, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment } from "../services/profileService";
+import Loader from '../components/Loader';
 const ProfilePage = () => {
   const [newPost, setNewPost] = useState("");
   const [media, setMedia] = useState(null);
-  // const { userId } = useParams();
+  const { userProfileId } = useParams();
   const location = useLocation();
   const [userData, setUserData] = useState(null);
   const [friends, setFriends] = useState([]);
@@ -57,12 +59,21 @@ const ProfilePage = () => {
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
   const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [showPostDetail, setShowPostDetail] = useState(false);
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?.userId;
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
-  const { socket, setFlag } = useContext(UserContext);
+  const { socket, setFlag, unseenMessages } = useContext(UserContext);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingStories, setLoadingStories] = useState(true);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [commentInputs, setCommentInputs] = useState({});
+  const [showCommentInputs, setShowCommentInputs] = useState({});
   // Fetch User Data
   useEffect(() => {
     setFlag(true)
@@ -71,7 +82,6 @@ const ProfilePage = () => {
     } else {
       fetchUser2Data();
     }
-    fetchNotifications();
     getSuggestions();
     fetchStories();
     fetchPosts()
@@ -79,112 +89,77 @@ const ProfilePage = () => {
     // fetchEvents();
 
   }, [location.pathname]);
+  useEffect(() => {
+    fetchNotifications(user);
+  }, [])
   const getSuggestions = async () => {
+    setLoadingSuggestions(true);
     const suggestions = await fetchSuggestions(); // Wait for the data
     setSuggestions(suggestions); // Update state
+    setLoadingSuggestions(false);
   };
   const fetchUserData = async () => {
+    setLoadingUser(true);
     try {
-      const response = await fetch(`${apiUrl}/getUser`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-
-        setUserData(data);
-        setFriends(data.friends);
-        const userId = data._id;
-        const friends = data.followers;
-
-      } else {
-        console.error("Failed to fetch user data:", response.statusText);
-      }
+      const data = await getUserData();
+      setUserData(data);
+      setFriends(data.friends);
     } catch (error) {
       console.error("Error:", error);
     }
+    setLoadingUser(false);
   };
 
   const fetchUser2Data = async () => {
+    console.log(userProfileId, 'userProfileId')
     try {
-      const response = await fetch(`${apiUrl}/getProfileUser/${userId}`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUserData(data);
-        setFriends(data.friends);
-      } else {
-        console.error("Failed to fetch user data:", response.statusText);
-      }
+      const data = await getProfileUserData(userProfileId);
+      setUserData(data);
+      setFriends(data.friends);
     } catch (error) {
       console.error("Error:", error);
     }
   };
-  const fetchPosts = async () => {
-    try {
-      const response = await fetch(`${apiUrl}/post/getPosts/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setPosts(data.posts);
-      } else {
-        console.error("Failed to fetch posts:", response.statusText);
-      }
+  const fetchPosts = async () => {
+    setLoadingPosts(true);
+    try {
+      const data = await getUserPosts(userId);
+      setPosts(data.posts);
     } catch (error) {
       console.error("Error fetching posts:", error);
     }
+    setLoadingPosts(false);
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (user) => {
+    console.log(user, 'user')
+    setLoadingNotifications(true);
     try {
-      const notifications = await getNotifications(userId);
+      const notifications = await getProfileNotifications(token, user.userId);
       setNotifications(notifications || []);
       setUnreadCount(notifications?.filter(notification => !notification.read).length || 0);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
+    setLoadingNotifications(false);
   };
 
   const fetchStories = async () => {
+    setLoadingStories(true);
     try {
-      const response = await fetch(`${apiUrl}/stories/feed`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setStories(data.stories);
-      }
+      const data = await getStories();
+      setStories(data.stories);
     } catch (error) {
       console.error("Error fetching stories:", error);
     }
+    setLoadingStories(false);
   };
+
   const fetchTrendingTopics = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/trending`);
-      if (response.ok) {
-        const data = await response.json();
-        setTrendingTopics(data.topics);
-      }
+      const data = await getTrendingTopics();
+      setTrendingTopics(data.topics);
     } catch (error) {
       console.error("Error fetching trending topics:", error);
     }
@@ -193,7 +168,6 @@ const ProfilePage = () => {
   useEffect(() => {
     if (!socket) return;
     socket.on('got_a_notification', (data) => {
-
       fetchNotifications();
     });
 
@@ -206,11 +180,8 @@ const ProfilePage = () => {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/events`);
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data.events);
-      }
+      const data = await getEvents();
+      setEvents(data.events);
     } catch (error) {
       console.error("Error fetching events:", error);
     }
@@ -228,109 +199,122 @@ const ProfilePage = () => {
     setMedia(null);
   };
 
-  const handleAddPost = (text, media) => {
-    const userId = userData._id;
-    const formData = new FormData();
-    formData.append("userId", userId)
-    if (text) {
-      formData.append("text", text)
-    }
-    if (media) {
-      formData.append("media", media.file);
-    }
-    fetch(`${apiUrl}/post/mediaPost`, {
-      method: "POST",
-      body: formData,
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          setPosts((prevPosts) => [...prevPosts, data.post]);
-          setNewPost("");
-          setMedia(null);
-          setShowModal(false);
-        } else {
-          console.error("Failed to post:", data.message);
-        }
-      })
-      .catch((error) => {
-        console.error("Error adding post:", error);
+  const handleAddPost = async (text, media) => {
+    try {
+      // This API is not in profileService, so keep as is or move if needed
+      const userId = userData._id;
+      const formData = new FormData();
+      formData.append("userId", userId)
+      if (text) {
+        formData.append("text", text)
+      }
+      if (media) {
+        formData.append("media", media.file);
+      }
+      const response = await fetch(`${apiUrl}/post/mediaPost`, {
+        method: "POST",
+        body: formData,
       });
+      const data = await response.json();
+      if (data.success) {
+        setPosts((prevPosts) => [...prevPosts, data.post]);
+        setNewPost("");
+        setMedia(null);
+        setShowModal(false);
+      } else {
+        console.error("Failed to post:", data.message);
+      }
+    } catch (error) {
+      console.error("Error adding post:", error);
+    }
   };
 
   const handleSave = async (profileData) => {
     try {
       const userId = userData._id;
-      const formData = new FormData();
-      formData.append("firstName", profileData.firstName);
-      formData.append("lastName", profileData.lastName);
-      formData.append("bio", profileData.bio);
-      if (profileData.profilePicture) {
-        formData.append("profilePicture", profileData.profilePicture);
-      }
-      const response = await fetch(`${apiUrl}/profile/updateUser/${userId}`, {
-        method: "PUT",
-        body: formData,
-      });
-      if (response.ok) {
-        const updatedUser = await response.json();
-        setUserData(updatedUser?.user);
-        setShowEditProfile(false);
-      } else {
-        const errorData = await response.json();
-        console.error("Error updating user:", errorData.error || "Unknown error");
-      }
+      const updatedUser = await updateUserProfile(userId, profileData);
+      setUserData(updatedUser?.user);
+      setShowEditProfile(false);
     } catch (error) {
-      console.error("Error during PUT request:", error);
+      console.error("Error updating user:", error);
     }
   };
 
-  const handleLikePost = async (postId) => {
+
+
+  const handleToggleLike = async (index, postId, isLiked) => {
+    console.log(isLiked, 'isLiked')
     try {
-      const response = await fetch(`${apiUrl}/api/posts/${postId}/like`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (response.ok) {
-        fetchPosts(); // Refresh posts
+      if (isLiked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
       }
+
+     const updatedPosts = setPosts(prevPosts => prevPosts.map((post, i) => 
+        i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== userData?._id) : [...post.likes, { userId: {_id:userData?._id} }] } : post
+      ));
+
+     
+     
     } catch (error) {
-      console.error("Error liking post:", error);
+      console.error("Error toggling like:", error);
+    }
+   
+  };
+
+  const handleAddComment = async (postId, commentText) => {
+    try {
+      await addComment(postId, commentText);
+      // Clear the comment input for this post
+      setCommentInputs(prev => ({
+        ...prev,
+        [postId]: ''
+      }));
+      setShowCommentInputs(prev => ({
+        ...prev,
+        [postId]: false
+      }));
+      fetchPosts(); // Refresh posts to show new comment
+    } catch (error) {
+      console.error("Error adding comment:", error);
     }
   };
 
-  // const handleAddComment = async (postId, commentText) => {
-  //   try {
-  //     const response = await fetch(`${apiUrl}/api/posts/${postId}/comment`, {
-  //       method: "POST",
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({ text: commentText }),
-  //     });
-  //     if (response.ok) {
-  //       fetchPosts(); // Refresh posts
-  //     }
-  //   } catch (error) {
-  //     console.error("Error adding comment:", error);
-  //   }
-  // };
+  const handleDeleteComment = async (postId, commentId) => {
+    try {
+      await deleteComment(postId, commentId);
+      fetchPosts(); // Refresh posts to show updated comments
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    }
+  };
+
+  const handleCommentInputChange = (postId, value) => {
+    setCommentInputs(prev => ({
+      ...prev,
+      [postId]: value
+    }));
+  };
+
+  const handleShowCommentInput = (postId) => {
+    setShowCommentInputs(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+  };
+
+  const handleSubmitComment = (postId) => {
+    const commentText = commentInputs[postId]?.trim();
+    if (commentText) {
+      handleAddComment(postId, commentText);
+    }
+  };
 
   const handleSharePost = async (postId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/posts/${postId}/share`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        // Handle successful share
-      }
+      await sharePost(postId);
+      // Handle successful share
     } catch (error) {
       console.error("Error sharing post:", error);
     }
@@ -338,15 +322,8 @@ const ProfilePage = () => {
 
   const handleSavePost = async (postId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/posts/${postId}/save`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        // Handle successful save
-      }
+      await savePost(postId);
+      // Handle successful save
     } catch (error) {
       console.error("Error saving post:", error);
     }
@@ -354,15 +331,8 @@ const ProfilePage = () => {
 
   const handleFollowUser = async (userId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/users/${userId}/follow`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        fetchUserData(); // Refresh user data
-      }
+      await followUser(userId);
+      fetchUserData(); // Refresh user data
     } catch (error) {
       console.error("Error following user:", error);
     }
@@ -413,15 +383,8 @@ const ProfilePage = () => {
 
   const handleUnfollowUser = async (userId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/users/${userId}/unfollow`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        fetchUserData(); // Refresh user data
-      }
+      await unfollowUser(userId);
+      fetchUserData(); // Refresh user data
     } catch (error) {
       console.error("Error unfollowing user:", error);
     }
@@ -452,21 +415,9 @@ const ProfilePage = () => {
 
   const handleCreateStory = async (storyData) => {
     try {
-      const formData = new FormData();
-      formData.append('media', storyData.media);
-      formData.append('caption', storyData.caption);
-      const response = await fetch(`${apiUrl}/stories/create`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setStories(prev => [data.story, ...prev]);
-        setShowCreateStory(false);
-      }
+      const data = await createStory(storyData);
+      setStories(prev => [data.story, ...prev]);
+      setShowCreateStory(false);
     } catch (error) {
       console.error('Error creating story:', error);
     }
@@ -476,6 +427,15 @@ const ProfilePage = () => {
     setSelectedStoryIndex(storyIndex);
     setShowStoryViewer(true);
   };
+  const logOut = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  useEffect(() => {
+    console.log(posts, 'posts')
+  }, [posts])
   return (
     <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: "#f5f5f5" }}>
       {/* Navigation Bar */}
@@ -491,31 +451,21 @@ const ProfilePage = () => {
               <a href="/watch" className="text-dark"><FaVideo size={22} /></a>
               {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
               <a href="/games" className="text-dark"><FaGamepad size={22} /></a> */}
-              <button className="btn p-0" onClick={() => navigate('/chats')}>
+              <button className="btn p-0 position-relative" onClick={() => navigate('/chats')}>
                 <RiMessengerLine size={24} className="text-dark" />
+                {unseenMessages.length > 0 &&
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {unseenMessages.length}
+                  </span>
+                }
               </button>
-              <div className="dropdown">
-                <button
-                  className="btn p-0 dropdown-toggle"
-                  id="profileDropdown"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  <img
-                    src={userData?.profilePicture || "https://via.placeholder.com/30"}
-                    alt="Profile"
-                    className="rounded-circle"
-                    style={{ width: "30px", height: "30px", objectFit: "cover" }}
-                  />
-                </button>
-                <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
-                  <li><a className="dropdown-item" href="/profile">Your Profile</a></li>
-                  <li><a className="dropdown-item" href="/saved">Saved</a></li>
-                  <li><a className="dropdown-item" href="/settings">Settings</a></li>
-                  <li><hr className="dropdown-divider" /></li>
-                  <li><a className="dropdown-item" href="/logout">Log Out</a></li>
-                </ul>
-              </div>
+              <img
+                src={userData?.profilePicture || "https://via.placeholder.com/30"}
+                alt="Profile"
+                className="rounded-circle"
+                style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
+                onClick={() => setShowProfileModal(true)}
+              />
             </div>
           </div>
         </div>
@@ -553,63 +503,63 @@ const ProfilePage = () => {
                   </ul>
                 </div>
               </div>
-             <div className="position-relative card border-0 shadow-sm mb-3">
-              <div className="card-header bg-white d-flex justify-content-between align-items-center">
+              <div className="position-relative card border-0 shadow-sm mb-3">
+                <div className="card-header bg-white d-flex justify-content-between align-items-center">
                   <h6 className="mb-0 fw-bold">Notifications</h6>
-                <button
-                  className="btn p-0 position-relative"
-                  onClick={() => {
-                    setShowNotifications(!showNotifications);
-                    if (showNotifications) handleMarkNotificationAsRead(notifications[0]._id);
-                  }}
-                >
-                  <IoMdNotifications size={24} className="text-dark" />
-                  {unreadCount > 0 && (
-                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-                 </div>
-                  <div className=" end-0 mt-2 p-3">
-                    {notifications.length > 0 ? (
-                      notifications.map(notification => (
-                        <div
-                          key={notification._id}
-                          className="d-flex align-items-center mb-3 p-2 rounded hover-bg-light"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => !notification.read && handleMarkNotificationAsRead(notification._id)}
-                        >
-                          <img
-                            src={notification.sender?.profilePicture || "https://via.placeholder.com/40"}
-                            alt="Profile"
-                            className="rounded-circle me-3"
-                            style={{ width: "40px", height: "40px" }}
-                          />
-                          <div className="flex-grow-1">
-                            <p className="mb-0 small">{notification.message}</p>
-                            <small className="text-muted">{moment(notification.createdAt).fromNow()}</small>
-                          </div>
-                          <div className="d-flex align-items-center">
-                            {!notification.read && (
-                              <span className="badge bg-primary rounded-circle me-2" style={{ width: "8px", height: "8px" }}></span>
-                            )}
-                            <button
-                              className="btn btn-sm btn-link text-muted p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteNotification(notification._id);
-                              }}
-                            >
-                              <i className="bi bi-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted small">No new notifications</p>
+                  <button
+                    className="btn p-0 position-relative"
+                    onClick={() => {
+                      setShowNotifications(!showNotifications);
+                      if (showNotifications) handleMarkNotificationAsRead(notifications[0]._id);
+                    }}
+                  >
+                    <IoMdNotifications size={24} className="text-dark" />
+                    {unreadCount > 0 && (
+                      <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {unreadCount}
+                      </span>
                     )}
-                  </div>
+                  </button>
+                </div>
+                <div className=" end-0 mt-2 p-3">
+                  {notifications.length > 0 ? (
+                    notifications.map(notification => (
+                      <div
+                        key={notification._id}
+                        className="d-flex align-items-center mb-3 p-2 rounded hover-bg-light"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => !notification.read && handleMarkNotificationAsRead(notification._id)}
+                      >
+                        <img
+                          src={notification.sender?.profilePicture || "https://via.placeholder.com/40"}
+                          alt="Profile"
+                          className="rounded-circle me-3"
+                          style={{ width: "40px", height: "40px" }}
+                        />
+                        <div className="flex-grow-1">
+                          <p className="mb-0 small">{notification.message}</p>
+                          <small className="text-muted">{moment(notification.createdAt).fromNow()}</small>
+                        </div>
+                        <div className="d-flex align-items-center">
+                          {!notification.read && (
+                            <span className="badge bg-primary rounded-circle me-2" style={{ width: "8px", height: "8px" }}></span>
+                          )}
+                          <button
+                            className="btn btn-sm btn-link text-muted p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteNotification(notification._id);
+                            }}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted small">No new notifications</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -621,7 +571,7 @@ const ProfilePage = () => {
               overflow: "auto",
             }}>
             {/* Stories */}
-            {userData && (
+            {loadingStories ? <Loader text="Loading stories..." /> : userData && (
               <div
                 className="profile-header position-relative overflow-hidden mb-3"
               >
@@ -742,32 +692,7 @@ const ProfilePage = () => {
                 </Swiper>
               </div>
             </div>
-            <button
-              className="btn btn-primary rounded-circle position-fixed"
-              style={{
-                bottom: "30px",
-                right: "30px",
-                width: "60px",
-                height: "60px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                zIndex: 1000,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.3s ease"
-              }}
-              onClick={() => setShowModal(true)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(1.1)";
-                e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-              }}
-            >
-              <FaPlus size={24} />
-            </button>
+
             {/* Create Post Card - Enhanced */}
             <div className="card border-0 shadow-sm mb-3">
               <div className="card-body">
@@ -853,8 +778,8 @@ const ProfilePage = () => {
                       e.currentTarget.style.borderColor = "#e0e0e0";
                     }}
                   >
-                    <i className="bi bi-emoji-smile text-warning me-2"></i>
-                    Feeling/Activity
+                    <i className="bi bi-plus text-danger me-2"></i>
+                    Add Post
                   </button>
                 </div>
               </div>
@@ -897,7 +822,7 @@ const ProfilePage = () => {
             <div className="mb-4 p-3">
               {activeTab === "grid" && (
                 <div className="row g-3">
-                  {filteredPosts.map((post) => (
+                  {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts.map((post) => (
                     <div key={post._id} className="col-lg-4 col-md-6 col-6">
                       <div
                         className="card border-0 shadow-sm overflow-hidden"
@@ -925,7 +850,7 @@ const ProfilePage = () => {
               )}
               {activeTab === "slideshow" && (
                 <div className="row justify-content-center">
-                  {posts.map((post) => (
+                  {loadingPosts ? <Loader text="Loading posts..." /> : posts.map((post, index) => (
                     <div key={post._id} className="col-12 mb-4">
                       <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: "16px" }}>
                         {/* Post Header */}
@@ -946,7 +871,6 @@ const ProfilePage = () => {
                             <i className="bi bi-three-dots"></i>
                           </button>
                         </div>
-
                         {/* Post Image */}
                         <div
                           className="w-100"
@@ -957,21 +881,21 @@ const ProfilePage = () => {
                             backgroundPosition: "center"
                           }}
                         />
-
                         <div className="card-body">
                           <div className="d-flex justify-content-between mb-3">
                             <div>
+                              {console.log(post.likes?.some(like => like.userId._id == userId), 'post.likes', index, userId, post.likes[0])}
                               <button
                                 className="btn p-0 me-3"
-                                onClick={() => handleLikePost(post._id)}
+                                onClick={() => handleToggleLike(index,post._id, post.likes?.some(like => like.userId._id == userId))}
                               >
-                                <i className={`bi ${post.likes?.includes(userData?._id) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
+                                <i className={`bi ${post.likes?.some(like => like.userId._id == userId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
                               </button>
                               <button
                                 className="btn p-0 me-3"
-                                onClick={() => handlePostClick(post._id)}
+                                onClick={() => handleShowCommentInput(post._id)}
                               >
-                                <i className="bi bi-chat fs-4"></i>
+                                <i className="bi bi-chat fs-4"></i>          
                               </button>
                               <button
                                 className="btn p-0"
@@ -987,7 +911,6 @@ const ProfilePage = () => {
                               <i className={`bi ${post.savedBy?.includes(userData?._id) ? "bi-bookmark-fill" : "bi-bookmark"} fs-4`}></i>
                             </button>
                           </div>
-
                           <p className="fw-bold mb-2">
                             {post.likes?.length > 0
                               ? `${post.likes.length.toLocaleString()} likes`
@@ -998,9 +921,56 @@ const ProfilePage = () => {
                             {post.text}
                           </p>
                           {post.comments?.length > 0 && (
-                            <p className="text-muted small mb-0">
-                              View all {post.comments.length} comments
-                            </p>
+                            <div className="mb-2">
+                              <p className="text-muted small mb-1">
+                                View all {post.comments.length} comments
+                              </p>
+                              {/* Show last 2 comments */}
+                              {post.comments.slice(-2).map((comment, index) => (
+                                <div key={comment._id || index} className="d-flex align-items-start mb-1 justify-content-between">
+                                  <div className="d-flex align-items-start">
+                                    <span className="fw-bold me-2 small">{comment.userId?.firstName}:</span>
+                                    <span className="small">{comment.text}</span>
+                                  </div>
+                                  {/* Show delete button if user is comment author or post author */}
+                                  {(comment.userId?._id === userData?._id || post.userId._id === userData?._id) && (
+                                    <button
+                                      className="btn btn-sm btn-link text-danger p-0 ms-2"
+                                      onClick={() => handleDeleteComment(post._id, comment._id)}
+                                      title="Delete comment"
+                                    >
+                                      <i className="bi bi-trash small"></i>
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Comment Input Section */}
+                          {showCommentInputs[post._id] && (
+                            <div className="mt-3">
+                              <div className="d-flex align-items-center">
+                                <input
+                                  type="text"
+                                  className="form-control me-2"
+                                  placeholder="Add a comment..."
+                                  value={commentInputs[post._id] || ''}
+                                  onChange={(e) => handleCommentInputChange(post._id, e.target.value)}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleSubmitComment(post._id);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() => handleSubmitComment(post._id)}
+                                  disabled={!commentInputs[post._id]?.trim()}
+                                >
+                                  Post
+                                </button>
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1008,7 +978,6 @@ const ProfilePage = () => {
                   ))}
                 </div>
               )}
-
               {activeTab === "saved" && (
                 <div className="card border-0 shadow-sm">
                   <div className="card-body text-center py-5">
@@ -1023,8 +992,8 @@ const ProfilePage = () => {
 
           {/* Right Sidebar */}
           <div className="col-lg-3 d-none d-lg-block">
-            <div className="sticky-top" style={{ top: "70px", zIndex:10 }}>
-              {suggestions &&
+            <div className="sticky-top" style={{ top: "70px", zIndex: 10 }}>
+              {loadingSuggestions ? <Loader text="Loading suggestions..." /> : suggestions &&
                 <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
               }
             </div>
@@ -1041,12 +1010,14 @@ const ProfilePage = () => {
         />
       )}
 
-      {showEditProfile && userData && (
+      {showProfileModal && userData && (
         <EditProfile
-          show={showEditProfile}
-          onHide={() => setShowEditProfile(false)}
+          show={showProfileModal}
+          onHide={() => setShowProfileModal(false)}
           userData={userData}
           onSave={handleSave}
+          onSettings={() => { navigate('/settings'); setShowProfileModal(false); }}
+          onLogout={logOut}
         />
       )}
 
@@ -1086,6 +1057,16 @@ const ProfilePage = () => {
         stories={stories}
         currentStoryIndex={selectedStoryIndex}
       />
+
+      {showPostDetail && selectedPostId && (
+        <PostDetail
+          postId={selectedPostId}
+          show={showPostDetail}
+          onHide={() => setShowPostDetail(false)}
+          // Optionally pass any other props needed, e.g. user info, token, etc.
+          onPostUpdated={fetchPosts}
+        />
+      )}
 
       {/* Global Styles */}
       <style jsx global>{`

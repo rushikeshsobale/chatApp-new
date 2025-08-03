@@ -11,10 +11,8 @@ import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { initializeSocket } from './redux/socketSlice';
 function App() {
-  console.log('Appp');
   const dispatch = useDispatch();
   useEffect(() => {
-  
     dispatch(initializeSocket());
   }, [dispatch]);
 

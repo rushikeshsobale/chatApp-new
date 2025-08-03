@@ -18,6 +18,7 @@ export const UserProvider = ({ children }) => {
       try {
         const unseen = await fetchUnseenMessages(user.userId);
         setUnseenMessages(unseen);
+        
       } catch (err) {
         console.error('Error fetching unseen messages:', err);
       }
@@ -41,20 +42,16 @@ export const UserProvider = ({ children }) => {
       }
       return;
     }
-
     const socketConnection = io(process.env.REACT_APP_API_URL, {
       query: { id: user.userId },
     });
-
     setSocket(socketConnection);
-
     socketConnection.on('connect', () => {
       const friends = user.followers || [];
       socketConnection.emit('joinRoom', { userId: user.userId, friends });
     });
 
     const handleRestatus = (data) => setActiveUsers(data);
-
     const handleStatus = (data) => {
       setActiveUsers((prev) => {
         if (!prev.some((u) => u._id === data.userId)) {
@@ -63,16 +60,9 @@ export const UserProvider = ({ children }) => {
         return prev;
       });
     };
-
     const handleUserLeft = ({ userId: leftUserId }) => {
       setActiveUsers((prev) => prev.filter((u) => u._id !== leftUserId));
     };
-
-    const handleRecievedMessage = (data) => {
-      console.log("📩 recievedMessage fired", data);
-      loadUnseenMessages();
-    };
-
     socketConnection.on('restatus', handleRestatus);
     socketConnection.on('status', handleStatus);
     socketConnection.on('userLeft', handleUserLeft);
@@ -81,14 +71,12 @@ export const UserProvider = ({ children }) => {
     socketConnection.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
     });
-
     console.log(socketConnection, '✅ socket connection');
-
     return () => {
       socketConnection.off('restatus', handleRestatus);
       socketConnection.off('status', handleStatus);
       socketConnection.off('userLeft', handleUserLeft);
-      socketConnection.off('recievedMessage', handleRecievedMessage); // ✅ CLEANUP
+      // socketConnection.off('recievedMessage', handleRecievedMessage); // ✅ CLEANUP
       socketConnection.off('connect');
       socketConnection.off('disconnect');
       socketConnection.off('connect_error');
@@ -96,6 +84,8 @@ export const UserProvider = ({ children }) => {
     };
   }, [user?.userId]); // optional: can be [user?.userId] for more stability
 
+ 
+  
   return (
     <UserContext.Provider
       value={{

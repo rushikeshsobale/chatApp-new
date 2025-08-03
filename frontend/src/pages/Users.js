@@ -14,7 +14,6 @@ import {
 import "../css/users.css";
 import { useSelector } from "react-redux";
 import { UserContext } from "../contexts/UserContext";
-
 const UsersList = () => {
   const senderId = useSelector((state) => state.auth?.userId?.userId);
   const senderName = useSelector((state) => state.auth?.userId?.name);

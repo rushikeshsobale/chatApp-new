@@ -89,19 +89,15 @@ const ChatComponent = () => {
  
   useEffect(() => {
   if (!socket) return;
-
   const handleRecievedMessage = () => {
     console.log("received message on frontend!");
     loadUnseenMessages();
   };
-
   socket.on('recievedMessage', handleRecievedMessage);
-
   return () => {
     socket.off('recievedMessage', handleRecievedMessage); // Proper cleanup
   };
 }, [selectedFriend]);
-
   return (
     <div className="chat-container ">
       <div className="chat-layout">

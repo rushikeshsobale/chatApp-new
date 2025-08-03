@@ -14,7 +14,9 @@ const FriendSuggestion = ({ suggestions, token }) => {
     const {socket} = useContext(UserContext)
     const Navigate = useNavigate();
     const handleFollow = async (user) => {
-        const result = await sendFollowRequest(user._id, token);
+        console.log(user, 'user')
+        const Id = user._id
+        const result = await sendFollowRequest(Id, token);
         if (result) {
             setFollowStatus((prevState) => ({
                 ...prevState,
@@ -88,7 +90,7 @@ const FriendSuggestion = ({ suggestions, token }) => {
                                     disabled={status === "pending"}
                                 >
                                     {status === "following" ? (
-                                        <>
+                                        <>``
                                             <FaUserCheck className="me-1" /> Unfollow
                                         </>
                                     ) : status === "pending" ? (

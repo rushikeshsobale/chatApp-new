@@ -172,7 +172,6 @@ const PostDetail = () => {
                 }}
               ></div>
             </div>
-
             {/* Post Actions */}
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-center">
@@ -198,7 +197,6 @@ const PostDetail = () => {
                   <i className="bi bi-bookmark fs-5"></i>
                 </button>
               </div>
-
               {/* Post Likes & Caption */}
               <p className="mt-2 mb-1 fw-bold">
                 {likes.length > 0 ? `${likes.length.toLocaleString()} likes` : "Be the first to like this"}
@@ -206,7 +204,6 @@ const PostDetail = () => {
               <p className="mb-1">
                 {post?.text}
               </p>
-
               {/* Comments Section */}
               <div className="comments-section mt-3">
                 {comments.length > 0 && (

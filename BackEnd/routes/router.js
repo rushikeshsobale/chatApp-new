@@ -401,88 +401,7 @@ router.post("/api/posts", upload.single("media"), async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
-// Get all posts by a specific userId
-router.get("/api/posts/:userId", async (req, res) => {
-  const { userId } = req.params;
-  try {
-    // Find posts by userId
-    const posts = await Post.find({ userId })
-      .populate("userId", "firstName lastName profilePicture")
-      .populate("comments.userId", "firstName lastName profilePicture")
-      .populate("likes.userId", "firstName lastName profilePicture");
-    if (posts.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No posts found for this user",
-      });
-    }
-    // Return the posts
-    res.status(200).json({
-      success: true,
-      posts,
-    });
-  } catch (error) {
-    console.error("Error fetching posts:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
-// Add a comment to a post
-router.post("/api/posts/:postId/comments", async (req, res) => {
-  const { postId } = req.params;
-  const { userId, text } = req.body;
-  if (!text || !userId) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Text and userId are required" });
-  }
-  try {
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
-    post.comments.push({ userId, text });
-    await post.save();
-    res.status(201).json({ success: true, comments: post.comments });
-  } catch (error) {
-    console.error("Error adding comment:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
-// Like a post
-router.post("/api/likePost/:postId", async (req, res) => {
-  const { postId } = req.params;
-  const { userId } = req.body;
-  if (!userId) {
-    return res
-      .status(400)
-      .json({ success: false, message: "userId is required" });
-  }
-  try {
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
-    // Check if the user has already liked the post
-    const alreadyLiked = post.likes.some(
-      (like) => like.userId.toString() === userId
-    );
-    if (alreadyLiked) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User already liked this post" });
-    }
-    post.likes.push({ userId });
-    await post.save();
-    res.status(201).json({ success: true, likes: post.likes });
-  } catch (error) {
-    console.error("Error liking post:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
+
 // Get a single post with comments and likes
 router.get("/getPost/:postId", async (req, res) => {
   const { postId } = req.params;
@@ -502,26 +421,7 @@ router.get("/getPost/:postId", async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
-router.get("/api/getPosts", async (req, res) => {
-  const { page = 1, limit = 10 } = req.query; // Default to page 1 and 10 posts per page
-  try {
-    const posts = await Post.find()
-      .skip((page - 1) * limit) // Skip (page - 1) * limit posts
-      .limit(parseInt(limit)) // Limit the number of posts
-      .populate("userId", "firstName lastName profilePicture") // Populate the user who posted the post
-      .populate("comments.userId", "firstName lastName profilePicture") // Populate user info for comments
-      .populate("likes.userId", "firstName lastName profilePicture"); // Populate user info for likes
-    if (!posts || posts.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No posts found" });
-    }
-    res.status(200).json({ success: true, posts });
-  } catch (error) {
-    console.error("Error fetching posts:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
+
 router.post("/postMessage", upload.single("attachment"), async (req, res) => {
   try {
     let mediaUrl = null;

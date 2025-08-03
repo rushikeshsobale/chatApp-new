@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const Media = require("../Modules/Media.js");
 const Post = require("../Modules/Post.js");
 const { uploadToS3 } = require("../utils/s3Upload");
+const verifyToken = require("./verifyToken.js");
 const upload = multer({ storage: multer.memoryStorage() });
 router.post("/mediaPost", upload.single("media"), async (req, res) => {
   const { text, userId } = req.body;
@@ -73,11 +74,11 @@ router.get("/getPosts/:userId", async (req, res) => {
   }
 });
 
-// Add a comment to a post
-router.post("/posts/:postId/comments", async (req, res) => {
+router.post("/:postId/comments", verifyToken, async (req, res) => {
   const { postId } = req.params;
-  const { userId, text } = req.body;
-  if (!text || !userId) {
+  const {  commentText } = req.body;
+  const userId = req.decoded.userId;
+  if (!commentText || !userId) {
     return res
       .status(400)
       .json({ success: false, message: "Text and userId are required" });
@@ -89,7 +90,8 @@ router.post("/posts/:postId/comments", async (req, res) => {
         .status(404)
         .json({ success: false, message: "Post not found" });
     }
-    post.comments.push({ userId, text });
+    
+    post.comments.push({ userId, text: commentText });
     await post.save();
     res.status(201).json({ success: true, comments: post.comments });
   } catch (error) {
@@ -98,10 +100,16 @@ router.post("/posts/:postId/comments", async (req, res) => {
   }
 });
 
+
 // Like a post
-router.post("/likePost/:postId", async (req, res) => {
+router.post("/likePost/:postId", verifyToken,  async (req, res) => {
   const { postId } = req.params;
-  const { userId } = req.body;
+  const userId = req.decoded.userId;
+  console.log('=== LIKE DEBUG ===');
+  console.log('req.params:', req.params);
+  console.log('req.body:', req.body);
+  console.log('userId:', userId);
+  console.log('===================');
   if (!userId) {
     return res
       .status(400)
@@ -128,6 +136,102 @@ router.post("/likePost/:postId", async (req, res) => {
     res.status(201).json({ success: true, likes: post.likes });
   } catch (error) {
     console.error("Error liking post:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+// Unlike a post
+router.post("/unlikePost/:postId", verifyToken, async (req, res) => {
+  const { postId } = req.params;
+  const userId = req.decoded.userId;
+  console.log('=== UNLIKE DEBUG ===');
+  console.log('req.params:', req.params);
+  console.log('req.body:', req.body);
+  console.log('userId:', userId);
+  console.log('===================');
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "userId is required" });
+  }
+  try {
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Post not found" });
+    }
+    // Check if the user has liked the post
+    const hasLiked = post.likes.some(
+      (like) => like.userId.toString() === userId
+    );
+    if (!hasLiked) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User has not liked this post" });
+    }
+    // Remove the like
+    post.likes = post.likes.filter(
+      (like) => like.userId.toString() !== userId
+    );
+    await post.save();
+    res.status(200).json({ success: true, likes: post.likes });
+  } catch (error) {
+    console.error("Error unliking post:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+// Delete a comment from a post
+router.delete("/:postId/comments/:commentId", verifyToken, async (req, res) => {
+  const { postId, commentId } = req.params;
+  const userId = req.decoded.userId;
+  
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "userId is required" });
+  }
+  
+  try {
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Post not found" });
+    }
+    
+    // Find the comment
+    const comment = post.comments.id(commentId);
+    if (!comment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Comment not found" });
+    }
+    
+    // Check if the user is the comment author or post author
+    const isCommentAuthor = comment.userId.toString() === userId;
+    const isPostAuthor = post.userId.toString() === userId;
+    
+    if (!isCommentAuthor && !isPostAuthor) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized to delete this comment" });
+    }
+    
+    // Remove the comment
+    post.comments = post.comments.filter(
+      (comment) => comment._id.toString() !== commentId
+    );
+    await post.save();
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Comment deleted successfully",
+      comments: post.comments 
+    });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
@@ -174,9 +278,9 @@ router.get("/getPosts", async (req, res) => {
 });
 
 // Save a post
-router.post("/savePost/:postId", async (req, res) => {
+router.post("/savePost/:postId", verifyToken, async (req, res) => {
   const { postId } = req.params;
-  const { userId } = req.body;
+  const userId = req.decoded.userId;
   
   if (!userId) {
     return res.status(400).json({ 
@@ -221,9 +325,9 @@ router.post("/savePost/:postId", async (req, res) => {
 });
 
 // Unsave a post
-router.post("/unsavePost/:postId", async (req, res) => {
+    router.post("/unsavePost/:postId", verifyToken, async (req, res) => {
   const { postId } = req.params;
-  const { userId } = req.body;
+  const userId = req.decoded.userId;
   
   if (!userId) {
     return res.status(400).json({ 
@@ -268,7 +372,7 @@ router.post("/unsavePost/:postId", async (req, res) => {
 });
 
 // Get saved posts for a user
-router.get("/savedPosts/:userId", async (req, res) => {
+router.get("/savedPosts/:userId", verifyToken,  async (req, res) => {
   const { userId } = req.params;
   
   try {
@@ -290,4 +394,4 @@ router.get("/savedPosts/:userId", async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router

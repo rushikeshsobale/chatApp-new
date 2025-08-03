@@ -8,7 +8,10 @@ const { uploadToS3 } = require("../utils/s3Upload");
 const upload = multer({ storage: multer.memoryStorage() });
 router.get("/userProfile/:userId", verifyToken, async (req, res) => {
   const { userId } = req.params;
-  const currentUserId = req.user.id;
+  const currentUserId = req.decoded.userId;
+  if(!currentUserId || !userId){
+    return res.status(401).json({ message: "Unauthorized" });
+  }
   try {
     const user = await Muser.findById(userId).lean();
     if (!user) {

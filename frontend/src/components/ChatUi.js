@@ -73,7 +73,6 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       formData.append('senderId', userId);
       formData.append('receiverId', member._id);
       formData.append('content', messageInput);
-      // Append file if exists  
       if (attachment) {
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
@@ -128,7 +127,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       });
     });
     socket.on("recievedMessage", (message) => {
-      if(message.senderId._id == member._id){
+      if (message.senderId._id == member._id) {
         messageTone.play().catch((err) => {
           console.error("Failed to play message tone:", err);
         });
@@ -138,8 +137,8 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           socket.emit('setDoubleCheck', { friendId, chatId, message });
         }
       }
-      else{
-       loadUnseenMessages()
+      else {
+        loadUnseenMessages()
       }
     });
     return () => {
@@ -174,7 +173,12 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
   const handleBlur = () => socket.emit("stopped_typing", { myId: userId, userId: member._id });
 
   useEffect(() => {
-    socket.on("typing", ({ myId }) => setTypingUser(myId));
+    socket.on("typing", ({ myId }) => {
+      console.log(myId, 'typing')
+      setTypingUser(myId)
+
+    });
+
     socket.on("stopped_typing", () => setTypingUser(null));
     return () => {
       socket.off("typing");
@@ -194,8 +198,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${apiUrl}/messages/${messageId}/reactions`, {
-        method: 'POST',
-        headers: {
+        method: 'POST', headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -243,8 +246,8 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       try {
         const result = await updateMessageStatus(messageIds, 'read');
         console.log(result.message);  // "Message status updated successfully"
-        if (result){
-            // socket.emit('setDoubleCheck', { friendId, chatId, message });
+        if (result) {
+          // socket.emit('setDoubleCheck', { friendId, chatId, message });
         }
       } catch (err) {
         console.error('Error marking messages as read:', err);
@@ -252,7 +255,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
     }
   };
 
-  
+
   return (
     <div className="chat-ui-container">
       {/* Chat Header */}
@@ -267,7 +270,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
               src={member?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"}
               alt={member?.userName}
             />
-            {typingUser && typingUser !== userId && (
+            {typingUser && typingUser !== userId && typingUser == member._id && (
               <div className="typing-indicator">
                 <div className="dot"></div>
                 <div className="dot"></div>
@@ -279,7 +282,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           <div className="user-details">
             <h3>{member?.userName} </h3>
             <p>
-              {typingUser && typingUser !== userId ? "typing..." : "online"}
+              {typingUser && typingUser !== userId  && typingUser == member._id ? "typing..." : "online"}
             </p>
           </div>
         </div>
@@ -392,7 +395,6 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
                     ))}
                   </div>
                 )}
-
                 {message?.reactions?.length > 0 && (
                   <div className="message-reactions">
                     {message.reactions.map((reaction, i) => (
@@ -406,7 +408,6 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
         )}
         <div ref={messagesEndRef} />
       </div>
-
       {/* Input Area */}
       <div className="input-area">
         {/* Attachment Popup */}
@@ -428,14 +429,12 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
             </div>
           </div>
         )}
-
         {/* Emoji Picker */}
         {showEmojiPicker && (
           <div className="emoji-picker-container">
             <EmojiPicker onEmojiClick={handleEmojiClick} width="100%" height={300} />
           </div>
         )}
-
         {/* Input Controls */}
         <div className="input-controls">
           <button
@@ -444,7 +443,6 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           >
             <FontAwesomeIcon icon={faPaperclip} />
           </button>
-
           <input
             type="text"
             ref={inputRef}
@@ -455,14 +453,12 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
             onFocus={handleTyping}
             onBlur={handleBlur}
           />
-
           <button
             className="emoji-button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           >
             <FontAwesomeIcon icon={faSmile} />
           </button>
-
           <button
             className="send-button"
             onClick={() => sendMessage(selectedFile)}
