@@ -136,7 +136,7 @@ const ProfilePage = () => {
     console.log(user, 'user')
     setLoadingNotifications(true);
     try {
-      const notifications = await getProfileNotifications(token, user.userId);
+      const notifications = await getProfileNotifications(user.userId);
       setNotifications(notifications || []);
       setUnreadCount(notifications?.filter(notification => !notification.read).length || 0);
     } catch (error) {

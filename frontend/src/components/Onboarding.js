@@ -261,69 +261,8 @@ const Onboarding = () => {
             </p>
           </div>
         );
+      
       case 2:
-        return (
-          <div className="onboarding-step">
-            <h4 className="text-center mb-4">Basic Information</h4>
-            <div className="row">
-              <div className="col-md-6 mb-3">
-                <label>First Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={userData.basicInfo.firstName}
-                  onChange={(e) => handleChange(e, "basicInfo", "firstName")}
-                  placeholder="John"
-                />
-              </div>
-              <div className="col-md-6 mb-3">
-                <label>Last Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={userData.basicInfo.lastName}
-                  onChange={(e) => handleChange(e, "basicInfo", "lastName")}
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-            <div className="mb-3">
-              <label>Gender</label>
-              <select
-                className="form-select"
-                value={userData.basicInfo.gender}
-                onChange={(e) => handleChange(e, "basicInfo", "gender")}
-              >
-                <option value="">Select gender</option>
-                {genderOptions.map((gender) => (
-                  <option key={gender} value={gender}>
-                    {gender}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-3">
-              <label>Birth Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={userData.basicInfo.birthDate}
-                onChange={(e) => handleChange(e, "basicInfo", "birthDate")}
-              />
-            </div>
-            <div className="mb-3">
-              <label>Location</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.basicInfo.location}
-                onChange={(e) => handleChange(e, "basicInfo", "location")}
-                placeholder="City, Country"
-              />
-            </div>
-          </div>
-        );
-      case 3:
         return (
           <div className="onboarding-step">
             <h4 className="text-center mb-4">Your Interests</h4>
@@ -453,7 +392,7 @@ const Onboarding = () => {
             </div>
           </div>
         );
-      case 4:
+      case 3:
         return (
           <div className="onboarding-step">
             <h4 className="text-center mb-4">Your Favorites</h4>
@@ -533,140 +472,140 @@ const Onboarding = () => {
             </div>
           </div>
         );
-      case 5:
-        return (
-          <div className="onboarding-step">
-            <h4 className="text-center mb-4">Professional Information</h4>
-            <p className="text-center mb-4">
-              Tell us about your work (optional)
-            </p>
+      // case 5:
+      //   return (
+      //     <div className="onboarding-step">
+      //       <h4 className="text-center mb-4">Professional Information</h4>
+      //       <p className="text-center mb-4">
+      //         Tell us about your work (optional)
+      //       </p>
 
-            <div className="mb-3">
-              <label>Profession</label>
-              <select
-                className="form-select"
-                value={userData.professional.profession}
-                onChange={(e) => handleChange(e, "professional", "profession")}
-              >
-                <option value="">Select profession</option>
-                {professionOptions.map((profession) => (
-                  <option key={profession} value={profession}>
-                    {profession}
-                  </option>
-                ))}
-              </select>
-            </div>
+      //       <div className="mb-3">
+      //         <label>Profession</label>
+      //         <select
+      //           className="form-select"
+      //           value={userData.professional.profession}
+      //           onChange={(e) => handleChange(e, "professional", "profession")}
+      //         >
+      //           <option value="">Select profession</option>
+      //           {professionOptions.map((profession) => (
+      //             <option key={profession} value={profession}>
+      //               {profession}
+      //             </option>
+      //           ))}
+      //         </select>
+      //       </div>
 
-            <div className="mb-3">
-              <label>Education</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.professional.education}
-                onChange={(e) => handleChange(e, "professional", "education")}
-                placeholder="Degree, University, etc."
-              />
-            </div>
+      //       <div className="mb-3">
+      //         <label>Education</label>
+      //         <input
+      //           type="text"
+      //           className="form-control"
+      //           value={userData.professional.education}
+      //           onChange={(e) => handleChange(e, "professional", "education")}
+      //           placeholder="Degree, University, etc."
+      //         />
+      //       </div>
 
-            <div className="mb-3">
-              <label>Skills (comma separated)</label>
-              <input
-                type="text"
-                className="form-control"
-                value={
-                  Array.isArray(userData?.professional?.skills)
-                    ? userData.professional.skills.join(", ")
-                    : ""
-                }
-                onChange={(e) =>
-                  handleChange(
-                    e,
-                    "professional",
-                    "skills",
-                    e.target.value.split(",").map((s) => s.trim())
-                  )
-                }
-                placeholder="JavaScript, Design, Marketing, etc."
-              />
-            </div>
+      //       <div className="mb-3">
+      //         <label>Skills (comma separated)</label>
+      //         <input
+      //           type="text"
+      //           className="form-control"
+      //           value={
+      //             Array.isArray(userData?.professional?.skills)
+      //               ? userData.professional.skills.join(", ")
+      //               : ""
+      //           }
+      //           onChange={(e) =>
+      //             handleChange(
+      //               e,
+      //               "professional",
+      //               "skills",
+      //               e.target.value.split(",").map((s) => s.trim())
+      //             )
+      //           }
+      //           placeholder="JavaScript, Design, Marketing, etc."
+      //         />
+      //       </div>
 
-            <div className="mb-3">
-              <label>Work Experience</label>
-              <textarea
-                className="form-control"
-                rows="3"
-                value={userData.professional.workExperience}
-                onChange={(e) =>
-                  handleChange(e, "professional", "workExperience")
-                }
-                placeholder="Briefly describe your work experience..."
-              ></textarea>
-            </div>
-          </div>
-        );
-      case 6:
-        return (
-          <div className="onboarding-step">
-            <h4 className="text-center mb-4">Social & Bio</h4>
+      //       <div className="mb-3">
+      //         <label>Work Experience</label>
+      //         <textarea
+      //           className="form-control"
+      //           rows="3"
+      //           value={userData.professional.workExperience}
+      //           onChange={(e) =>
+      //             handleChange(e, "professional", "workExperience")
+      //           }
+      //           placeholder="Briefly describe your work experience..."
+      //         ></textarea>
+      //       </div>
+      //     </div>
+      //   );
+      // case 6:
+      //   return (
+      //     <div className="onboarding-step">
+      //       <h4 className="text-center mb-4">Social & Bio</h4>
 
-            <div className="mb-4">
-              <label>Bio</label>
-              <textarea
-                className="form-control"
-                rows="4"
-                placeholder="Tell others about yourself..."
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                maxLength="300"
-              ></textarea>
-              <small className="text-muted">{bio.length}/300 characters</small>
-            </div>
+      //       <div className="mb-4">
+      //         <label>Bio</label>
+      //         <textarea
+      //           className="form-control"
+      //           rows="4"
+      //           placeholder="Tell others about yourself..."
+      //           value={bio}
+      //           onChange={(e) => setBio(e.target.value)}
+      //           maxLength="300"
+      //         ></textarea>
+      //         <small className="text-muted">{bio.length}/300 characters</small>
+      //       </div>
 
-            <div className="mb-3">
-              <label>Website</label>
-              <input
-                type="url"
-                className="form-control"
-                value={userData.social.website}
-                onChange={(e) => handleChange(e, "social", "website")}
-                placeholder="https://yourwebsite.com"
-              />
-            </div>
+      //       <div className="mb-3">
+      //         <label>Website</label>
+      //         <input
+      //           type="url"
+      //           className="form-control"
+      //           value={userData.social.website}
+      //           onChange={(e) => handleChange(e, "social", "website")}
+      //           placeholder="https://yourwebsite.com"
+      //         />
+      //       </div>
 
-            <div className="mb-3">
-              <label>Twitter</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.social.twitter}
-                onChange={(e) => handleChange(e, "social", "twitter")}
-                placeholder="@username"
-              />
-            </div>
+      //       <div className="mb-3">
+      //         <label>Twitter</label>
+      //         <input
+      //           type="text"
+      //           className="form-control"
+      //           value={userData.social.twitter}
+      //           onChange={(e) => handleChange(e, "social", "twitter")}
+      //           placeholder="@username"
+      //         />
+      //       </div>
 
-            <div className="mb-3">
-              <label>Instagram</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.social.instagram}
-                onChange={(e) => handleChange(e, "social", "instagram")}
-                placeholder="@username"
-              />
-            </div>
+      //       <div className="mb-3">
+      //         <label>Instagram</label>
+      //         <input
+      //           type="text"
+      //           className="form-control"
+      //           value={userData.social.instagram}
+      //           onChange={(e) => handleChange(e, "social", "instagram")}
+      //           placeholder="@username"
+      //         />
+      //       </div>
 
-            <div className="mb-3">
-              <label>LinkedIn</label>
-              <input
-                type="url"
-                className="form-control"
-                value={userData.social.linkedin}
-                onChange={(e) => handleChange(e, "social", "linkedin")}
-                placeholder="https://linkedin.com/in/username"
-              />
-            </div>
-          </div>
-        );
+      //       <div className="mb-3">
+      //         <label>LinkedIn</label>
+      //         <input
+      //           type="url"
+      //           className="form-control"
+      //           value={userData.social.linkedin}
+      //           onChange={(e) => handleChange(e, "social", "linkedin")}
+      //           placeholder="https://linkedin.com/in/username"
+      //         />
+      //       </div>
+      //     </div>
+      //   );
       default:
         return null;
     }
@@ -706,10 +645,10 @@ const Onboarding = () => {
                 className="btn btn-link text-muted me-3"
                 onClick={skipStep}
               >
-                {step < 6 ? "Skip" : "Skip All"}
+                {step < 3 ? "Skip" : "Skip All"}
               </button>
 
-              {step < 6 ? (
+              {step < 3 ? (
                 <button
                   className="btn btn-primary"
                   onClick={() => setStep(step + 1)}
