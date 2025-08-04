@@ -219,7 +219,7 @@ const Onboarding = () => {
   };
 
   const skipStep = () => {
-    if (step < 6) {
+    if (step < 2) {
       setStep(step + 1);
     } else {
       setSkipAll(true);
@@ -262,137 +262,137 @@ const Onboarding = () => {
           </div>
         );
       
+      // case 2:
+      //   return (
+      //     <div className="onboarding-step">
+      //       <h4 className="text-center mb-4">Your Interests</h4>
+      //       <p className="text-center mb-4">
+      //         Select what you're interested in (optional)
+      //       </p>
+
+      //       <div className="mb-4">
+      //         <h5>Music Genres</h5>
+      //         <div className="interests-grid">
+      //           {musicGenres.map((genre) => (
+      //             <button
+      //               key={genre}
+      //               type="button"
+      //               className={`interest-btn ${
+      //                 userData.interests.music.includes(genre) ? "selected" : ""
+      //               }`}
+      //               onClick={() =>
+      //                 handleMultiSelect("interests", "music", genre)
+      //               }
+      //             >
+      //               {genre}
+      //               {userData.interests.music.includes(genre) && (
+      //                 <FaCheck className="ms-2" />
+      //               )}
+      //             </button>
+      //           ))}
+      //         </div>
+      //       </div>
+
+      //       <div className="mb-4">
+      //         <h5>Sports</h5>
+      //         <div className="interests-grid">
+      //           {sports.map((sport) => (
+      //             <button
+      //               key={sport}
+      //               type="button"
+      //               className={`interest-btn ${
+      //                 userData.interests.sports.includes(sport)
+      //                   ? "selected"
+      //                   : ""
+      //               }`}
+      //               onClick={() =>
+      //                 handleMultiSelect("interests", "sports", sport)
+      //               }
+      //             >
+      //               {sport}
+      //               {userData.interests.sports.includes(sport) && (
+      //                 <FaCheck className="ms-2" />
+      //               )}
+      //             </button>
+      //           ))}
+      //         </div>
+      //       </div>
+
+      //       <div className="mb-4">
+      //         <h5>Movie Genres</h5>
+      //         <div className="interests-grid">
+      //           {movieGenres.map((genre) => (
+      //             <button
+      //               key={genre}
+      //               type="button"
+      //               className={`interest-btn ${
+      //                 userData.interests.movies.includes(genre)
+      //                   ? "selected"
+      //                   : ""
+      //               }`}
+      //               onClick={() =>
+      //                 handleMultiSelect("interests", "movies", genre)
+      //               }
+      //             >
+      //               {genre}
+      //               {userData.interests.movies.includes(genre) && (
+      //                 <FaCheck className="ms-2" />
+      //               )}
+      //             </button>
+      //           ))}
+      //         </div>
+      //       </div>
+
+      //       <div className="mb-4">
+      //         <h5>Book Genres</h5>
+      //         <div className="interests-grid">
+      //           {bookGenres.map((genre) => (
+      //             <button
+      //               key={genre}
+      //               type="button"
+      //               className={`interest-btn ${
+      //                 userData.interests.books.includes(genre) ? "selected" : ""
+      //               }`}
+      //               onClick={() =>
+      //                 handleMultiSelect("interests", "books", genre)
+      //               }
+      //             >
+      //               {genre}
+      //               {userData.interests.books.includes(genre) && (
+      //                 <FaCheck className="ms-2" />
+      //               )}
+      //             </button>
+      //           ))}
+      //         </div>
+      //       </div>
+
+      //       <div className="mb-4">
+      //         <h5>Hobbies</h5>
+      //         <div className="interests-grid">
+      //           {hobbyOptions.map((hobby) => (
+      //             <button
+      //               key={hobby}
+      //               type="button"
+      //               className={`interest-btn ${
+      //                 userData.interests.hobbies.includes(hobby)
+      //                   ? "selected"
+      //                   : ""
+      //               }`}
+      //               onClick={() =>
+      //                 handleMultiSelect("interests", "hobbies", hobby)
+      //               }
+      //             >
+      //               {hobby}
+      //               {userData.interests.hobbies.includes(hobby) && (
+      //                 <FaCheck className="ms-2" />
+      //               )}
+      //             </button>
+      //           ))}
+      //         </div>
+      //       </div>
+      //     </div>
+      //   );
       case 2:
-        return (
-          <div className="onboarding-step">
-            <h4 className="text-center mb-4">Your Interests</h4>
-            <p className="text-center mb-4">
-              Select what you're interested in (optional)
-            </p>
-
-            <div className="mb-4">
-              <h5>Music Genres</h5>
-              <div className="interests-grid">
-                {musicGenres.map((genre) => (
-                  <button
-                    key={genre}
-                    type="button"
-                    className={`interest-btn ${
-                      userData.interests.music.includes(genre) ? "selected" : ""
-                    }`}
-                    onClick={() =>
-                      handleMultiSelect("interests", "music", genre)
-                    }
-                  >
-                    {genre}
-                    {userData.interests.music.includes(genre) && (
-                      <FaCheck className="ms-2" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <h5>Sports</h5>
-              <div className="interests-grid">
-                {sports.map((sport) => (
-                  <button
-                    key={sport}
-                    type="button"
-                    className={`interest-btn ${
-                      userData.interests.sports.includes(sport)
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      handleMultiSelect("interests", "sports", sport)
-                    }
-                  >
-                    {sport}
-                    {userData.interests.sports.includes(sport) && (
-                      <FaCheck className="ms-2" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <h5>Movie Genres</h5>
-              <div className="interests-grid">
-                {movieGenres.map((genre) => (
-                  <button
-                    key={genre}
-                    type="button"
-                    className={`interest-btn ${
-                      userData.interests.movies.includes(genre)
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      handleMultiSelect("interests", "movies", genre)
-                    }
-                  >
-                    {genre}
-                    {userData.interests.movies.includes(genre) && (
-                      <FaCheck className="ms-2" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <h5>Book Genres</h5>
-              <div className="interests-grid">
-                {bookGenres.map((genre) => (
-                  <button
-                    key={genre}
-                    type="button"
-                    className={`interest-btn ${
-                      userData.interests.books.includes(genre) ? "selected" : ""
-                    }`}
-                    onClick={() =>
-                      handleMultiSelect("interests", "books", genre)
-                    }
-                  >
-                    {genre}
-                    {userData.interests.books.includes(genre) && (
-                      <FaCheck className="ms-2" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <h5>Hobbies</h5>
-              <div className="interests-grid">
-                {hobbyOptions.map((hobby) => (
-                  <button
-                    key={hobby}
-                    type="button"
-                    className={`interest-btn ${
-                      userData.interests.hobbies.includes(hobby)
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      handleMultiSelect("interests", "hobbies", hobby)
-                    }
-                  >
-                    {hobby}
-                    {userData.interests.hobbies.includes(hobby) && (
-                      <FaCheck className="ms-2" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      case 3:
         return (
           <div className="onboarding-step">
             <h4 className="text-center mb-4">Your Favorites</h4>
@@ -612,17 +612,17 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="onboarding-container">
-      <div className="onboarding-card">
+    <div className="onboarding-container" >
+      <div className="onboarding-card mb-5" style={{height:'800px', overflow:'auto'}}>
         <div className="progress-container">
           <div className="progress" style={{ height: "6px" }}>
             <div
               className="progress-bar"
               role="progressbar"
-              style={{ width: `${(step / 6) * 100}%` }}
+              style={{ width: `${(step / 2) * 100}%` }}
             ></div>
           </div>
-          <div className="step-indicator">Step {step} of 6</div>
+          <div className="step-indicator">Step {step} of 2</div>
         </div>
 
         {renderStep()}
@@ -645,10 +645,10 @@ const Onboarding = () => {
                 className="btn btn-link text-muted me-3"
                 onClick={skipStep}
               >
-                {step < 3 ? "Skip" : "Skip All"}
+                {step < 2 ? "Skip" : "Skip All"}
               </button>
 
-              {step < 3 ? (
+              {step < 2 ? (
                 <button
                   className="btn btn-primary"
                   onClick={() => setStep(step + 1)}

@@ -104,12 +104,7 @@ const ChatComponent = () => {
         {/* Sidebar/Friend List */}
         {(!isMobileView || !selectedFriend) && (
           <div className={`friend-list-container ${isMobileView && selectedFriend ? 'hide-on-mobile' : ''}`}>
-            <div className="friend-list-header">
-              <h3>Connections</h3>
-              <div className="active-users-count">
-                {activeUsers.length} active
-              </div>
-            </div>
+            
             <FriendList
               friends={friends}
               activeUsers={activeUsers}

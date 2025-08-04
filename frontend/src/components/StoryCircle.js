@@ -14,8 +14,8 @@ const StoryCircle = ({ story, onClick, currentUserId }) => {
             style={{
                 position: 'relative',
                 cursor: 'pointer',
-                width: '80px',
-                height: '80px',
+                width: '50px',
+                height: '50px',
                 margin: '0 8px'
             }}
         >
@@ -56,24 +56,25 @@ const StoryCircle = ({ story, onClick, currentUserId }) => {
                         }}
                     />
                 </div>
-            </div>
-            <div
-                className="story-user-info"
+                <div
+                className="story-user-info text-truncate"
                 style={{
                     position: 'absolute',
                     bottom: '-20px',
                     left: '50%',
                     transform: 'translateX(-50%)',
                     whiteSpace: 'nowrap',
-                    fontSize: '12px',
+                    fontSize: '10px',
                     color: '#666',
-                    maxWidth: '80px',
+                    maxWidth: '60px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
                 }}
             >
                 {isOwnStory ? 'Your Story' : story.userId.userName}
             </div>
+            </div>
+            
         </motion.div>
     );
 };

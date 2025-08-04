@@ -18,7 +18,7 @@ const PostModal = ({ showModal, onClose, handleAddPost }) => {
 
   return (
     showModal && (
-      <div className="custom-modal-overlay d-flex align-items-center justify-content-center">
+      <div className="custom-modal-overlay d-flex align-items-center justify-content-center" style={{zIndex:'10000'}}>
         <div className="custom-modal-content p-4 rounded shadow-lg bg-light">
           <div className="modal-header d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
             <h5 className="m-0">Create a Post</h5>

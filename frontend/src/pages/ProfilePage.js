@@ -251,16 +251,16 @@ const ProfilePage = () => {
         await likePost(postId);
       }
 
-     const updatedPosts = setPosts(prevPosts => prevPosts.map((post, i) => 
-        i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== userData?._id) : [...post.likes, { userId: {_id:userData?._id} }] } : post
+      const updatedPosts = setPosts(prevPosts => prevPosts.map((post, i) =>
+        i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== userData?._id) : [...post.likes, { userId: { _id: userData?._id } }] } : post
       ));
 
-     
-     
+
+
     } catch (error) {
       console.error("Error toggling like:", error);
     }
-   
+
   };
 
   const handleAddComment = async (postId, commentText) => {
@@ -433,9 +433,6 @@ const ProfilePage = () => {
     navigate("/login");
   };
 
-  useEffect(() => {
-    console.log(posts, 'posts')
-  }, [posts])
   return (
     <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: "#f5f5f5" }}>
       {/* Navigation Bar */}
@@ -444,15 +441,15 @@ const ProfilePage = () => {
           <a className="navbar-brand fw-bold text-primary" href="/" style={{ fontSize: "1.8rem" }}>
             HiBUDDY
           </a>
-          <div className="align-items-center">
-            <div className="d-none d-lg-flex gap-4 mx-3">
-              <a href="/home" className="text-dark"><FaHome size={22} /></a>
-              <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a>
-              <a href="/watch" className="text-dark"><FaVideo size={22} /></a>
+          <div className="">
+            <div className="  ">
+              {/* <a href="/home" className="text-dark"><FaHome size={22} /></a> */}
+              {/* <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a> */}
+              {/* <a href="/watch" className="text-dark"><FaVideo size={22} /></a> */}
               {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
               <a href="/games" className="text-dark"><FaGamepad size={22} /></a> */}
-              <button className="btn p-0 position-relative" onClick={() => navigate('/chats')}>
-                <RiMessengerLine size={24} className="text-dark" />
+              <button className="btn p-0 position-relative " onClick={() => navigate('/chats')}>
+                <RiMessengerLine size={28} className="text-dark" />
                 {unseenMessages.length > 0 &&
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                     {unseenMessages.length}
@@ -462,7 +459,7 @@ const ProfilePage = () => {
               <img
                 src={userData?.profilePicture || "https://via.placeholder.com/30"}
                 alt="Profile"
-                className="rounded-circle"
+                className="rounded-circle mx-3"
                 style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
                 onClick={() => setShowProfileModal(true)}
               />
@@ -472,7 +469,7 @@ const ProfilePage = () => {
       </nav>
       {/* Main Content */}
       <div className="container-fluid mt-3 ">
-        <div className="row">
+        <div className="row " >
           {/* Left Sidebar */}
           <div className="col-lg-3 d-none d-lg-block">
             <div className="sticky-top" style={{ top: "70px" }}>
@@ -490,15 +487,31 @@ const ProfilePage = () => {
                     {friends?.slice(0, 5).map((friend) => (
                       <li key={friend._id} className="p-3 border-bottom">
                         <a href={`/profile/${friend.friendId._id}`} className="d-flex align-items-center text-decoration-none text-dark">
-                          <img
-                            src={friend.friendId.profilePicture || "https://via.placeholder.com/40"}
-                            alt="Profile"
-                            className="rounded-circle me-3"
-                            style={{ width: "35px", height: "35px", objectFit: "cover" }}
-                          />
+                          {friend.friendId.profilePicture ? (
+                            <img
+                              src={friend.friendId.profilePicture}
+                              alt="Profile"
+                              className="rounded-circle me-3"
+                              style={{ width: "35px", height: "35px", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <div
+                              className="rounded-circle me-3 d-flex align-items-center justify-content-center text-white"
+                              style={{
+                                width: "35px",
+                                height: "35px",
+                                backgroundColor: "#6c757d", // Bootstrap's secondary color
+                                fontWeight: "bold",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {friend.friendId.firstName?.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <span>{friend.friendId.firstName} {friend.friendId.lastName}</span>
                         </a>
                       </li>
+
                     ))}
                   </ul>
                 </div>
@@ -566,7 +579,7 @@ const ProfilePage = () => {
           {/* Main Content Area */}
           <div className="col-lg-6"
             style={{
-              height: "100vh",
+              height: "90vh",
               backgroundColor: "white",
               overflow: "auto",
             }}>
@@ -577,42 +590,59 @@ const ProfilePage = () => {
               >
                 <div className="container">
                   <div className="row align-items-center">
-                    <div className="col-md-8 d-flex flex-column flex-md-row align-items-center gap-4">
+                    <div className="col-md-8 d-flex flex-row align-items-center gap-4">
                       <div className="position-relative hover-3d">
-                        <img
-                          src={userData.profilePicture || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"}
-                          alt="Profile"
-                          className="rounded-circle shadow-lg"
-                          style={{
-                            width: "100px",
-                            height: "100px",
-                            border: "4px solid rgba(255,255,255,0.8)",
-                            objectFit: "cover",
-                            transform: "perspective(500px) rotateY(-5deg)",
-                            transition: "all 0.5s ease",
-                            boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.transform = "perspective(500px) rotateY(5deg) scale(1.05)"}
-                          onMouseLeave={e => e.currentTarget.style.transform = "perspective(500px) rotateY(-5deg)"}
-                        />
-                        <label
-                          className="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 cursor-pointer"
-                          style={{
-                            cursor: 'pointer',
-                            width: '32px',
-                            height: '32px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: '2px solid white',
-                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                          }}
-                          onClick={() => setShowEditProfile(true)}
-                        >
-                          <FaPen size={12} />
-                        </label>
+                        {userData.profilePicture ? (
+                          <img
+                            src={userData.profilePicture}
+                            alt="Profile"
+                            className="rounded-circle shadow-lg"
+                            style={{
+                              width: "100px",
+                              height: "100px",
+                              border: "4px solid rgba(255,255,255,0.8)",
+                              objectFit: "cover",
+                              transform: "perspective(500px) rotateY(-5deg)",
+                              transition: "all 0.5s ease",
+                              boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+                            }}
+                            onMouseEnter={e =>
+                              e.currentTarget.style.transform =
+                              "perspective(500px) rotateY(5deg) scale(1.05)"
+                            }
+                            onMouseLeave={e =>
+                              e.currentTarget.style.transform = "perspective(500px) rotateY(-5deg)"
+                            }
+                          />
+                        ) : (
+                          <div
+                            className="rounded-circle d-flex align-items-center justify-content-center text-white shadow-lg"
+                            style={{
+                              width: "100px",
+                              height: "100px",
+                              border: "4px solid rgba(255,255,255,0.8)",
+                              backgroundColor: "#6c757d",
+                              fontSize: "36px",
+                              fontWeight: "bold",
+                              transform: "perspective(500px) rotateY(-5deg)",
+                              transition: "all 0.5s ease",
+                              boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+                            }}
+                            onMouseEnter={e =>
+                              e.currentTarget.style.transform =
+                              "perspective(500px) rotateY(5deg) scale(1.05)"
+                            }
+                            onMouseLeave={e =>
+                              e.currentTarget.style.transform = "perspective(500px) rotateY(-5deg)"
+                            }
+                          >
+                            {userData.userName?.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+
                         <div className="status-indicator"></div>
                       </div>
+
                       <div>
                         <p
                           className="mb-2"
@@ -662,14 +692,15 @@ const ProfilePage = () => {
                 </div>
               </div>
             )}
-            <div className="card border-0 shadow-sm mb-3">
-              <div className="card-body">
+            <div className="card border-0 shadow-sm ">
+              <div className="card-body p-0">
                 <Swiper
                   slidesPerView={8}
                   spaceBetween={6}
                   pagination={{ clickable: true }}
                   modules={[Pagination]}
-                  className="stories-swiper "
+                  className="stories-swiper px-4"
+                  style={{ height: '70px' }}
                 >
                   {/* Add Story Button */}
                   {/* Other users' stories */}
@@ -681,7 +712,7 @@ const ProfilePage = () => {
                     ).values()
                   ).map((story) => (
                     <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
-                      <span className="d-block m-auto">{story.userId.userName}</span>
+
                       <StoryCircle
                         story={story}
                         onClick={handleStoryClick}
@@ -694,7 +725,7 @@ const ProfilePage = () => {
             </div>
 
             {/* Create Post Card - Enhanced */}
-            <div className="card border-0 shadow-sm mb-3">
+            <div className="card border-0 shadow-sm ">
               <div className="card-body">
                 {/* <div className="d-flex align-items-center mb-3">
                   <img
@@ -743,25 +774,7 @@ const ProfilePage = () => {
                     <i className="bi bi-camera-video-fill text-danger me-2"></i>
                     Create Story
                   </button>
-                  <button
-                    className="btn btn-light rounded-pill d-flex align-items-center"
-                    onClick={() => setShowModal(true)}
-                    style={{
-                      transition: "all 0.3s ease",
-                      border: "1px solid #e0e0e0"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f8f9fa";
-                      e.currentTarget.style.borderColor = "#dee2e6";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "#fff";
-                      e.currentTarget.style.borderColor = "#e0e0e0";
-                    }}
-                  >
-                    <i className="bi bi-images text-success me-2"></i>
-                    Photo/Video
-                  </button>
+
                   <button
                     className="btn btn-light rounded-pill d-flex align-items-center"
                     onClick={() => setShowModal(true)}
@@ -887,7 +900,7 @@ const ProfilePage = () => {
                               {console.log(post.likes?.some(like => like.userId._id == userId), 'post.likes', index, userId, post.likes[0])}
                               <button
                                 className="btn p-0 me-3"
-                                onClick={() => handleToggleLike(index,post._id, post.likes?.some(like => like.userId._id == userId))}
+                                onClick={() => handleToggleLike(index, post._id, post.likes?.some(like => like.userId._id == userId))}
                               >
                                 <i className={`bi ${post.likes?.some(like => like.userId._id == userId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
                               </button>
@@ -895,7 +908,7 @@ const ProfilePage = () => {
                                 className="btn p-0 me-3"
                                 onClick={() => handleShowCommentInput(post._id)}
                               >
-                                <i className="bi bi-chat fs-4"></i>          
+                                <i className="bi bi-chat fs-4"></i>
                               </button>
                               <button
                                 className="btn p-0"

@@ -34,9 +34,6 @@
     cursor: pointer;
   }
   
-  .modal-body {
-    margin-top: 10px;
-  }
   
   .modal-footer {
     display: flex;

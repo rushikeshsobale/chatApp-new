@@ -1,6 +1,7 @@
 import React from "react";
 import "../css/Chat.css";
-
+import { FaArrowLeft } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 const FriendList = ({ 
   friends, 
   activeUsers, 
@@ -9,22 +10,24 @@ const FriendList = ({
   selectedFriend, 
   handleFriendSelect 
 }) => {
-
+  const navigate = useNavigate()
   const getLastUnseenMessage = (friendId) => {
- 
+  
     const messages = unseenMessages
       ?.filter(msg => msg.senderId == friendId)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return messages || null;
   };
-
+  const handleBack = () => {
+    navigate(-1); // Go back one step in history
+  };
   return (
     <div className="friend-list-container">
-      <div className="friend-list-header">
-        <h3>Messages</h3>
-        <div className="active-count">
-          {activeUsers.length} active
-        </div>
+      <div className="friend-list-header" style={{backGround:'antiquewhite'}}>
+      <button className="back-button " onClick={handleBack}>
+          <FaArrowLeft />
+        </button>
+        <h3 className="m-auto w-100">Messages</h3>
       </div>
 
       <div className="friends-scroll-container">

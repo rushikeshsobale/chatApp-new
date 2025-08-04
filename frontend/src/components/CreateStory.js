@@ -65,20 +65,20 @@ const CreateStory = ({ show, onHide, onCreateStory, userData }) => {
             show={show}
             onHide={resetForm}
             centered
-            size="xl"
+            size="lg"
             className="create-story-modal"
         >
             <Modal.Header closeButton className="border-0">
-                <Modal.Title className="fw-bold">Create Story</Modal.Title>
+                <Modal.Title className="fw-bold small">Create Story</Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-0">
                 <div className="row g-0">
                     {/* Left side - Media Preview */}
-                    <div className="col-md-8">
+                    <div className="col-md-7">
                         <div 
                             className="media-preview-container"
                             style={{
-                                height: '500px',
+                                height: '300px',
                                 background: '#000',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -162,8 +162,8 @@ const CreateStory = ({ show, onHide, onCreateStory, userData }) => {
                     </div>
 
                     {/* Right side - Caption and Controls */}
-                    <div className="col-md-4">
-                        <div className="p-4">
+                    <div className="col-md-5">
+                        <div className="p-2">
                             <div className="d-flex align-items-center mb-4">
                                 <img
                                     src={userData?.profilePicture || "https://via.placeholder.com/40"}
