@@ -700,7 +700,7 @@ const ProfilePage = () => {
                   pagination={{ clickable: true }}
                   modules={[Pagination]}
                   className="stories-swiper px-4"
-                  style={{ height: '70px' }}
+                  style={{ maxHeight: '70px' }}
                 >
                   {/* Add Story Button */}
                   {/* Other users' stories */}
