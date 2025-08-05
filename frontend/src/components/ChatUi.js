@@ -264,7 +264,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           <FaArrowLeft />
         </button>
 
-        <div className="user-info">
+        <div className="user-info d-flex flex-row">
           <div className="user-avatar">
             <img
               src={member?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"}

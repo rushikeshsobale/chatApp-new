@@ -27,6 +27,10 @@ const UserProfilePage = () => {
   const currentUserId = currentUser?._id || currentUser?.userId;
   const { socket } = useContext(UserContext) || {};
 
+  // Add state for comment inputs and showCommentInputs
+  const [commentInputs, setCommentInputs] = useState({});
+  const [showCommentInputs, setShowCommentInputs] = useState({});
+
   useEffect(() => {
     const fetchProfile = async () => {
       setLoadingUser(true);
@@ -69,6 +73,80 @@ const UserProfilePage = () => {
     getSuggestionsList();
   }, []);
 
+  // Like/Unlike handler
+  const handleToggleLike = async (index, postId, isLiked) => {
+    try {
+      if (isLiked) {
+        // Assuming unlikePost and likePost are imported or defined elsewhere
+        // For now, we'll just update the local state and re-fetch posts
+        // In a real app, you'd call an API to unlike
+        setPosts(prevPosts => prevPosts.map((post, i) =>
+          i === index ? { ...post, likes: post.likes.filter(like => like.userId._id !== currentUserId) } : post
+        ));
+      } else {
+        // Assuming unlikePost and likePost are imported or defined elsewhere
+        // For now, we'll just update the local state and re-fetch posts
+        // In a real app, you'd call an API to like
+        setPosts(prevPosts => prevPosts.map((post, i) =>
+          i === index ? { ...post, likes: [...post.likes, { userId: { _id: currentUserId } }] } : post
+        ));
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
+  // Add comment handler
+  const handleAddComment = async (postId, commentText) => {
+    try {
+      // Assuming addComment is imported or defined elsewhere
+      // For now, we'll just update the local state and re-fetch posts
+      // In a real app, you'd call an API to add comment
+      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+      setShowCommentInputs(prev => ({ ...prev, [postId]: false }));
+      // Refresh posts to show new comment
+      const data = await getUserPosts(userId);
+      setPosts(data.posts || []);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    }
+  };
+
+  // Delete comment handler
+  const handleDeleteComment = async (postId, commentId) => {
+    try {
+      // Assuming deleteComment is imported or defined elsewhere
+      // For now, we'll just update the local state and re-fetch posts
+      // In a real app, you'd call an API to delete comment
+      setPosts(prevPosts => prevPosts.map(post =>
+        post._id === postId ? { ...post, comments: post.comments.filter(comment => comment._id !== commentId) } : post
+      ));
+      // Refresh posts to show updated comments
+      const data = await getUserPosts(userId);
+      setPosts(data.posts || []);
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    }
+  };
+
+  // Comment input change handler
+  const handleCommentInputChange = (postId, value) => {
+    setCommentInputs(prev => ({ ...prev, [postId]: value }));
+  };
+
+  // Show/hide comment input
+  const handleShowCommentInput = (postId) => {
+    setShowCommentInputs(prev => ({ ...prev, [postId]: !prev[postId] }));
+  };
+
+  // Submit comment
+  const handleSubmitComment = (postId) => {
+    const commentText = commentInputs[postId]?.trim();
+    if (commentText) {
+      handleAddComment(postId, commentText);
+    }
+  };
+
   if (loadingUser) return <Loader text="Loading profile..." />;
   if (!userData) return <div className="text-center mt-10">User not found</div>;
 
@@ -77,7 +155,7 @@ const UserProfilePage = () => {
   const tabs = [
     { id: 'grid', label: 'Grid', icon: <IoGridSharp size={24} /> },
     { id: 'slideshow', label: 'Slideshow', icon: <PiSlideshowFill size={24} /> },
-    { id: 'saved', label: 'Saved', icon: <FaBookmark size={24} /> },
+  
   ];
 
   // Add handlers for follow/unfollow (no-ops for now, can be implemented as needed)
@@ -91,14 +169,14 @@ const UserProfilePage = () => {
           {/* Left Sidebar (empty for now, could add mutual friends, etc.) */}
           <div className="col-lg-3 d-none d-lg-block"></div>
           {/* Main Content Area */}
-          <div className="col-lg-6" style={{ backgroundColor: 'white', minHeight: '100vh', overflow: 'auto' }}>
+          <div className="col-lg-6" style={{ backgroundColor: 'white', maxHeight: '90vh', overflow: 'auto' }}>
             {/* Profile Header */}
             <div className="profile-header position-relative overflow-hidden mb-3">
               <div className="container">
                 <div className="row align-items-center">
-                  <div className="col-md-8 d-flex flex-column flex-md-row align-items-center gap-4">
+                  <div className="col-md-8 d-flex align-items-center gap-4">
                     <div className="position-relative hover-3d">
-                      <img
+                      <img                                                 
                         src={userData.profilePicture || 'https://via.placeholder.com/100'}
                         alt="Profile"
                         className="rounded-circle shadow-lg"
@@ -120,7 +198,7 @@ const UserProfilePage = () => {
                       </p>
                       <p className="mb-0" style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '500px' }}>
                         {userData?.bio || 'Tell your story...'}
-                      </p>
+                      </p> 
                     </div>
                   </div>
                   <div className="col-md-4 mt-4 mt-md-0">
@@ -189,13 +267,87 @@ const UserProfilePage = () => {
                       {loadingPosts ? <Loader text="Loading posts..." /> : posts.length === 0 ? (
                         <p className="text-gray-500">No posts yet.</p>
                       ) : (
-                        posts.map((post) => (
+                        posts.map((post, index) => (
                           <div key={post._id} className="col-lg-4 col-md-6 col-6">
                             <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: '12px', cursor: 'pointer', aspectRatio: '1/1' }}>
                               <div
                                 className="w-100 h-100"
                                 style={{ backgroundImage: `url(${post.media || post.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', transition: 'transform 0.5s ease' }}
                               />
+                              <div className="card-body">
+                                <div className="d-flex justify-content-between mb-2">
+                                  <div>
+                                    <button
+                                      className="btn p-0 me-3"
+                                      onClick={() => handleToggleLike(index, post._id, post.likes?.some(like => like.userId._id === currentUserId))}
+                                    >
+                                      <i className={`bi ${post.likes?.some(like => like.userId._id === currentUserId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-5`}></i>
+                                    </button>
+                                    <button
+                                      className="btn p-0 me-3"
+                                      onClick={() => handleShowCommentInput(post._id)}
+                                    >
+                                      <i className="bi bi-chat fs-5"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                                <p className="fw-bold mb-1">
+                                  {post.likes?.length > 0 ? `${post.likes.length.toLocaleString()} likes` : "Be the first to like this"}
+                                </p>
+                                <p className="mb-1">
+                                  <span className="fw-bold me-2">{post.userId?.firstName}</span>
+                                  {post.text}
+                                </p>
+                                {post.comments?.length > 0 && (
+                                  <div className="mb-1">
+                                    <p className="text-muted small mb-1">
+                                      View all {post.comments.length} comments
+                                    </p>
+                                    {post.comments.slice(-2).map((comment, idx) => (
+                                      <div key={comment._id || idx} className="d-flex align-items-start mb-1 justify-content-between">
+                                        <div className="d-flex align-items-start">
+                                          <span className="fw-bold me-2 small">{comment.userId?.firstName}:</span>
+                                          <span className="small">{comment.text}</span>
+                                        </div>
+                                        {(comment.userId?._id === currentUserId || post.userId._id === currentUserId) && (
+                                          <button
+                                            className="btn btn-sm btn-link text-danger p-0 ms-2"
+                                            onClick={() => handleDeleteComment(post._id, comment._id)}
+                                            title="Delete comment"
+                                          >
+                                            <i className="bi bi-trash small"></i>
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {showCommentInputs[post._id] && (
+                                  <div className="mt-2">
+                                    <div className="d-flex align-items-center">
+                                      <input
+                                        type="text"
+                                        className="form-control me-2"
+                                        placeholder="Add a comment..."
+                                        value={commentInputs[post._id] || ''}
+                                        onChange={(e) => handleCommentInputChange(post._id, e.target.value)}
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') {
+                                            handleSubmitComment(post._id);
+                                          }
+                                        }}
+                                      />
+                                      <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() => handleSubmitComment(post._id)}
+                                        disabled={!commentInputs[post._id]?.trim()}
+                                      >
+                                        Post
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))
@@ -204,12 +356,83 @@ const UserProfilePage = () => {
                   )}
                   {activeTab === 'slideshow' && (
                     <div className="row justify-content-center">
-                      {loadingPosts ? <Loader text="Loading posts..." /> : posts.map((post) => (
+                      {loadingPosts ? <Loader text="Loading posts..." /> : posts.map((post, index) => (
                         <div key={post._id} className="col-12 mb-4">
                           <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: '16px' }}>
                             <div className="w-100" style={{ aspectRatio: '1/1', backgroundImage: `url(${post.media || post.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                             <div className="card-body">
-                              <p className="mb-2">{post.caption || post.text}</p>
+                              <div className="d-flex justify-content-between mb-3">
+                                <div>
+                                  <button
+                                    className="btn p-0 me-3"
+                                    onClick={() => handleToggleLike(index, post._id, post.likes?.some(like => like.userId._id === currentUserId))}
+                                  >
+                                    <i className={`bi ${post.likes?.some(like => like.userId._id === currentUserId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
+                                  </button>
+                                  <button
+                                    className="btn p-0 me-3"
+                                    onClick={() => handleShowCommentInput(post._id)}
+                                  >
+                                    <i className="bi bi-chat fs-4"></i>
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="fw-bold mb-2">
+                                {post.likes?.length > 0 ? `${post.likes.length.toLocaleString()} likes` : "Be the first to like this"}
+                              </p>
+                              <p className="mb-2">
+                                <span className="fw-bold me-2">{post.userId?.firstName}</span>
+                                {post.text}
+                              </p>
+                              {post.comments?.length > 0 && (
+                                <div className="mb-2">
+                                  <p className="text-muted small mb-1">
+                                    View all {post.comments.length} comments
+                                  </p>
+                                  {post.comments.slice(-2).map((comment, idx) => (
+                                    <div key={comment._id || idx} className="d-flex align-items-start mb-1 justify-content-between">
+                                      <div className="d-flex align-items-start">
+                                        <span className="fw-bold me-2 small">{comment.userId?.firstName}:</span>
+                                        <span className="small">{comment.text}</span>
+                                      </div>
+                                      {(comment.userId?._id === currentUserId || post.userId._id === currentUserId) && (
+                                        <button
+                                          className="btn btn-sm btn-link text-danger p-0 ms-2"
+                                          onClick={() => handleDeleteComment(post._id, comment._id)}
+                                          title="Delete comment"
+                                        >
+                                          <i className="bi bi-trash small"></i>
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {showCommentInputs[post._id] && (
+                                <div className="mt-3">
+                                  <div className="d-flex align-items-center">
+                                    <input
+                                      type="text"
+                                      className="form-control me-2"
+                                      placeholder="Add a comment..."
+                                      value={commentInputs[post._id] || ''}
+                                      onChange={(e) => handleCommentInputChange(post._id, e.target.value)}
+                                      onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleSubmitComment(post._id);
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => handleSubmitComment(post._id)}
+                                      disabled={!commentInputs[post._id]?.trim()}
+                                    >
+                                      Post
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
