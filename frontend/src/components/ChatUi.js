@@ -5,7 +5,7 @@ import EmojiPicker from 'emoji-picker-react';
 import '../css/Chat.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { createNotification } from '../services/notificationService'
-import { updateMessageStatus } from '../services/messageService';
+import { deleteMessages, updateMessageStatus } from '../services/messageService';
 import {
   faCheckDouble,
   faEllipsisV,
@@ -20,9 +20,12 @@ import {
   faFileAlt
 } from '@fortawesome/free-solid-svg-icons';
 import { CiMenuKebab } from "react-icons/ci";
-import { FaArrowLeft } from 'react-icons/fa';
+import { FaArrowLeft, FaEllipsisH, FaVideo } from 'react-icons/fa';
 import { UserContext } from '../contexts/UserContext';
+import ChatActions from './ChatActions';
+import VideoCall from './VideoCall';
 const ChatUi = ({ member, setMsgCounts, onBack }) => {
+  const [inCall, setInCall] = useState(false);
   const { socket, loadUnseenMessages } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -40,6 +43,11 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
   useEffect(() => {
     setChatId([userId, member._id].sort().join("_"));
   }, [userId, member._id]);
+  const startCall = () => {
+    const friendId = member._id
+    socket.emit("start-call", { friendId });
+    setInCall(true); // only show VideoCall UI after clicking button
+  };
   const fetchMessages = async (page = 1, limit = 20) => {
     try {
       const token = localStorage.getItem('token');
@@ -111,6 +119,8 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           read: false
         };
         await createNotification(notificationData);
+        socket.emit('emit_notification', notificationData)
+
       }
       const data = await response.json();
       socket.emit('sendMessage', data);
@@ -254,8 +264,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       }
     }
   };
-
-
+ 
   return (
     <div className="chat-ui-container">
       {/* Chat Header */}
@@ -263,7 +272,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
         <button className="back-button" onClick={onBack}>
           <FaArrowLeft />
         </button>
-
+         
         <div className="user-info d-flex flex-row">
           <div className="user-avatar">
             <img
@@ -282,16 +291,54 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           <div className="user-details">
             <h3>{member?.userName} </h3>
             <p>
-              {typingUser && typingUser !== userId  && typingUser == member._id ? "typing..." : "online"}
+              {typingUser && typingUser !== userId && typingUser == member._id ? "typing..." : "online"}
             </p>
           </div>
         </div>
-
-        <div className="chat-actions">
-          <button className="menu-button">
-            <CiMenuKebab />
-          </button>
+       
+        {/* Floating Call Button */}
+        <button
+          onClick={startCall}
+          style={{
+            padding: "0.4rem 1.0rem",
+            fontSize: "1rem",
+            borderRadius: "8px",
+            border: "none",
+            cursor: "pointer",
+            background: "none",
+            color: "black",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+          }}
+        >
+          <FaVideo />
+        </button>
+        <div className="mx-3">
+          <div className="dropdown">
+            <button className="action-button">
+              <FontAwesomeIcon icon={faEllipsisV} />
+            </button>
+            <div className="dropdown-menu">
+              <button onClick ={()=>deleteMessages(userId, member.id)} >
+                <FontAwesomeIcon icon={faTrashAlt} /> clear chat
+              </button>
+              
+            </div>
+          </div>
         </div>
+
+        {/* Video Call Layer */}
+        {inCall && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,          // full screen (top:0, left:0, right:0, bottom:0)
+              zIndex: 900,       // below the button
+            }}
+          >
+            <VideoCall socket={socket} member={member} setInCall={setInCall} />
+          </div>
+        )}
+
       </div>
 
       {/* Messages Area */}

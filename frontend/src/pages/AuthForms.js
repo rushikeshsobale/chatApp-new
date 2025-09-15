@@ -142,6 +142,7 @@ const AuthPage = () => {
     }
   };
   const handleSocialLogin = (provider) => {
+    console.log(process.env.REACT_APP_API_URL, provider,   'practice')
     window.location.href = `${process.env.REACT_APP_API_URL}/auth/${provider}`;
   };
   return (

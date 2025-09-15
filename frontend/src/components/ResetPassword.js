@@ -1,35 +1,29 @@
 import React, { useState } from 'react';
 import { FaLock, FaCheck } from 'react-icons/fa';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import './AuthStyles.css';
-
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { resetPassword } from '../services/authService'; // Adjust the path as needed
 const ResetPassword = () => {
-  const { token } = useParams();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const token = queryParams.get('token');
+  const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const navigate = useNavigate();
-
   const handleSubmit = async (e) => {
+    console.log(token, 'token')
     e.preventDefault();
-    
     if (password !== confirmPassword) {
       setError("Passwords don't match");
       return;
     }
-    
     setLoading(true);
-    
     try {
-      const response = await axios.post('/api/auth/reset-password', { 
-        token, 
-        newPassword: password 
-      });
-      setMessage(response.data.message);
+      const data = await resetPassword(token, password);
+      setMessage(data.message);
       setError('');
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
@@ -40,7 +34,6 @@ const ResetPassword = () => {
       setLoading(false);
     }
   };
-
   return (
     <div className="auth-container">
       <div className="auth-card">

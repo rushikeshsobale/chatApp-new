@@ -24,16 +24,17 @@ import moment from "moment";
 import StoryCircle from "../components/StoryCircle";
 import StoryViewer from "../components/StoryViewer";
 import FriendSuggestion from "../components/FriendSuggestion";
-import TrendingTopics from "../components/TrendingTopics";
-import EventCard from "../components/EventCard";
-import { fetchSuggestions } from "../services/profileService";
+import { fetchSuggestions, getPostById } from "../services/profileService";
 import FollowModal from "../components/FollowModal";
 import CreateStory from "../components/CreateStory";
-import { getNotifications, updateNotification } from "../services/notificationService";
+import { createNotification, getNotifications, updateNotification } from "../services/notificationService";
 import { UserContext } from "../contexts/UserContext";
 import BirthdaysCard from "../components/BirthdaysCard";
 import { getUserData, getProfileUserData, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment } from "../services/profileService";
 import Loader from '../components/Loader';
+import NotificationModal from '../components/Notification';
+import SavedPosts from "./SavedPosts";
+
 const ProfilePage = () => {
   const [newPost, setNewPost] = useState("");
   const [media, setMedia] = useState(null);
@@ -90,7 +91,9 @@ const ProfilePage = () => {
 
   }, [location.pathname]);
   useEffect(() => {
-    fetchNotifications(user);
+    if(user !== null){
+      fetchNotifications(user);
+    }
   }, [])
   const getSuggestions = async () => {
     setLoadingSuggestions(true);
@@ -109,7 +112,6 @@ const ProfilePage = () => {
     }
     setLoadingUser(false);
   };
-
   const fetchUser2Data = async () => {
     console.log(userProfileId, 'userProfileId')
     try {
@@ -120,7 +122,6 @@ const ProfilePage = () => {
       console.error("Error:", error);
     }
   };
-
   const fetchPosts = async () => {
     setLoadingPosts(true);
     try {
@@ -131,8 +132,40 @@ const ProfilePage = () => {
     }
     setLoadingPosts(false);
   };
-
-  const fetchNotifications = async (user) => {
+  const fetchPostById = async (postId, dataType) => {
+    const response = await getPostById(postId);
+    console.log(response, "lets see");
+  
+    const currentPost = response.post;
+  
+    setPosts(prevPosts =>
+      prevPosts.map(post => {
+        if (post._id !== currentPost._id) return post; // unchanged posts
+  
+        if (dataType === "comment") {
+          const latestComment =
+            currentPost.comments[currentPost.comments.length - 1];
+          return {
+            ...post,
+            latestComment,
+            comments: currentPost.comments, // optional if you also want full comments updated
+          };
+        }
+  
+        if (dataType === "like") {
+          return {
+            ...post,
+            likes: currentPost.likes, // or `likeCount` depending on your schema
+          };
+        }
+  
+        // default → full replace
+        return { ...currentPost };
+      })
+    );
+  };
+  
+  const fetchNotifications = async () => {
     console.log(user, 'user')
     setLoadingNotifications(true);
     try {
@@ -144,7 +177,6 @@ const ProfilePage = () => {
     }
     setLoadingNotifications(false);
   };
-
   const fetchStories = async () => {
     setLoadingStories(true);
     try {
@@ -155,7 +187,6 @@ const ProfilePage = () => {
     }
     setLoadingStories(false);
   };
-
   const fetchTrendingTopics = async () => {
     try {
       const data = await getTrendingTopics();
@@ -164,20 +195,23 @@ const ProfilePage = () => {
       console.error("Error fetching trending topics:", error);
     }
   };
-
   useEffect(() => {
     if (!socket) return;
     socket.on('got_a_notification', (data) => {
+      console.log('got a notification, ', data)
       fetchNotifications();
+      if(data.type=='comment'){
+        fetchPostById(data.postId, data.type)
+      }  
+      else if(data.type == 'like'){
+        fetchPostById(data.postId, data.type)
+      }
     });
-
     // Optional: Cleanup listener on unmount
     return () => {
       socket.off('got_a_notification');
     };
   }, [socket]);
-
-
   const fetchEvents = async () => {
     try {
       const data = await getEvents();
@@ -186,7 +220,6 @@ const ProfilePage = () => {
       console.error("Error fetching events:", error);
     }
   };
-
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -194,11 +227,9 @@ const ProfilePage = () => {
       setMedia({ url, type: file.type, file });
     }
   };
-
   const handleRemoveMedia = () => {
     setMedia(null);
   };
-
   const handleAddPost = async (text, media) => {
     try {
       // This API is not in profileService, so keep as is or move if needed
@@ -239,34 +270,45 @@ const ProfilePage = () => {
       console.error("Error updating user:", error);
     }
   };
-
-
-
-  const handleToggleLike = async (index, postId, isLiked) => {
-    console.log(isLiked, 'isLiked')
+  const handleToggleLike = async (index, post, isLiked) => {
+    const postId = post._id
+   
     try {
       if (isLiked) {
         await unlikePost(postId);
       } else {
         await likePost(postId);
+        
       }
 
       const updatedPosts = setPosts(prevPosts => prevPosts.map((post, i) =>
         i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== userData?._id) : [...post.likes, { userId: { _id: userData?._id } }] } : post
       ));
-
-
+      // // const notificationData = {
+      // //   recipient: post.userId._id,
+      // //   sender: userId,
+      // //   type: 'like',
+      // //   message: `${user?.userName || 'Someone'} liked your post`,
+      // //   createdAt: new Date().toISOString(),
+      // //   read: false
+      // };
+      // if (isLiked) {
+      //   await createNotification(notificationData);
+      //   socket.emit('emit_notification', notificationData)
+      // }
 
     } catch (error) {
       console.error("Error toggling like:", error);
     }
 
   };
-
-  const handleAddComment = async (postId, commentText) => {
+  const handleAddComment = async (post, commentText) => {
+    const postId = post._id;
     try {
-      await addComment(postId, commentText);
-      // Clear the comment input for this post
+      const response = await addComment(postId, commentText); // returns { success, comment }
+      const newComment = response.comment;
+  
+      // Clear input and hide box
       setCommentInputs(prev => ({
         ...prev,
         [postId]: ''
@@ -275,21 +317,53 @@ const ProfilePage = () => {
         ...prev,
         [postId]: false
       }));
-      fetchPosts(); // Refresh posts to show new comment
+  
+      // Update only the matching post's comments
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post._id === postId
+            ? { ...post, comments: [...post.comments, newComment] }
+            : post
+        )
+      );
+      
+      // const notificationData = {
+      //   recipient: postId,
+      //   sender: user._id,
+      //   type: 'comment',
+      //   message: `${user.userName} has commented on you post `,
+      //   createdAt: new Date().toISOString(),
+      //   read: false
+      // };
+      // await createNotification(notificationData);
+      // socket.emit('emit_notification', notificationData)
     } catch (error) {
       console.error("Error adding comment:", error);
     }
   };
+  
 
   const handleDeleteComment = async (postId, commentId) => {
     try {
       await deleteComment(postId, commentId);
-      fetchPosts(); // Refresh posts to show updated comments
+  
+      // Update posts state locally without refetching
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post._id === postId
+            ? {
+                ...post,
+                comments: post.comments.filter(comment => comment._id !== commentId)
+              }
+            : post
+        )
+      );
+  
     } catch (error) {
       console.error("Error deleting comment:", error);
     }
   };
-
+  
   const handleCommentInputChange = (postId, value) => {
     setCommentInputs(prev => ({
       ...prev,
@@ -304,10 +378,10 @@ const ProfilePage = () => {
     }));
   };
 
-  const handleSubmitComment = (postId) => {
-    const commentText = commentInputs[postId]?.trim();
+  const handleSubmitComment = (post) => {
+    const commentText = commentInputs[post._id]?.trim();
     if (commentText) {
-      handleAddComment(postId, commentText);
+      handleAddComment(post, commentText);
     }
   };
 
@@ -442,7 +516,8 @@ const ProfilePage = () => {
             HiBUDDY
           </a>
           <div className="">
-            <div className="  ">
+            <div className=" d-flex  ">
+
               {/* <a href="/home" className="text-dark"><FaHome size={22} /></a> */}
               {/* <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a> */}
               {/* <a href="/watch" className="text-dark"><FaVideo size={22} /></a> */}
@@ -462,6 +537,15 @@ const ProfilePage = () => {
                 className="rounded-circle mx-3"
                 style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
                 onClick={() => setShowProfileModal(true)}
+              />
+
+              <NotificationModal
+                notifications={notifications}
+                unreadCount={unreadCount}
+                show={showNotifications}
+                onToggle={() => setShowNotifications(!showNotifications)}
+                onMarkRead={handleMarkNotificationAsRead}
+                onDelete={handleDeleteNotification}
               />
             </div>
           </div>
@@ -583,6 +667,7 @@ const ProfilePage = () => {
               backgroundColor: "white",
               overflow: "auto",
             }}>
+
             {/* Stories */}
             {loadingStories ? <Loader text="Loading stories..." /> : userData && (
               <div
@@ -639,7 +724,6 @@ const ProfilePage = () => {
                             {userData.userName?.charAt(0).toUpperCase()}
                           </div>
                         )}
-
                         <div className="status-indicator"></div>
                       </div>
 
@@ -661,28 +745,26 @@ const ProfilePage = () => {
                         </p>
                       </div>
                     </div>
-
                     <div className="col-md-4 mt-4 mt-md-0">
                       <div className="d-flex justify-content-around align-items-center">
                         {/* Followers Stats */}
                         <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowers}>
-                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.5rem' }}>
+                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.0rem' }}>
                             {userData?.followers?.length || 0}
                           </h3>
-                          <p className="mb-0 " style={{ fontSize: '0.9rem' }}>
+                          <p className="mb-0 " style={{ fontSize: '0.8rem' }}>
                             Followers
                           </p>
                         </div>
-
                         {/* Divider */}
                         <div className="mx-2" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)' }}></div>
 
                         {/* Following Stats */}
                         <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowing}>
-                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.5rem' }}>
+                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.0rem' }}>
                             {userData?.following?.length || 0}
                           </h3>
-                          <p className="mb-0 " style={{ fontSize: '0.9rem' }}>
+                          <p className="mb-0 " style={{ fontSize: '0.8rem' }}>
                             Following
                           </p>
                         </div>
@@ -722,11 +804,13 @@ const ProfilePage = () => {
                   ))}
                 </Swiper>
               </div>
+              <div className='d-block d-md-none'>
+                <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
+              </div>
             </div>
-
             {/* Create Post Card - Enhanced */}
             <div className="card border-0 shadow-sm ">
-              <div className="card-body">
+              <div className="card-body p-0">
                 {/* <div className="d-flex align-items-center mb-3">
                   <img
                     src={userData?.profilePicture || "https://via.placeholder.com/40"}
@@ -754,7 +838,7 @@ const ProfilePage = () => {
                     What's on your mind, {userData?.userName}?
                   </button>
                 </div> */}
-                <div className="d-flex justify-content-between border-top pt-3">
+                <div className="d-flex justify-content-between border-top">
                   <button
                     className="btn btn-sm btn-light rounded-pill d-flex align-items-center fs-sm"
                     onClick={() => setShowCreateStory(true)}
@@ -774,7 +858,6 @@ const ProfilePage = () => {
                     <i className="bi bi-camera-video-fill text-danger me-2"></i>
                     Create Story
                   </button>
-
                   <button
                     className="btn btn-light rounded-pill d-flex align-items-center"
                     onClick={() => setShowModal(true)}
@@ -897,10 +980,10 @@ const ProfilePage = () => {
                         <div className="card-body">
                           <div className="d-flex justify-content-between mb-3">
                             <div>
-                              {console.log(post.likes?.some(like => like.userId._id == userId), 'post.likes', index, userId, post.likes[0])}
+                          
                               <button
                                 className="btn p-0 me-3"
-                                onClick={() => handleToggleLike(index, post._id, post.likes?.some(like => like.userId._id == userId))}
+                                onClick={() => handleToggleLike(index, post, post.likes?.some(like => like.userId._id == userId))}
                               >
                                 <i className={`bi ${post.likes?.some(like => like.userId._id == userId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
                               </button>
@@ -971,13 +1054,13 @@ const ProfilePage = () => {
                                   onChange={(e) => handleCommentInputChange(post._id, e.target.value)}
                                   onKeyPress={(e) => {
                                     if (e.key === 'Enter') {
-                                      handleSubmitComment(post._id);
+                                      handleSubmitComment(post);
                                     }
                                   }}
                                 />
                                 <button
                                   className="btn btn-primary btn-sm"
-                                  onClick={() => handleSubmitComment(post._id)}
+                                  onClick={() => handleSubmitComment(post)}
                                   disabled={!commentInputs[post._id]?.trim()}
                                 >
                                   Post
@@ -995,8 +1078,7 @@ const ProfilePage = () => {
                 <div className="card border-0 shadow-sm">
                   <div className="card-body text-center py-5">
                     <FaBookmark size={48} className="text-muted mb-3" />
-                    <h5>Saved Items</h5>
-                    <p className="text-muted">Save photos and videos to your collection</p>
+                   <SavedPosts/>
                   </div>
                 </div>
               )}
@@ -1004,7 +1086,7 @@ const ProfilePage = () => {
           </div>
 
           {/* Right Sidebar */}
-          <div className="col-lg-3 d-none d-lg-block">
+          <div className="col-lg-3 d-lg-block">
             <div className="sticky-top" style={{ top: "70px", zIndex: 10 }}>
               {loadingSuggestions ? <Loader text="Loading suggestions..." /> : suggestions &&
                 <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />

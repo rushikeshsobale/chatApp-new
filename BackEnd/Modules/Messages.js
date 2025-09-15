@@ -21,7 +21,7 @@ const MessageSchema = new Schema(
     content: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
     messageType: { type: String, enum: ["text", "image", "video", "file"], default: "text" },
-    status: { type: String, enum: ["sent", "delivered", "read"], default: "sent" },
+    status: { type: String, enum: ["sent", "delivered", "read", "deleteForMe","deleteForEveryone"], default: "sent" },
     attachment: {
       name: { type: String },
       type: { type: String, enum: ['image', 'video', 'file'], default: 'file' },

@@ -24,3 +24,17 @@ export const updateMessageStatus = async (messageIds, status = 'read') => {
     throw error;
   }
 };
+
+export const deleteMessages = async(senderId, receiverId)=>{
+  console.log(senderId, receiverId, 'idds')
+  try{
+    const response = await api.delete('/messages/clearChat',{
+      senderId, 
+      receiverId,
+    })
+    return response.data
+  }
+  catch(error){
+  console.error('failed to clear chat', error)
+  }
+}

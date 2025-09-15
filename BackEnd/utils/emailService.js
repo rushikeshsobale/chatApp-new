@@ -4,15 +4,15 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   service: 'gmail', // Use your email service (Gmail, Outlook, etc.)
   auth: {
-    user: 'rushikeshsobale@gmail.com',   // Your email
-    pass: ''     // Your email password or app password
-  }
+    user: 'rushikeshsobale@gmail.com', // Your email username  
+    pass: 'vpat hwan yvwe kqpw', // Your email password
+  },
 });
 
 // Function to send a verification email
 const sendVerificationEmail = async (email, verificationCode) => {
   const mailOptions = {
-    from: 'your_email@gmail.com',
+    from: 'rushikeshsobale@gmail.com',
     to: email,
     subject: 'Email Verification Code',
     text: `Your verification code is: ${verificationCode}`,

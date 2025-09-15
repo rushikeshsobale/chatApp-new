@@ -7,20 +7,33 @@ module.exports = (io) => {
         socket.on("joinRoom", (data) => {
             const { userId, friends } = data;
             onlineUsers.set(userId, socket.id);
-           const onlineFriends = friends?.filter(friendId => onlineUsers.has(friendId));
+            const onlineFriends = friends?.filter(friendId => onlineUsers.has(friendId));
             const onlineFriendIds = onlineFriends?.map(friend => friend._id);
             // Save online friends for this user
             userFriendsMap.set(userId, onlineFriendIds);
             socket.join(userId);
             try {
+
                 io.emit('status', { userId });
                 io.to(userId).emit('restatus', onlineFriends);
             } catch (error) {
                 console.error('Error in joinRoom:', error);
             }
         });
+
+        socket.on("offer", (offer, member) => {
+            console.log('offer geot', member, offer)
+            socket.to(member._id).emit("offer", {member,offer});
+        });
+        socket.on("answer", (answer, member) => {
+            socket.to(member._id).emit("answer", {member,answer});
+        });
+
+        socket.on("candidate", (candidate, member) => {
+            socket.to(member._id).emit("candidate", {member,candidate});
+        });
         socket.on('sendMessage', (data) => {
-            console.log(data, 'data from send message')
+
             const { chatId, senderId, receiverId, content, attachment, timestamp } = data;
             try {
                 io.to(receiverId).emit('recievedMessage', { content, attachment, senderId: { _id: senderId }, receiverId, chatId, timestamp });
@@ -32,7 +45,7 @@ module.exports = (io) => {
             const { senderId, message } = data;
             const friends = userFriendsMap.get(senderId) || [];
             const socketIds = friends.map(id => onlineUsers.get(id)).filter(Boolean);
-        
+
             io.to(socketIds).emit("fetchMessage", data);
         });
         socket.on('setDoubleCheck', async (data) => {
@@ -67,7 +80,6 @@ module.exports = (io) => {
                 io.to(userId).emit("stopped_typing");
             }
         });
-
         socket.on('recievedMsg', (data) => {
             const { id, id2 } = data;
             try {
@@ -76,7 +88,6 @@ module.exports = (io) => {
                 console.error('Error in recievedMsg:', err);
             }
         });
-
         socket.on('raisedRequest', ({ userId, senderId, message }) => {
             const recipient = onlineFriends.find(member => member.userId === userId);
             if (recipient) {
@@ -88,6 +99,7 @@ module.exports = (io) => {
         socket.on('emit_notification', (data) => {
             const { recipient } = data;
             const recipientSocketId = onlineUsers.get(recipient);
+            console.log('emit_notification', recipientSocketId)
             if (recipientSocketId) {
                 io.to(recipientSocketId).emit('got_a_notification', data);
             } else {
@@ -96,7 +108,6 @@ module.exports = (io) => {
         });
         socket.on("disconnect", () => {
             let disconnectedUserId = null;
-        
             // Identify and remove user from maps
             for (const [userId, socketId] of onlineUsers.entries()) {
                 if (socketId === socket.id) {
@@ -106,7 +117,6 @@ module.exports = (io) => {
                     break;
                 }
             }
-        
             // Notify each online friend
             if (disconnectedUserId) {
                 for (const [userId, friends] of userFriendsMap.entries()) {
@@ -119,8 +129,6 @@ module.exports = (io) => {
                 }
             }
         });
-        
-
         socket.on('error', (err) => {
             console.error('Socket error:', err.message);
         });

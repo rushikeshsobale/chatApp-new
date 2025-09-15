@@ -76,13 +76,15 @@ router.get("/getPosts/:userId", async (req, res) => {
 
 router.post("/:postId/comments", verifyToken, async (req, res) => {
   const { postId } = req.params;
-  const {  commentText } = req.body;
+  const { commentText } = req.body;
   const userId = req.decoded.userId;
+
   if (!commentText || !userId) {
     return res
       .status(400)
       .json({ success: false, message: "Text and userId are required" });
   }
+
   try {
     const post = await Post.findById(postId);
     if (!post) {
@@ -90,15 +92,34 @@ router.post("/:postId/comments", verifyToken, async (req, res) => {
         .status(404)
         .json({ success: false, message: "Post not found" });
     }
-    
-    post.comments.push({ userId, text: commentText });
+
+    // Push the new comment
+    const newComment = { userId, text: commentText };
+    post.comments.push(newComment);
     await post.save();
-    res.status(201).json({ success: true, comments: post.comments });
+
+    // Populate only the newly added comment
+    const populatedComment = await Post.findOne(
+      { _id: postId, "comments._id": post.comments[post.comments.length - 1]._id },
+      { "comments.$": 1 } // fetch only the last comment
+    )
+      .populate({
+        path: "comments.userId",
+        select: "_id userName profilePicture"
+      })
+      .exec();
+
+    res.status(201).json({
+      success: true,
+      comment: populatedComment.comments[0]
+    });
+
   } catch (error) {
     console.error("Error adding comment:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
+
 
 
 // Like a post
@@ -237,7 +258,7 @@ router.delete("/:postId/comments/:commentId", verifyToken, async (req, res) => {
 });
 
 // Get a single post with comments and likes
-router.get("/getPost/:postId", async (req, res) => {
+router.get("/:postId/getPostById", async (req, res) => {
   const { postId } = req.params;
   try {
     const post = await Post.findById(postId)
@@ -372,7 +393,7 @@ router.post("/savePost/:postId", verifyToken, async (req, res) => {
 });
 
 // Get saved posts for a user
-router.get("/savedPosts/:userId", verifyToken,  async (req, res) => {
+router.get("/:userId/savedPosts", verifyToken,  async (req, res) => {
   const { userId } = req.params;
   
   try {

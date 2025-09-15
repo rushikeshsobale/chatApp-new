@@ -152,3 +152,20 @@ export const refreshToken = async () => {
     throw error.response?.data?.error || 'Failed to refresh token';
   }
 };
+
+ export const handleForgotPassword = async (email) => {
+  try {
+    const response = await api.post('auth/forgot-password', { email });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || 'Failed to send reset link';
+  }
+};
+
+export const resetPassword = async (token, newPassword) => {
+  const response = await api.post('auth/reset-password', {
+    token,
+    newPassword
+  });
+  return response.data;
+};

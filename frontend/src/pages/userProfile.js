@@ -6,7 +6,8 @@ import { PiSlideshowFill } from 'react-icons/pi';
 import FriendSuggestion from '../components/FriendSuggestion';
 import EditProfile from '../components/EditProfile';
 import Loader from '../components/Loader';
-import { getProfileUserData, getUserPosts, fetchSuggestions } from '../services/profileService';
+import { getProfileUserData, getUserPosts, fetchSuggestions, unlikePost, likePost, addComment, deleteComment } from '../services/profileService';
+import { createNotification } from "../services/notificationService";
 import { UserContext } from '../contexts/UserContext';
 import FollowModal from '../components/FollowModal';
 
@@ -26,11 +27,9 @@ const UserProfilePage = () => {
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const currentUserId = currentUser?._id || currentUser?.userId;
   const { socket } = useContext(UserContext) || {};
-
   // Add state for comment inputs and showCommentInputs
   const [commentInputs, setCommentInputs] = useState({});
   const [showCommentInputs, setShowCommentInputs] = useState({});
-
   useEffect(() => {
     const fetchProfile = async () => {
       setLoadingUser(true);
@@ -74,60 +73,102 @@ const UserProfilePage = () => {
   }, []);
 
   // Like/Unlike handler
-  const handleToggleLike = async (index, postId, isLiked) => {
+  const handleToggleLike = async (index, post, isLiked) => {
+    const postId = post._id
+    console.log(post, 'postoo')
     try {
       if (isLiked) {
-        // Assuming unlikePost and likePost are imported or defined elsewhere
-        // For now, we'll just update the local state and re-fetch posts
-        // In a real app, you'd call an API to unlike
-        setPosts(prevPosts => prevPosts.map((post, i) =>
-          i === index ? { ...post, likes: post.likes.filter(like => like.userId._id !== currentUserId) } : post
-        ));
+        await unlikePost(postId);
       } else {
-        // Assuming unlikePost and likePost are imported or defined elsewhere
-        // For now, we'll just update the local state and re-fetch posts
-        // In a real app, you'd call an API to like
-        setPosts(prevPosts => prevPosts.map((post, i) =>
-          i === index ? { ...post, likes: [...post.likes, { userId: { _id: currentUserId } }] } : post
-        ));
+        await likePost(postId);
       }
+      const updatedPosts = setPosts(prevPosts => prevPosts.map((post, i) =>
+        i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== currentUserId) : [...post.likes, { userId: { _id: currentUserId } }] } : post
+      ));
+      const notificationData = {
+        postId:postId,
+        recipient: post.userId._id,
+        sender: currentUserId,
+        type: 'like',
+        message: `${currentUser?.userName || 'Someone'} liked your post`,
+        createdAt: new Date().toISOString(),
+        read: false
+      };
+      if (!isLiked) {
+        await createNotification(notificationData);
+        socket.emit('emit_notification', notificationData)
+      }
+
+
     } catch (error) {
       console.error("Error toggling like:", error);
     }
-  };
 
+  };
   // Add comment handler
-  const handleAddComment = async (postId, commentText) => {
+  const handleAddComment = async (post, commentText) => {
+    const postId = post._id;
     try {
-      // Assuming addComment is imported or defined elsewhere
-      // For now, we'll just update the local state and re-fetch posts
-      // In a real app, you'd call an API to add comment
-      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-      setShowCommentInputs(prev => ({ ...prev, [postId]: false }));
-      // Refresh posts to show new comment
-      const data = await getUserPosts(userId);
-      setPosts(data.posts || []);
+      const response = await addComment(postId, commentText); // returns { success, comment }
+      const newComment = response.comment;
+  
+      // Clear input and hide box
+      setCommentInputs(prev => ({
+        ...prev,
+        [postId]: ''
+      }));
+      setShowCommentInputs(prev => ({
+        ...prev,
+        [postId]: false
+      }));
+  
+      // Update only the matching post's comments
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post._id === postId
+            ? { ...post, comments: [...post.comments, newComment] }
+            : post
+        )
+      );
+      
+      const notificationData = {
+        postId: postId,
+        recipient: post.userId._id,
+        sender: currentUserId,
+        type: 'comment',
+        message: `${currentUser?.userName} has commented on you post `,
+        createdAt: new Date().toISOString(),
+        read: false
+      };
+      await createNotification(notificationData);
+      socket.emit('emit_notification', notificationData)
     } catch (error) {
       console.error("Error adding comment:", error);
     }
   };
-
+  
   // Delete comment handler
   const handleDeleteComment = async (postId, commentId) => {
     try {
-      // Assuming deleteComment is imported or defined elsewhere
-      // For now, we'll just update the local state and re-fetch posts
-      // In a real app, you'd call an API to delete comment
-      setPosts(prevPosts => prevPosts.map(post =>
-        post._id === postId ? { ...post, comments: post.comments.filter(comment => comment._id !== commentId) } : post
-      ));
-      // Refresh posts to show updated comments
-      const data = await getUserPosts(userId);
-      setPosts(data.posts || []);
+      await deleteComment(postId, commentId);
+
+      // Update posts state locally without refetching
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post._id === postId
+            ? {
+              ...post,
+              comments: post.comments.filter(comment => comment._id !== commentId)
+            }
+            : post
+        )
+      );
+
     } catch (error) {
       console.error("Error deleting comment:", error);
     }
   };
+
 
   // Comment input change handler
   const handleCommentInputChange = (postId, value) => {
@@ -140,10 +181,11 @@ const UserProfilePage = () => {
   };
 
   // Submit comment
-  const handleSubmitComment = (postId) => {
+  const handleSubmitComment = (post) => {
+    const postId = post._id;
     const commentText = commentInputs[postId]?.trim();
     if (commentText) {
-      handleAddComment(postId, commentText);
+      handleAddComment(post, commentText);
     }
   };
 
@@ -155,12 +197,12 @@ const UserProfilePage = () => {
   const tabs = [
     { id: 'grid', label: 'Grid', icon: <IoGridSharp size={24} /> },
     { id: 'slideshow', label: 'Slideshow', icon: <PiSlideshowFill size={24} /> },
-  
+
   ];
 
   // Add handlers for follow/unfollow (no-ops for now, can be implemented as needed)
-  const handleFollowUser = (userId) => {};
-  const handleUnfollowUser = (userId) => {};
+  const handleFollowUser = (userId) => { };
+  const handleUnfollowUser = (userId) => { };
 
   return (
     <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: "#f5f5f5" }}>
@@ -174,9 +216,9 @@ const UserProfilePage = () => {
             <div className="profile-header position-relative overflow-hidden mb-3">
               <div className="container">
                 <div className="row align-items-center">
-                  <div className="col-md-8 d-flex align-items-center gap-4">
+                  <div className="col-md-8 d-flex flex-column flex-md-row align-items-center gap-4">
                     <div className="position-relative hover-3d">
-                      <img                                                 
+                      <img
                         src={userData.profilePicture || 'https://via.placeholder.com/100'}
                         alt="Profile"
                         className="rounded-circle shadow-lg"
@@ -198,21 +240,21 @@ const UserProfilePage = () => {
                       </p>
                       <p className="mb-0" style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '500px' }}>
                         {userData?.bio || 'Tell your story...'}
-                      </p> 
+                      </p>
                     </div>
                   </div>
                   <div className="col-md-4 mt-4 mt-md-0">
                     <div className="d-flex justify-content-around align-items-center">
                       {/* Followers Stats */}
                       <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={() => setShowFollowersModal(true)}>
-                        <h3 className="mb-0 fw-bold" style={{ fontSize: '1.5rem' }}>{userData?.followers?.length || 0}</h3>
-                        <p className="mb-0 " style={{ fontSize: '0.9rem' }}>Followers</p>
+                        <h3 className="mb-0 fw-bold" style={{ fontSize: '1.0rem' }}>{userData?.followers?.length || 0}</h3>
+                        <p className="mb-0 " style={{ fontSize: '0.8rem' }}>Followers</p>
                       </div>
                       <div className="mx-2" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)' }}></div>
                       {/* Following Stats */}
                       <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={() => setShowFollowingModal(true)}>
-                        <h3 className="mb-0 fw-bold" style={{ fontSize: '1.5rem' }}>{userData?.following?.length || 0}</h3>
-                        <p className="mb-0 " style={{ fontSize: '0.9rem' }}>Following</p>
+                        <h3 className="mb-0 fw-bold" style={{ fontSize: '1.0rem' }}>{userData?.following?.length || 0}</h3>
+                        <p className="mb-0 " style={{ fontSize: '0.8rem' }}>Following</p>
                       </div>
                     </div>
                   </div>
@@ -277,11 +319,12 @@ const UserProfilePage = () => {
                               <div className="card-body">
                                 <div className="d-flex justify-content-between mb-2">
                                   <div>
+
                                     <button
                                       className="btn p-0 me-3"
-                                      onClick={() => handleToggleLike(index, post._id, post.likes?.some(like => like.userId._id === currentUserId))}
+                                      onClick={() => handleToggleLike(index, post, post.likes?.some(like => like.userId._id == currentUserId))}
                                     >
-                                      <i className={`bi ${post.likes?.some(like => like.userId._id === currentUserId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-5`}></i>
+                                      <i className={`bi ${post.likes?.some(like => like.userId._id == currentUserId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-5`}></i>
                                     </button>
                                     <button
                                       className="btn p-0 me-3"
@@ -333,13 +376,13 @@ const UserProfilePage = () => {
                                         onChange={(e) => handleCommentInputChange(post._id, e.target.value)}
                                         onKeyPress={(e) => {
                                           if (e.key === 'Enter') {
-                                            handleSubmitComment(post._id);
+                                            handleSubmitComment(post);
                                           }
                                         }}
                                       />
                                       <button
                                         className="btn btn-primary btn-sm"
-                                        onClick={() => handleSubmitComment(post._id)}
+                                        onClick={() => handleSubmitComment(post)}
                                         disabled={!commentInputs[post._id]?.trim()}
                                       >
                                         Post
@@ -365,7 +408,7 @@ const UserProfilePage = () => {
                                 <div>
                                   <button
                                     className="btn p-0 me-3"
-                                    onClick={() => handleToggleLike(index, post._id, post.likes?.some(like => like.userId._id === currentUserId))}
+                                    onClick={() => handleToggleLike(index, post, post.likes?.some(like => like.userId._id === currentUserId))}
                                   >
                                     <i className={`bi ${post.likes?.some(like => like.userId._id === currentUserId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
                                   </button>
@@ -425,7 +468,7 @@ const UserProfilePage = () => {
                                     />
                                     <button
                                       className="btn btn-primary btn-sm"
-                                      onClick={() => handleSubmitComment(post._id)}
+                                      onClick={() => handleSubmitComment(post)}
                                       disabled={!commentInputs[post._id]?.trim()}
                                     >
                                       Post

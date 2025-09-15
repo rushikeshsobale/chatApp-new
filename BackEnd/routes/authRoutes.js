@@ -6,11 +6,57 @@ const multer = require("multer");
 const secretKey = process.env.JWT_SECRET || "mySecreateKey";
 const router = express.Router();
 const { uploadToS3 } = require("../utils/s3Upload");
+const sendVerificationEmail = require("../utils/emailService.js");
+const verifyToken = require("./verifyToken.js");
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+
 // Multer configuration
 const upload = multer({ storage: multer.memoryStorage() });
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: "http://localhost:5500/auth/google/callback"
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    let user = await Muser.findOne({ googleId: profile.id });
+
+    if (!user) {
+      let baseUserName = profile.displayName.replace(/\s+/g, "_").toLowerCase();
+      let uniqueUserName = baseUserName;
+      let count = 1;
+      while (await Muser.findOne({ userName: uniqueUserName })) {
+        uniqueUserName = `${baseUserName}_${count++}`;
+      }
+
+      user = await Muser.create({
+        googleId: profile.id,
+        email: profile.emails[0].value,
+        userName: uniqueUserName,
+        firstName: profile.name.givenName,
+        lastName: profile.name.familyName,
+        profilePicture: profile.photos?.[0]?.value || "",
+        emailVerified: true
+      });
+    }
+
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+}));
+
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+router.get('/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login', session: false }),
+  (req, res) => {
+    const token = jwt.sign({ userId: req.user._id, userName: req.user.userName, followers:req.user.followers, following:req.user.following  }, secretKey, { expiresIn: '7d' });
+    res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${token}`);
+  }
+);
 // Register route
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
-  
   try {
     const { email, password, username, birthdate, phone } = req.body;
     if (!email || !password || !username) {
@@ -48,7 +94,7 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
 });
 // Send verification email
 router.post("/send-verification", async (req, res) => {
- 
+
   try {
     const { email } = req.body;
     const existingUser = await Muser.findOne({ email });
@@ -86,15 +132,15 @@ router.post("/verify-email", async (req, res) => {
 // Complete profile route
 router.put("/complete-profile/:userId", upload.single("profilePicture"), async (req, res) => {
   const userId = req.params.userId;
-  
+
   // Set a longer timeout for this route
   req.setTimeout(60000); // 60 seconds timeout
-  
+
   try {
     // Validate user exists
     const user = await Muser.findById(userId);
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: "User not found",
         message: "The user with the provided ID does not exist"
@@ -146,7 +192,7 @@ router.put("/complete-profile/:userId", upload.single("profilePicture"), async (
     // Handle basic info
     if (profileData.basicInfo) {
       const { firstName, lastName, gender, birthDate, location } = profileData.basicInfo;
-      
+
       // Validate required fields
       if (!firstName || !lastName) {
         return res.status(400).json({
@@ -170,7 +216,7 @@ router.put("/complete-profile/:userId", upload.single("profilePicture"), async (
     // Handle onboarding data
     if (profileData.onboarding) {
       const { interests, preferences, goals, bio } = profileData.onboarding;
-      
+
       updateData.interests = interests || [];
       updateData.preferences = preferences || {};
       updateData.goals = goals || [];
@@ -228,7 +274,7 @@ router.put("/complete-profile/:userId", upload.single("profilePicture"), async (
 
   } catch (error) {
     console.error("Profile completion error:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: "Internal server error",
       message: "An error occurred while updating the profile",
@@ -252,7 +298,7 @@ router.post("/login", async (req, res) => {
       password,
       validateEmail.password
     );
-   
+
     if (validatePassword) {
       const token = jwt.sign(
         {
@@ -261,7 +307,7 @@ router.post("/login", async (req, res) => {
           userName: validateEmail.userName,
           requests: validateEmail.requests,
           friends: validateEmail.friends,
-          followers:validateEmail.followers
+          followers: validateEmail.followers
         },
         secretKey,
         { expiresIn: "3560d" }
@@ -274,6 +320,63 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await Muser.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'User with this email does not exist' });
+    }
+
+    // ✅ Create reset token (valid for 1 hour)
+    const token = jwt.sign({ userId: user._id }, secretKey, { expiresIn: '1h' });
+
+    // ✅ Proper template literal with backticks
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    // Send reset link to user's email
+    await sendVerificationEmail(email, resetLink);
+
+    res.status(200).json({ message: 'Password reset link sent to your email' });
+
+  } catch (error) {
+    console.error('Forgot Password Error:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  console.log(req.body, 'reset-Password');
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  try {
+    // ✅ Decode the reset token
+    const decoded = jwt.verify(token, secretKey);
+
+    // ✅ Extract userId from decoded payload
+    const userId = decoded.userId;
+    const user = await Muser.findById(userId);
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // ✅ Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Password reset successful' });
+
+  } catch (err) {
+    console.error('Reset Password Error:', err);
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 });
 

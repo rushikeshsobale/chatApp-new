@@ -20,7 +20,9 @@ import ForgotPassword from './components/ForgotPassword.js';
 import Onboarding from './components/Onboarding.js';
 import Friends from './pages/Friends.js';
 import UserProfilePage from './pages/userProfile.js';
+import ResetPassword from './components/ResetPassword.js';
 import { UserProvider, UserContext} from './contexts/UserContext';
+import AuthSuccess from "./pages/AuthSuccess";
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -79,6 +81,8 @@ const AppWrapper = () => {
           <Route path="/forgot-password" element={<ForgotPassword/>}/>
           <Route path="/onboarding" element={<Onboarding/>}/>
           <Route path="/userProfile/:userId" element = {<UserProfilePage/>}/>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/auth-success" element={<AuthSuccess />} />
         </Routes>
         
       </BrowserRouter>

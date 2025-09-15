@@ -48,16 +48,28 @@ router.get("/userProfile/:userId", verifyToken, async (req, res) => {
 });
 router.get("/suggestions", verifyToken, async (req, res) => {
   try {
-    const users = await Muser.find(); // Retrieve all users
-    const filteredUsers = users.filter(
-      (user) => user._id.toString() !== req.decoded.userId
-    );
-    res.json(filteredUsers);
+    // Get the logged-in user's following list
+    const currentUser = await Muser.findById(req.decoded.userId).select("following");
+    
+    if (!currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Find users who are NOT the current user and NOT in the following list
+    const suggestions = await Muser.find({
+      _id: { 
+        $ne: req.decoded.userId, // exclude yourself
+        $nin: currentUser.following // exclude people already followed
+      }
+    });
+
+    res.json(suggestions);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 router.put("/updateUser/:userId", upload.single("profilePicture"), async (req, res) => {
   const { firstName, lastName, bio } = req.body;
   const { userId } = req.params;

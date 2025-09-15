@@ -32,6 +32,14 @@ export const getUserPosts = async (userId) => {
         throw new Error("Failed to fetch posts");
     }
 };
+export const getPostById =async(postId)=>{
+    try{
+       const response = await api.get(`/post/${postId}/getPostById`)
+       return response.data
+    }catch(error){
+     throw new Error("failed to fetch the post by id")
+    }
+}
 
 // Get notifications
 export const getNotifications = async (id) => {
@@ -258,3 +266,13 @@ export const savePost = async (postId) => {
         throw new Error("Failed to save post");
     }
 };
+
+export const getSavedPost = async(userId)=>{
+    try{
+        const response = await api.get(`/post/${userId}/savedPosts`)
+        return response.data
+    }
+    catch(error){
+        throw new Error("Failed to get saved post");
+    }
+}

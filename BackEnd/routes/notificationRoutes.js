@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Notification = require('../Modules/Notifications');
-
 router.post('/create', async (req, res) => {
-   
     const { recipient, sender, type, post, message } = req.body;
     try {
         const notification = new Notification({ 
+            
             recipient, 
             sender, 
             type, 

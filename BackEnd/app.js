@@ -13,6 +13,9 @@ app.use(cors(corsOptions));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.json());
+
+// so Google strategy is loaded
+
 // MongoDB Connection
 require("./Mongo/Conn.js")
 // API Routes
@@ -24,6 +27,7 @@ const storyRoutes = require("./routes/storyRoutes.js");
 const notificationRoutes = require("./routes/notificationRoutes.js");
 const messageRoutes = require("./routes/messageRoutes.js");
 const groupRoutes = require("./routes/groupRoutes.js")
+const passport = require('passport');
  app.use(router);
  app.use("/profile", profileRoutes);
  app.use("/auth", authRoutes);
@@ -32,4 +36,5 @@ const groupRoutes = require("./routes/groupRoutes.js")
  app.use("/notifications", notificationRoutes)
  app.use("/messages", messageRoutes)
  app.use("/group", groupRoutes)
+ app.use(passport.initialize());
 module.exports = app;

@@ -1,31 +1,27 @@
 import React, { useState } from 'react';
 import { FaEnvelope, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import '../css/AuthForms.css';
-
+import { handleForgotPassword } from '../services/authService';
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
-      const response = await axios.post('/api/auth/forgot-password', { email });
-      setMessage(response.data.message);
+      const data = await handleForgotPassword(email);
+      setMessage(data.message);
       setError('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send reset link');
+    } catch (errMessage) {
+      setError(errMessage);
       setMessage('');
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="auth-container">
       <div className="auth-card">
@@ -36,10 +32,8 @@ const ForgotPassword = () => {
           <h2>Forgot Password</h2>
           <p>Enter your email to receive a reset link</p>
         </div>
-
         {error && <div className="alert alert-danger">{error}</div>}
         {message && <div className="alert alert-success">{message}</div>}
-
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Email</label>
@@ -55,7 +49,6 @@ const ForgotPassword = () => {
               />
             </div>
           </div>
-
           <div className="form-group mt-4">
             <button 
               type="submit" 
@@ -74,5 +67,4 @@ const ForgotPassword = () => {
     </div>
   );
 };
-
 export default ForgotPassword;

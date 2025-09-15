@@ -162,7 +162,7 @@ router.delete('/deleteMessage/:messageId', verifyToken, async (req, res) => {
             return res.status(403).json({ error: 'Not authorized to delete this message' });
         }
 
-        await Messages.findByIdAndDelete(messageId);
+        await Message.findByIdAndDelete(messageId);
         res.status(200).json({ message: 'Message deleted successfully' });
     } catch (error) {
         console.error('Error deleting message:', error);
@@ -206,6 +206,7 @@ router.post('/:messageId/reactions', verifyToken, async (req, res) => {
 router.delete('/clearChat', verifyToken, async (req, res) => {
     try {
         const { senderId, receiverId } = req.body;
+        console.log(senderId, receiverId, 'd;eee')
         // Verify that the user is part of the chat
         const message = await Message.findOne({
             $or: [

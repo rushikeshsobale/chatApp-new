@@ -147,18 +147,17 @@ const EditProfile = ({ show, onHide, userData, onSave, onSettings, onLogout, onC
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({
-        ...prev,
+      const updatedFormData = {
+        ...formData,
         profilePicture: file,
-      }));
+      };
+  
+      setFormData(updatedFormData);
       setPreviewUrl(URL.createObjectURL(file));
+      onSave(updatedFormData); // Call with updated data
     }
   };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
+  
 
   const handleShowChangePassword = () => {
     setShowChangePasswordModal(true);

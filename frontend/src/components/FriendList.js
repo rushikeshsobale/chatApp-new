@@ -22,7 +22,7 @@ const FriendList = ({
     navigate(-1); // Go back one step in history
   };
   return (
-    <div className="friend-list-container">
+    <div className="friend-list-container overflow-auto" >
       <div className="friend-list-header" style={{backGround:'antiquewhite'}}>
       <button className="back-button " onClick={handleBack}>
           <FaArrowLeft />
