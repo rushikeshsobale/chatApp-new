@@ -89,7 +89,7 @@ export const UserProvider = ({ children }) => {
       // Send ICE candidates
       peerRef.current.onicecandidate = (event) => {
         if (event.candidate) {
-          socket.emit("candidate", event.candidate, friendId);
+          // socket.emit("candidate", event.candidate, friendId);
         }
       };
       await peerRef.current.setRemoteDescription(new RTCSessionDescription(offer));
