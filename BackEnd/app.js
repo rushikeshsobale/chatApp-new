@@ -28,13 +28,13 @@ const notificationRoutes = require("./routes/notificationRoutes.js");
 const messageRoutes = require("./routes/messageRoutes.js");
 const groupRoutes = require("./routes/groupRoutes.js")
 const passport = require('passport');
- app.use(router);
- app.use("/profile", profileRoutes);
- app.use("/auth", authRoutes);
- app.use("/post", postRoutes)
- app.use("/stories", storyRoutes )
- app.use("/notifications", notificationRoutes)
- app.use("/messages", messageRoutes)
- app.use("/group", groupRoutes)
+ app.use("/api", router);
+ app.use("/api/auth", authRoutes);
+ app.use("/api/profile", profileRoutes);
+ app.use("/api/post", postRoutes);
+ app.use("/api/stories", storyRoutes);
+ app.use("/api/notifications", notificationRoutes);
+ app.use("/api/messages", messageRoutes);
+ app.use("/api/group", groupRoutes);
  app.use(passport.initialize());
 module.exports = app;
