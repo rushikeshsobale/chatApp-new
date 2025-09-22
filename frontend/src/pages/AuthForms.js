@@ -142,7 +142,7 @@ const AuthPage = () => {
     }
   };
   const handleSocialLogin = (provider) => {
-    window.location.href = `${process.env.REACT_APP_GOOGLE_API_URL || process.env.REACT_APP_API_URL}/auth/${provider}`;
+    window.location.href = `${process.env.REACT_APP_API_URL}/auth/${provider}`;
   };
   return (
     <div className="auth-container">

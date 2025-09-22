@@ -40,7 +40,10 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "deploy": "bash deploy.sh",
+    "build": "cross-env NODE_ENV=production react-scripts build",
+    "build:staging": "cross-env NODE_ENV=staging react-scripts build",
+    "build:dev": "cross-env NODE_ENV=development react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "debug": "env | grep REACT_APP_ && react-scripts start"
@@ -62,5 +65,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "cross-env": "^10.0.0"
   }
 }
