@@ -32,6 +32,7 @@
     "react-scripts": "5.0.1",
     "react-select": "^5.10.1",
     "react-toastify": "^11.0.2",
+    "serve": "^14.2.5",
     "socket.io-client": "^4.7.5",
     "swiper": "^11.2.0",
     "universal-cookie": "^7.1.4",
