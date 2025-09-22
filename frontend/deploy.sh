@@ -4,7 +4,7 @@ set -e
 SERVER_USER="ubuntu"
 SERVER_HOST="makethechange.in"
 FRONTEND_PATH="/home/ubuntu/chatApp-new/frontend"
-BACKEND_PATH="/home/ubuntu/chatApp-new/backend"
+BACKEND_PATH="/home/ubuntu/chatApp-new/BackEnd"
 KEY_PATH="$HOME/Downloads/hibuddy.pem"
 FRONTEND_PM2_NAME="frontend"
 BACKEND_PM2_NAME="backend"
