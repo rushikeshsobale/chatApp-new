@@ -49,12 +49,13 @@ export const UserProvider = ({ children }) => {
     });
     setSocket(socketConnection);
     socketConnection.on('connect', () => {
-      const friends = user.followers || [];
+     
+      const user3 = JSON.parse(localStorage.getItem('user3'));
+      const friends = user3?.followers || [];
       socketConnection.emit('joinRoom', { userId: user.userId, friends });
     });
 
     const handleRestatus = (data) => {
-      console.log('restate', data)
       setActiveUsers(data)
     };
 
@@ -109,7 +110,7 @@ export const UserProvider = ({ children }) => {
     socketConnection.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
     });
-    console.log(socketConnection, '✅ socket connection');
+   
     return () => {
       socketConnection.off('restatus', handleRestatus);
       socketConnection.off('status', handleStatus);

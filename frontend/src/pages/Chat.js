@@ -28,7 +28,7 @@ const ChatComponent = () => {
   const apiUrl = process.env.REACT_APP_API_URL;
   const fetchUserData = useCallback(async () => {
     try {
-      const response = await fetch(`${apiUrl}/getUser`, {
+      const response = await fetch(`${apiUrl}/profile/getUser`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -68,7 +68,8 @@ const ChatComponent = () => {
   if (messageIds.length > 0) {
     try {
       await updateMessageStatus(messageIds);  // ✅ wait until done
-      await loadUnseenMessages();    
+      socket.emit('updateMessageStatus',{messageIds,friend})
+      await loadUnseenMessages();    ///
                // ✅ now refresh unseen messages
     } catch (error) {
       console.error('Error updating message status:', error);

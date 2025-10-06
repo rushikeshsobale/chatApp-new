@@ -7,22 +7,21 @@ module.exports = (io) => {
         socket.on("joinRoom", (data) => {
             const { userId, friends } = data;
             onlineUsers.set(userId, socket.id);
-            const onlineFriends = friends?.filter(friendId => onlineUsers.has(friendId));
+            const onlineFriends = friends?.filter(friend => onlineUsers.has(friend._id));
             const onlineFriendIds = onlineFriends?.map(friend => friend._id);
             // Save online friends for this user
             userFriendsMap.set(userId, onlineFriendIds);
             socket.join(userId);
             try {
-
                 io.emit('status', { userId });
+               
                 io.to(userId).emit('restatus', onlineFriends);
             } catch (error) {
                 console.error('Error in joinRoom:', error);
             }
         });
-
         socket.on("offer", (offer, member) => {
-            console.log('offer geot', member, offer)
+           
             socket.to(member._id).emit("offer", {member,offer});
         });
         socket.on("answer", (answer, member) => {
@@ -33,7 +32,6 @@ module.exports = (io) => {
             socket.to(member._id).emit("candidate", {member,candidate});
         });
         socket.on('sendMessage', (data) => {
-
             const { chatId, senderId, receiverId, content, attachment, timestamp } = data;
             try {
                 io.to(receiverId).emit('recievedMessage', { content, attachment, senderId: { _id: senderId }, receiverId, chatId, timestamp });
@@ -48,6 +46,11 @@ module.exports = (io) => {
 
             io.to(socketIds).emit("fetchMessage", data);
         });
+
+        socket.on('updateMessageStatus',async(data)=>{
+        const {friend, messageIds} = data; 
+        console.log(friend, messageIds, 'socket mst')
+        })
         socket.on('setDoubleCheck', async (data) => {
             const { friendId, chatId, message } = data;
             try {
@@ -99,7 +102,7 @@ module.exports = (io) => {
         socket.on('emit_notification', (data) => {
             const { recipient } = data;
             const recipientSocketId = onlineUsers.get(recipient);
-            console.log('emit_notification', recipientSocketId)
+           
             if (recipientSocketId) {
                 io.to(recipientSocketId).emit('got_a_notification', data);
             } else {

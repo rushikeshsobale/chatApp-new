@@ -4,7 +4,7 @@ import { getAccessToken } from './authService';
 // Get user data
 export const getUserData = async () => {
     try {
-        const response = await api.get('/getUser');
+        const response = await api.get('/profile/getUser');
         return response.data;
     } catch (error) {
         throw new Error("Failed to fetch user data");
@@ -40,7 +40,6 @@ export const getPostById =async(postId)=>{
      throw new Error("failed to fetch the post by id")
     }
 }
-
 // Get notifications
 export const getNotifications = async (id) => {
     try {
@@ -50,7 +49,6 @@ export const getNotifications = async (id) => {
         throw new Error("Failed to fetch notifications");
     }
 };
-
 // Get stories
 export const getStories = async () => {
     try {
@@ -60,7 +58,6 @@ export const getStories = async () => {
         throw new Error("Failed to fetch stories");
     }
 };
-
 // Get trending topics
 export const getTrendingTopics = async () => {
     try {
@@ -86,7 +83,6 @@ export const createStory = async (storyData) => {
     const formData = new FormData();
     formData.append('media', storyData.media);
     formData.append('caption', storyData.caption);
-
     try {
         const response = await api.post('/stories/create', formData, {
             headers: {

@@ -6,6 +6,24 @@ const verifyToken = require("./verifyToken.js");
 const multer = require("multer");
 const { uploadToS3 } = require("../utils/s3Upload");
 const upload = multer({ storage: multer.memoryStorage() });
+
+router.get("/getUser", verifyToken, async (req, res) => {
+  try {
+    const user = await Muser.findById(req.decoded.userId)
+    .populate("followers", "userName profilePicture _id") 
+      .populate("following", "userName profilePicture _id");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 router.get("/userProfile/:userId", verifyToken, async (req, res) => {
   const { userId } = req.params;
   const currentUserId = req.decoded.userId;

@@ -91,7 +91,7 @@ const ProfilePage = () => {
 
   }, [location.pathname]);
   useEffect(() => {
-    if(user !== null){
+    if (user !== null) {
       fetchNotifications(user);
     }
   }, [])
@@ -105,6 +105,7 @@ const ProfilePage = () => {
     setLoadingUser(true);
     try {
       const data = await getUserData();
+      localStorage.setItem('user3', JSON.stringify(data));
       setUserData(data);
       setFriends(data.friends);
     } catch (error) {
@@ -135,13 +136,13 @@ const ProfilePage = () => {
   const fetchPostById = async (postId, dataType) => {
     const response = await getPostById(postId);
     console.log(response, "lets see");
-  
+
     const currentPost = response.post;
-  
+
     setPosts(prevPosts =>
       prevPosts.map(post => {
         if (post._id !== currentPost._id) return post; // unchanged posts
-  
+
         if (dataType === "comment") {
           const latestComment =
             currentPost.comments[currentPost.comments.length - 1];
@@ -151,22 +152,21 @@ const ProfilePage = () => {
             comments: currentPost.comments, // optional if you also want full comments updated
           };
         }
-  
+
         if (dataType === "like") {
           return {
             ...post,
             likes: currentPost.likes, // or `likeCount` depending on your schema
           };
         }
-  
+
         // default → full replace
         return { ...currentPost };
       })
     );
   };
-  
+
   const fetchNotifications = async () => {
-    console.log(user, 'user')
     setLoadingNotifications(true);
     try {
       const notifications = await getProfileNotifications(user.userId);
@@ -200,10 +200,10 @@ const ProfilePage = () => {
     socket.on('got_a_notification', (data) => {
       console.log('got a notification, ', data)
       fetchNotifications();
-      if(data.type=='comment'){
+      if (data.type == 'comment') {
         fetchPostById(data.postId, data.type)
-      }  
-      else if(data.type == 'like'){
+      }
+      else if (data.type == 'like') {
         fetchPostById(data.postId, data.type)
       }
     });
@@ -272,15 +272,13 @@ const ProfilePage = () => {
   };
   const handleToggleLike = async (index, post, isLiked) => {
     const postId = post._id
-   
+
     try {
       if (isLiked) {
         await unlikePost(postId);
       } else {
         await likePost(postId);
-        
       }
-
       const updatedPosts = setPosts(prevPosts => prevPosts.map((post, i) =>
         i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== userData?._id) : [...post.likes, { userId: { _id: userData?._id } }] } : post
       ));
@@ -307,7 +305,7 @@ const ProfilePage = () => {
     try {
       const response = await addComment(postId, commentText); // returns { success, comment }
       const newComment = response.comment;
-  
+
       // Clear input and hide box
       setCommentInputs(prev => ({
         ...prev,
@@ -317,7 +315,7 @@ const ProfilePage = () => {
         ...prev,
         [postId]: false
       }));
-  
+
       // Update only the matching post's comments
       setPosts(prevPosts =>
         prevPosts.map(post =>
@@ -326,7 +324,7 @@ const ProfilePage = () => {
             : post
         )
       );
-      
+
       // const notificationData = {
       //   recipient: postId,
       //   sender: user._id,
@@ -341,29 +339,29 @@ const ProfilePage = () => {
       console.error("Error adding comment:", error);
     }
   };
-  
+
 
   const handleDeleteComment = async (postId, commentId) => {
     try {
       await deleteComment(postId, commentId);
-  
+
       // Update posts state locally without refetching
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post._id === postId
             ? {
-                ...post,
-                comments: post.comments.filter(comment => comment._id !== commentId)
-              }
+              ...post,
+              comments: post.comments.filter(comment => comment._id !== commentId)
+            }
             : post
         )
       );
-  
+
     } catch (error) {
       console.error("Error deleting comment:", error);
     }
   };
-  
+
   const handleCommentInputChange = (postId, value) => {
     setCommentInputs(prev => ({
       ...prev,
@@ -446,15 +444,12 @@ const ProfilePage = () => {
       console.error("Error deleting notification:", error);
     }
   };
-
   const handleShowFollowers = () => {
     setShowFollowersModal(true);
   };
-
   const handleShowFollowing = () => {
     setShowFollowingModal(true);
   };
-
   const handleUnfollowUser = async (userId) => {
     try {
       await unfollowUser(userId);
@@ -463,13 +458,11 @@ const ProfilePage = () => {
       console.error("Error unfollowing user:", error);
     }
   };
-
   const filteredPosts = posts?.filter(
     (post) =>
       post?.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post?.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
   const filteredFriends = friends?.filter(
     (friend) =>
       `${friend?.friendId.firstName} ${friend?.friendId.lastName}`
@@ -482,11 +475,9 @@ const ProfilePage = () => {
     { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={24} /> },
     { id: "saved", label: "Saved", icon: <GiSouthAfricaFlag size={24} /> },
   ];
-
   const handlePostClick = (postId) => {
     navigate(`/postDetails/${postId}`);
   };
-
   const handleCreateStory = async (storyData) => {
     try {
       const data = await createStory(storyData);
@@ -506,7 +497,6 @@ const ProfilePage = () => {
     localStorage.removeItem("user");
     navigate("/login");
   };
-
   return (
     <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: "#f5f5f5" }}>
       {/* Navigation Bar */}
@@ -517,7 +507,6 @@ const ProfilePage = () => {
           </a>
           <div className="">
             <div className=" d-flex  ">
-
               {/* <a href="/home" className="text-dark"><FaHome size={22} /></a> */}
               {/* <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a> */}
               {/* <a href="/watch" className="text-dark"><FaVideo size={22} /></a> */}
@@ -531,14 +520,15 @@ const ProfilePage = () => {
                   </span>
                 }
               </button>
+              {console.log(userData, 'userData')}
               <img
-                src={userData?.profilePicture || "https://via.placeholder.com/30"}
+                src={userData?.profilePicture}
                 alt="Profile"
                 className="rounded-circle mx-3"
                 style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
                 onClick={() => setShowProfileModal(true)}
               />
-
+              
               <NotificationModal
                 notifications={notifications}
                 unreadCount={unreadCount}
@@ -677,7 +667,7 @@ const ProfilePage = () => {
                   <div className="row align-items-center">
                     <div className="col-md-8 d-flex flex-row align-items-center gap-4">
                       <div className="position-relative hover-3d">
-                        {userData.profilePicture ? (
+                        {userData?.profilePicture ? (
                           <img
                             src={userData.profilePicture}
                             alt="Profile"
@@ -691,6 +681,7 @@ const ProfilePage = () => {
                               transition: "all 0.5s ease",
                               boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
                             }}
+
                             onMouseEnter={e =>
                               e.currentTarget.style.transform =
                               "perspective(500px) rotateY(5deg) scale(1.05)"
@@ -980,7 +971,7 @@ const ProfilePage = () => {
                         <div className="card-body">
                           <div className="d-flex justify-content-between mb-3">
                             <div>
-                          
+
                               <button
                                 className="btn p-0 me-3"
                                 onClick={() => handleToggleLike(index, post, post.likes?.some(like => like.userId._id == userId))}
@@ -1078,7 +1069,7 @@ const ProfilePage = () => {
                 <div className="card border-0 shadow-sm">
                   <div className="card-body text-center py-5">
                     <FaBookmark size={48} className="text-muted mb-3" />
-                   <SavedPosts/>
+                    <SavedPosts />
                   </div>
                 </div>
               )}

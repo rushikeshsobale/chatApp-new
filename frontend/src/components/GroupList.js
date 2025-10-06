@@ -10,7 +10,7 @@ const GroupList = ({handleGroupSelect,msgCounts,handleBackToFriendList}) => {
   const fetchGroups = async () => {
    const response = await getAllGroups()
    setGroups(response)
-   console.log(response, 'response from groupList')
+  
    if(response){
     setLoading(false)
    }

@@ -14,7 +14,7 @@ FRONTEND_PORT=3000
 # DEPLOY FRONTEND
 # -----------------------------
 echo "📦 Copying frontend build to server..."
-scp -i "$KEY_PATH" -r build/* $SERVER_USER@$SERVER_HOST:$FRONTEND_PATH
+scp -i "$KEY_PATH" -r build $SERVER_USER@$SERVER_HOST:$FRONTEND_PATH
 
 echo "🔁 Starting/restarting frontend with PM2..."
 ssh -i "$KEY_PATH" $SERVER_USER@$SERVER_HOST << EOF
@@ -30,7 +30,7 @@ ssh -i "$KEY_PATH" $SERVER_USER@$SERVER_HOST << EOF
   cd $BACKEND_PATH
   git pull origin main
   npm install
-  pm2 restart $BACKEND_PM2_NAME || pm2 start dist/main.js --name $BACKEND_PM2_NAME
+  pm2 restart $BACKEND_PM2_NAME || pm2 start server.js --name $BACKEND_PM2_NAME
 EOF
 
 echo "✅ Deployment complete!"
