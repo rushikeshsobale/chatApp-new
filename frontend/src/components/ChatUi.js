@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { addMessage } from '../store/store';
 import EmojiPicker from 'emoji-picker-react';
 import '../css/Chat.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { createNotification } from '../services/notificationService'
-import { deleteMessages, updateMessageStatus } from '../services/messageService';
+import { deleteMessages } from '../services/messageService';
 import {
   faCheckDouble,
   faEllipsisV,
@@ -19,13 +17,11 @@ import {
   faVideo,
   faFileAlt
 } from '@fortawesome/free-solid-svg-icons';
-import { CiMenuKebab } from "react-icons/ci";
-import { FaArrowLeft, FaEllipsisH, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { UserContext } from '../contexts/UserContext';
-import ChatActions from './ChatActions';
-import VideoCall from './VideoCall';
+import OutGoingCall from './videoCall/OutGoingCall';
+import IncomingCall from './videoCall/IncomingCall';
 const ChatUi = ({ member, setMsgCounts, onBack }) => {
-  const [inCall, setInCall] = useState(false);
   const { socket, loadUnseenMessages } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -40,14 +36,17 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
   const [chatId, setChatId] = useState([userId, member._id].sort().join("_"));
   const inputRef = useRef(null);
   const messageTone = new Audio('https://bigsoundbank.com/UPLOAD/mp3/1313.mp3');
+  const [callingMember, setCallingMember] = useState(null);
+  const [callUserId, setCallUserId] = useState(null);
+  const [showOutgoingCall, setOutgoingCall] = useState(false);
+  const handleVideoCall = (friendSocketId) => {
+    setCallUserId(friendSocketId);
+  };
+
+
   useEffect(() => {
     setChatId([userId, member._id].sort().join("_"));
   }, [userId, member._id]);
-  const startCall = () => {
-    const friendId = member._id
-    socket.emit("start-call", { friendId });
-    setInCall(true); // only show VideoCall UI after clicking button
-  };
   const fetchMessages = async (page = 1, limit = 20) => {
     try {
       const token = localStorage.getItem('token');
@@ -61,7 +60,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       const data = await response.json();
       if (limit == 1) {
         setMessages((pre) => [...pre, data[0]])
-        handleMarkMessagesAsRead(data)
+        // handleMarkMessagesAsRead(data)
       } else {
         setMessages(data.reverse());
       }
@@ -114,13 +113,12 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           recipient: member._id,
           sender: userId,
           type: 'message',
-          message: `${member.userName} has messaged you `,
+          message: `${user.userName} has messaged you `,
           createdAt: new Date().toISOString(),
           read: false
         };
         await createNotification(notificationData);
         socket.emit('emit_notification', notificationData)
-
       }
       const data = await response.json();
       socket.emit('sendMessage', data);
@@ -151,12 +149,23 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
         loadUnseenMessages()
       }
     });
+    socket.on('messagesRead', ({ messageIds }) => {
+      const count = messageIds.length; // number of messages that became 'read'
+      setMessages(prev => {
+        const updated = [...prev];
+        const startIndex = Math.max(updated.length - count, 0);
+        for (let i = startIndex; i < updated.length; i++) {
+          updated[i] = { ...updated[i], status: 'read' };
+        }
+        return updated;
+      });
+    });
     return () => {
+      socket.off('messageRead')
       socket.off("recievedMessage")
       socket.off('setDoubleCheckRecieved')
     }
-  }, [member._id]);
-
+  }, [member._id, messages]);
   const deleteMessage = async (messageId) => {
     try {
       const response = await fetch(`${apiUrl}/deleteMessage/${messageId}`, { method: "POST" });
@@ -166,41 +175,22 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       console.error("Error deleting message:", error);
     }
   };
-  const reactToMessage = async (messageId, emoji) => {
-    try {
-      const response = await fetch(`${apiUrl}/${messageId}/reactions`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, emoji })
-      });
-      if (!response.ok) throw new Error("Failed to react to message");
-      const updatedMessage = await response.json();
-      setMessages((prev) => prev.map((msg) => (msg._id === messageId ? updatedMessage : msg)));
-    } catch (error) {
-      console.error("Error reacting to message:", error);
-    }
-  };
-
   const handleTyping = () => socket.emit("typing", { userId: member._id, myId: userId });
   const handleBlur = () => socket.emit("stopped_typing", { myId: userId, userId: member._id });
-
   useEffect(() => {
     socket.on("typing", ({ myId }) => {
-      console.log(myId, 'typing')
       setTypingUser(myId)
-
     });
-
     socket.on("stopped_typing", () => setTypingUser(null));
     return () => {
       socket.off("typing");
       socket.off("stopped_typing");
     };
   }, []);
-
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(() => {
     scrollToBottom();
     setMsgCounts((prevCounts) => ({ ...prevCounts, [member._id]: 0 }));
-
   }, [messages]);
   const handleEmojiClick = (emojiObject) => setMessageInput((prev) => prev + emojiObject.emoji);
   const toggleReactions = (messageId) => setMessages((prev) => prev.map((msg) => (msg._id === messageId ? { ...msg, showReactions: !msg.showReactions } : msg)));
@@ -223,7 +213,6 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
     }
   };
   const forwardMessage = () => {
-
   }
   const handleFileSelect = (type) => {
     setShowAttachmentPopup(false); // Close popup
@@ -248,23 +237,33 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       return () => URL.revokeObjectURL(objectURL); // cleanup
     }
   }, [selectedFile?.file]);
-
-  const handleMarkMessagesAsRead = async (messages) => {
-    const messageIds = messages.map(msg => msg._id);
-
+  // const handleMarkMessagesAsRead = async (messages) => {
+  //   const messageIds = messages.map(msg => msg._id);
+  //   if (messageIds.length > 0) {
+  //     try {
+  //       const result = await updateMessageStatus(messageIds, 'read');
+  //       console.log(result.message);  // "Message status updated successfully"
+  //       if (result) {
+  //         console.log("checkUnseenMsg");
+  //       }
+  //     } catch (err) {
+  //       console.error('Error marking messages as read:', err);
+  //     }
+  //   }
+  // };
+  useEffect(() => {
+    const messageIds = messages
+      .filter(msg => msg.status === 'sent') // include only "sent" messages
+      .map(msg => msg._id);
     if (messageIds.length > 0) {
-      try {
-        const result = await updateMessageStatus(messageIds, 'read');
-        console.log(result.message);  // "Message status updated successfully"
-        if (result) {
-          // socket.emit('setDoubleCheck', { friendId, chatId, message });
-        }
-      } catch (err) {
-        console.error('Error marking messages as read:', err);
-      }
+      console.log(messageIds, 'messageIds')
+      socket.emit('checkUnseenMsg', { friendId: member._id, messageIds });
     }
-  };
- 
+
+  }, [messages]);
+
+
+
   return (
     <div className="chat-ui-container">
       {/* Chat Header */}
@@ -272,12 +271,13 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
         <button className="back-button" onClick={onBack}>
           <FaArrowLeft />
         </button>
-         
         <div className="user-info d-flex flex-row">
           <div className="user-avatar">
+            {console.log(member.profilePicture, 'member')}
             <img
-              src={member?.profilePicture || "https://cdn.pixabay.com/photo/2021/09/20/03/24/skeleton-6639547_1280.png"}
-              alt={member?.userName}
+              style={{ width: "48px", height: "48px", objectFit: "cover" }}
+              src={member?.profilePicture}
+              alt={"user"}
             />
             {typingUser && typingUser !== userId && typingUser == member._id && (
               <div className="typing-indicator">
@@ -287,18 +287,18 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
               </div>
             )}
           </div>
-
           <div className="user-details">
-            <h3>{member?.userName} </h3>
+            <h3 className="text-truncate" style={{ width: '100px' }}>
+              {member?.userName}
+            </h3>
             <p>
               {typingUser && typingUser !== userId && typingUser == member._id ? "typing..." : "online"}
             </p>
           </div>
         </div>
-       
         {/* Floating Call Button */}
         <button
-          onClick={startCall}
+          onClick={() => setOutgoingCall(true)}
           style={{
             padding: "0.4rem 1.0rem",
             fontSize: "1rem",
@@ -318,26 +318,13 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
               <FontAwesomeIcon icon={faEllipsisV} />
             </button>
             <div className="dropdown-menu">
-              <button onClick ={()=>deleteMessages(userId, member.id)} >
+              <button onClick={() => deleteMessages(userId, member.id)} >
                 <FontAwesomeIcon icon={faTrashAlt} /> clear chat
               </button>
-              
+
             </div>
           </div>
         </div>
-
-        {/* Video Call Layer */}
-        {inCall && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,          // full screen (top:0, left:0, right:0, bottom:0)
-              zIndex: 900,       // below the button
-            }}
-          >
-            <VideoCall socket={socket} member={member} setInCall={setInCall} />
-          </div>
-        )}
 
       </div>
 
@@ -532,8 +519,15 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           </div>
         )}
       </div>
+      {showOutgoingCall &&
+        <OutGoingCall
+          show={showOutgoingCall}
+          member={member}
+          onCancel={() => setOutgoingCall(false)}
+        />
+      }
+
     </div>
   );
 };
-
 export default ChatUi;

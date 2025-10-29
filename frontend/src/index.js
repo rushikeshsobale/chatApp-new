@@ -23,11 +23,12 @@ import UserProfilePage from './pages/userProfile.js';
 import ResetPassword from './components/ResetPassword.js';
 import { UserProvider, UserContext} from './contexts/UserContext';
 import AuthSuccess from "./pages/AuthSuccess";
+import IncomingCall from './components/videoCall/IncomingCall.js';
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const dispatch = useDispatch();
-  const { socket, loadUnseenMessages} = useContext(UserContext);
+  const { socket, loadUnseenMessages, incomingCall, setIncomingCall, showIncoming, setShowIncoming, callData} = useContext(UserContext);
    useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -65,6 +66,17 @@ const AppWrapper = () => {
  
   return (
     <div className="" style={{background:'black'}}>
+      {incomingCall && (
+        <IncomingCall
+          show={showIncoming}
+          callData={incomingCall}
+          onAccept={() => setShowIncoming(false)}
+          onDecline={() => {
+            setShowIncoming(false);
+            setIncomingCall(null);
+          }}
+        />
+      )}
       <BrowserRouter>
         {/* Conditionally render Navbar only when isAuthenticated and isLoggedIn are true */}
         { isAuthenticated && <Navbar />}

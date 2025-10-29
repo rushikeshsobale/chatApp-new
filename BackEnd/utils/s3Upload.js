@@ -59,7 +59,7 @@ const uploadToS3 = async (file, options = {}) => {
       Key: `${folder}/${uniqueFileName}`,
       Body: file.buffer,
       ContentType: file.mimetype,
-      ACL: "public-read"
+    
     };
 
     // Upload to S3

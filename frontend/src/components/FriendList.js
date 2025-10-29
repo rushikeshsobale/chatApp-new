@@ -10,9 +10,9 @@ const FriendList = ({
   selectedFriend, 
   handleFriendSelect 
 }) => {
+  console.log(activeUsers, 'activeUsers')
   const navigate = useNavigate()
   const getLastUnseenMessage = (friendId) => {
-  
     const messages = unseenMessages
       ?.filter(msg => msg.senderId == friendId)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -32,7 +32,7 @@ const FriendList = ({
 
       <div className="friends-scroll-container">
         {friends?.map((friend, index) => {
-          const isActive = activeUsers.some(user => user === friend?._id);
+          const isActive = activeUsers.some(user => user._id || user === friend?._id);
           
           const lastUnseenMsg = getLastUnseenMessage(friend._id);
           
