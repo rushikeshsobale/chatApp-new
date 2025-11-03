@@ -1,266 +1,249 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Modal } from 'react-bootstrap';
 import { FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import { motion, AnimatePresence } from 'framer-motion';
 
-const StoryViewer = ({ show, onHide, stories, currentStoryIndex = 0 }) => {
-    const [currentIndex, setCurrentIndex] = useState(currentStoryIndex);
-    const [progress, setProgress] = useState(0);
-    const [isPaused, setIsPaused] = useState(false);
-    const [currentUserStories, setCurrentUserStories] = useState([]);
-    const [currentUserIndex, setCurrentUserIndex] = useState(0);
-   
-    const storiesByUser = stories.reduce((acc, story) => {
-        const userId = story.userId._id;
-        if (!acc[userId]) {
-            acc[userId] = [];
-        }
-        acc[userId].push(story);
-        return acc;
-    }, {});
+const STORY_DURATION = 5000;
 
-    // Get all user IDs
-    const userIds = Object.keys(storiesByUser);
+const StoryViewer = ({ show, onHide, stories = [], currentStoryIndex = 0 }) => {
+  const [currentUserIndex, setCurrentUserIndex] = useState(0);
+  const [currentStoryIndexInUser, setCurrentStoryIndexInUser] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const timerRef = useRef(null);
 
-    useEffect(() => {
-        if (show && stories.length > 0) {
-            // Find the user ID of the current story
-            const currentStory = stories[currentStoryIndex];
-            const currentUserId = currentStory.userId._id;
-            
-            // Set current user stories and index
-            setCurrentUserStories(storiesByUser[currentUserId]);
-            setCurrentUserIndex(userIds.indexOf(currentUserId));
-            setCurrentIndex(currentStoryIndex);
-            setProgress(0);
-            startProgress();
-        }
-    }, [show, currentStoryIndex, stories]);
+  // Group stories by user (memoized)
+  const storiesByUser = useMemo(() => {
+    const grouped = {};
+    stories.forEach((story) => {
+      const uid = story?.userId?._id ?? story?.userId; // be defensive
+      if (!uid) return;
+      if (!grouped[uid]) grouped[uid] = [];
+      grouped[uid].push(story);
+    });
+    return grouped;
+  }, [stories]);
 
-    const startProgress = () => {
-        if (!currentUserStories[currentIndex]) return;
-        
-        const duration = 5000; // 5 seconds per story
-        const interval = 50; // Update every 50ms
-        const steps = duration / interval;
-        let currentStep = 0;
+  const userIds = useMemo(() => Object.keys(storiesByUser), [storiesByUser]);
 
-        const timer = setInterval(() => {
-            if (!isPaused) {
-                currentStep++;
-                setProgress((currentStep / steps) * 100);
-
-                if (currentStep >= steps) {
-                    clearInterval(timer);
-                    if (currentIndex < currentUserStories.length - 1) {
-                        // Move to next story of current user
-                        setCurrentIndex(prev => prev + 1);
-                        setProgress(0);
-                        startProgress();
-                    } else if (currentUserIndex < userIds.length - 1) {
-                        // Move to next user's stories
-                        setCurrentUserIndex(prev => prev + 1);
-                        setCurrentUserStories(storiesByUser[userIds[currentUserIndex + 1]]);
-                        setCurrentIndex(0);
-                        setProgress(0);
-                        startProgress();
-                    } else {
-                        onHide();
-                    }
-                }
-            }
-        }, interval);
-
-        return () => clearInterval(timer);
-    };
-
-    const handlePrevious = () => {
-        if (currentIndex > 0) {
-            // Move to previous story of current user
-            setCurrentIndex(prev => prev - 1);
-            setProgress(0);
-        } else if (currentUserIndex > 0) {
-            // Move to previous user's stories
-            setCurrentUserIndex(prev => prev - 1);
-            setCurrentUserStories(storiesByUser[userIds[currentUserIndex - 1]]);
-            setCurrentIndex(storiesByUser[userIds[currentUserIndex - 1]].length - 1);
-            setProgress(0);
-        }
-    };
-
-    const handleNext = () => {
-        if (currentIndex < currentUserStories.length - 1) {
-            // Move to next story of current user
-            setCurrentIndex(prev => prev + 1);
-            setProgress(0);
-        } else if (currentUserIndex < userIds.length - 1) {
-            // Move to next user's stories
-            setCurrentUserIndex(prev => prev + 1);
-            setCurrentUserStories(storiesByUser[userIds[currentUserIndex + 1]]);
-            setCurrentIndex(0);
-            setProgress(0);
-        } else {
-            onHide();
-        }
-    };
-
-    const currentStory = currentUserStories[currentIndex];
-
-    if (!currentStory) {
-        return null;
+  // Initialize indices when viewer opens
+  useEffect(() => {
+    if (!show) {
+      // cleanup when hiding
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setProgress(0);
+      setIsPaused(false);
+      return;
     }
 
-    return (
-        <Modal
-            show={show}
-            onHide={onHide}
-            centered
-            fullscreen
-            className="story-viewer-modal"
+    if (show && stories.length > 0) {
+      // currentStoryIndex is assumed to be index within `stories` prop (the array passed in)
+      // Find a safe currentStory reference (fallback to first)
+      const safeIndex = Math.max(0, Math.min(currentStoryIndex, stories.length - 1));
+      const clickedStory = stories[safeIndex] ?? stories[0];
+
+      const uid = clickedStory?.userId?._id ?? clickedStory?.userId;
+      const userIndex = userIds.indexOf(uid);
+      const storyIndexInUser = (storiesByUser[uid] || []).findIndex(s => s._id === clickedStory._id);
+
+      setCurrentUserIndex(userIndex >= 0 ? userIndex : 0);
+      setCurrentStoryIndexInUser(storyIndexInUser >= 0 ? storyIndexInUser : 0);
+      setProgress(0);
+      setIsPaused(false);
+
+      // ensure no stray interval
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, currentStoryIndex, storiesByUser, userIds, stories]);
+
+  const currentUserStories = userIds.length ? (storiesByUser[userIds[currentUserIndex]] || []) : [];
+  const currentStory = currentUserStories[currentStoryIndexInUser];
+
+  // Progress timer effect (single source of truth, clears previous interval first)
+  useEffect(() => {
+    if (!show || !currentStory) return;
+
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    let step = 0;
+    const intervalMs = 50;
+    const totalSteps = Math.max(1, Math.floor(STORY_DURATION / intervalMs));
+
+    timerRef.current = setInterval(() => {
+      if (!isPaused) {
+        step += 1;
+        const pct = (step / totalSteps) * 100;
+        setProgress(pct);
+
+        if (step >= totalSteps) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          setProgress(0);
+          handleNext(); // advance when complete
+        }
+      }
+    }, intervalMs);
+
+    // cleanup when currentStory changes or component unmounts
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStory, show, isPaused]);
+
+  // Navigation handlers (they clear timer + reset progress)
+  const handleNext = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setProgress(0);
+
+    // next story of same user
+    if (currentStoryIndexInUser < currentUserStories.length - 1) {
+      setCurrentStoryIndexInUser((prev) => prev + 1);
+      return;
+    }
+
+    // next user's first story
+    if (currentUserIndex < userIds.length - 1) {
+      const nextUser = userIds[currentUserIndex + 1];
+      setCurrentUserIndex((prev) => prev + 1);
+      setCurrentStoryIndexInUser(0);
+      return;
+    }
+
+    // no more stories, close
+    onHide();
+  };
+
+  const handlePrev = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setProgress(0);
+
+    // previous story same user
+    if (currentStoryIndexInUser > 0) {
+      setCurrentStoryIndexInUser((prev) => prev - 1);
+      return;
+    }
+
+    // previous user's last story
+    if (currentUserIndex > 0) {
+      const prevUserId = userIds[currentUserIndex - 1];
+      const prevStories = storiesByUser[prevUserId] || [];
+      setCurrentUserIndex((prev) => prev - 1);
+      setCurrentStoryIndexInUser(Math.max(0, prevStories.length - 1));
+      return;
+    }
+
+    // at beginning - optionally close or reset
+    setProgress(0);
+  };
+
+  // Defensive: if no currentStory available, return null (or you can show loader)
+  if (!currentStory) return null;
+
+  const user = currentStory.userId || {};
+  const username = user.userName || user.username || 'Unknown';
+  const avatar = user.profilePicture || user.avatar || '/default-avatar.png';
+
+  return (
+    <Modal show={show} onHide={onHide} centered fullscreen className="story-viewer-modal">
+      <div
+        className="story-container"
+        style={{
+          position: 'relative',
+          height: '90vh',
+          background: '#000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        {/* Progress bars for current user's stories */}
+        <div
+          className="progress-container"
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            right: '10px',
+            display: 'flex',
+            gap: '4px',
+            padding: '0 10px',
+            zIndex: 2
+          }}
         >
-            <div 
-                className="story-container"
+          {currentUserStories.map((_, idx) => (
+            <div key={idx} style={{ flex: 1, height: '2px', background: '#ffffff40', borderRadius: '2px', overflow: 'hidden' }}>
+              <div
                 style={{
-                    position: 'relative',
-                    height: '90vh',
-                    background: '#000',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                  width: `${idx === currentStoryIndexInUser ? progress : idx < currentStoryIndexInUser ? 100 : 0}%`,
+                  height: '100%',
+                  background: '#fff',
+                  transition: 'width 50ms linear'
                 }}
-                onMouseEnter={() => setIsPaused(true)}
-                onMouseLeave={() => setIsPaused(false)}
-            >
-                {/* Progress bars */}
-                <div 
-                    className="progress-container"
-                    style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '10px',
-                        right: '10px',
-                        display: 'flex',
-                        gap: '4px',
-                        padding: '0 10px'
-                    }}
-                >
-                    {currentUserStories.map((_, index) => (
-                        <div
-                            key={index}
-                            style={{
-                                flex: 1,
-                                height: '2px',
-                                background: '#ffffff40',
-                                borderRadius: '2px',
-                                overflow: 'hidden'
-                            }}
-                        >
-                            <div
-                                style={{
-                                    width: `${index === currentIndex ? progress : index < currentIndex ? 100 : 0}%`,
-                                    height: '100%',
-                                    background: '#fff',
-                                    transition: 'width 50ms linear'
-                                }}
-                            />
-                        </div>
-                    ))}
-                </div>
-
-                {/* Story content */}
-                <div 
-                    className="story-content"
-                    style={{
-                        position: 'relative',
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}
-                >
-                    {currentStory.mediaType === 'image' ? (
-                        <img
-                            src={currentStory.media}
-                            alt="Story"
-                            style={{
-                                maxWidth: '100%',
-                                maxHeight: '70%',
-                                objectFit: 'contain'
-                            }}                  
-                        />
-                    ) : (
-                        <video
-                            src={currentStory.media}
-                            controls
-                            style={{
-                                maxWidth: '100%',
-                                maxHeight: '100%'
-                            }}
-                        />
-                    )}
-                </div>
-
-                {/* Navigation buttons */}
-                <button
-                    className="btn btn-light rounded-circle position-absolute top-0 end-0 m-3"
-                    onClick={onHide}
-                    style={{ zIndex: 1 }}
-                >
-                    <FaTimes />
-                </button>
-
-                {(currentIndex > 0 || currentUserIndex > 0) && (
-                    <button
-                        className="btn btn-light rounded-circle position-absolute start-0"
-                        onClick={handlePrevious}
-                        style={{ zIndex: 1, margin: '0 20px' }}
-                    >
-                        <FaChevronLeft />
-                    </button>
-                )}
-
-                {(currentIndex < currentUserStories.length - 1 || currentUserIndex < userIds.length - 1) && (
-                    <button
-                        className="btn btn-light rounded-circle position-absolute end-0"
-                        onClick={handleNext}
-                        style={{ zIndex: 1, margin: '0 20px' }}
-                    >
-                        <FaChevronRight />
-                    </button>
-                )}
-
-                {/* Story info */}
-                <div
-                    className="story-info"
-                    style={{
-                        position: 'absolute',
-                        bottom: '20px',
-                        left: '20px',
-                        right: '20px',
-                        color: '#fff',
-                        textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                    }}
-                >
-                    <div className="d-flex align-items-center mb-2">
-                        <img
-                            src={currentStory.userId.profilePicture}
-                            alt="Profile"
-                            className="rounded-circle me-2"
-                            style={{ width: '40px', height: '40px', objectFit: 'cover' }}
-                        />
-                        <div>
-                            <h6 className="mb-0">{currentStory.userId.userName}</h6>
-                            <small>{new Date(currentStory.createdAt).toLocaleTimeString()}</small>
-                        </div>
-                    </div>
-                    {currentStory.caption && (
-                        <p className="mb-0">{currentStory.caption}</p>
-                    )}
-                </div>
+              />
             </div>
-        </Modal>
-    );
+          ))}
+        </div>
+
+        {/* Media */}
+        {currentStory.mediaType === 'image' ? (
+          <img src={currentStory.media} alt="Story" style={{ maxWidth: '100%', maxHeight: '80%', objectFit: 'contain' }} />
+        ) : (
+          <video src={currentStory.media} controls style={{ maxWidth: '100%', maxHeight: '80%' }} />
+        )}
+
+        {/* Controls */}
+        <button className="btn btn-light rounded-circle position-absolute top-0 end-0 m-3" onClick={() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } onHide(); }}>
+          <FaTimes />
+        </button>
+
+        {(currentStoryIndexInUser > 0 || currentUserIndex > 0) && (
+          <button className="btn btn-light rounded-circle position-absolute start-0" onClick={handlePrev} style={{ margin: '0 20px' }}>
+            <FaChevronLeft />
+          </button>
+        )}
+
+        {(currentStoryIndexInUser < currentUserStories.length - 1 || currentUserIndex < userIds.length - 1) && (
+          <button className="btn btn-light rounded-circle position-absolute end-0" onClick={handleNext} style={{ margin: '0 20px' }}>
+            <FaChevronRight />
+          </button>
+        )}
+
+        {/* User Info */}
+        <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '20px', color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+          <div className="d-flex align-items-center mb-2">
+            <img src={avatar} alt={username} className="rounded-circle me-2" style={{ width: '40px', height: '40px', objectFit: 'cover' }} />
+            <div>
+              <h6 className="mb-0">{username}</h6>
+              <small>{new Date(currentStory.createdAt).toLocaleTimeString()}</small>
+            </div>
+          </div>
+          {currentStory.caption && <p className="mb-0">{currentStory.caption}</p>}
+        </div>
+      </div>
+    </Modal>
+  );
 };
 
-export default StoryViewer; 
+export default StoryViewer;

@@ -97,14 +97,27 @@ export const createStory = async (storyData) => {
 
 // Update user profile
 export const updateUserProfile = async (userId, profileData) => {
+    console.log('updateUserProfile', userId , profileData)
     const formData = new FormData();
-    formData.append("firstName", profileData.firstName);
-    formData.append("lastName", profileData.lastName);
-    formData.append("bio", profileData.bio);
+    if(profileData.firstName){
+        formData.append("firstName", profileData.firstName);
+    }
+    if(profileData.lastName){
+        formData.append("lastName", profileData.lastName);
+    }
+    if(profileData.bio){
+        formData.append("bio", profileData.bio);                                             
+    }
+   
+   // New (correct way to send complex object)
+if (profileData.interests) { // Renamed to 'interests' for clarity, but 'interest' works too
+    // **MUST convert the JavaScript object to a JSON string**
+    formData.append("interest", JSON.stringify(profileData.interests));
+    formData.append("onboardingComplete", 'true'); // Send as string
+}
     if (profileData.profilePicture) {
         formData.append("profilePicture", profileData.profilePicture);
     }
-
     try {
         const response = await api.put(`/profile/updateUser/${userId}`, formData, {
             headers: {

@@ -7,14 +7,11 @@ import EditProfile from "../components/EditProfile";
 import CustomModal from "../components/customModal";
 import PostDetail from "../components/PostDetail";
 import { useParams, useLocation } from "react-router-dom";
-import ChatComponent from "./Chat";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Navigation } from "swiper/modules";
 import { IoGridSharp } from "react-icons/io5";
 import { PiSlideshowFill } from "react-icons/pi";
 import { GiSouthAfricaFlag } from "react-icons/gi";
-import { motion } from "framer-motion";
-import LikesCommentsPreview from "../components/LikesCommentsPreview";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { useNavigate } from "react-router-dom";
 import "swiper/css";
@@ -34,7 +31,56 @@ import { getUserData, getProfileUserData, getUserPosts, getNotifications as getP
 import Loader from '../components/Loader';
 import NotificationModal from '../components/Notification';
 import SavedPosts from "./SavedPosts";
+export const StoryButton = ({ userData, hasStory, onClick }) => {
+  return (
+    <div
+      className="position-relative d-inline-block"
+      style={{
+        cursor: "pointer",
+        padding: hasStory ? "3px" : "2px",
+        borderRadius: "50%",
+        background: hasStory
+          ? "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)" // active gradient ring
+          : "#e0e0e0", // inactive neutral border
+        transition: "all 0.3s ease",
+      }}
+      onClick={onClick}
+    >
+      {/* Profile Image */}
+      <img
+        src={userData?.profilePicture || "https://via.placeholder.com/60"}
+        alt="Profile"
+        className="rounded-circle bg-white"
+        style={{
+          width: "40px",
+          height: "40px",
+          objectFit: "cover",
+          border: "2px solid white",
+          transition: "transform 0.3s ease",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+      />
 
+      {/* Small camera icon on the edge */}
+      <div
+        className="position-absolute bg-danger rounded-circle d-flex align-items-center justify-content-center"
+        style={{
+          width: "18px",
+          height: "18px",
+          bottom: "0px",
+          right: "0px",
+          transform: "translate(25%, 25%)",
+          border: "2px solid white",
+          boxShadow: "0 0 4px rgba(0,0,0,0.2)",
+        }}
+      >
+        <i className="bi bi-camera-video-fill text-white" style={{ fontSize: "8px" }}></i>
+      </div>
+
+    </div>
+  );
+};
 const ProfilePage = () => {
   const [newPost, setNewPost] = useState("");
   const [media, setMedia] = useState(null);
@@ -75,6 +121,7 @@ const ProfilePage = () => {
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [commentInputs, setCommentInputs] = useState({});
   const [showCommentInputs, setShowCommentInputs] = useState({});
+  const [hasStory, setHasStory] = useState('');
   // Fetch User Data
   useEffect(() => {
     setFlag(true)
@@ -182,6 +229,7 @@ const ProfilePage = () => {
     try {
       const data = await getStories();
       setStories(data.stories);
+
     } catch (error) {
       console.error("Error fetching stories:", error);
     }
@@ -471,9 +519,9 @@ const ProfilePage = () => {
       friend.friendId.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const tabs = [
-    { id: "grid", label: "Grid", icon: <IoGridSharp size={24} /> },
-    { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={24} /> },
-    { id: "saved", label: "Saved", icon: <GiSouthAfricaFlag size={24} /> },
+    { id: "grid", label: "Grid", icon: <IoGridSharp size={16} /> },
+    { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={16} /> },
+    { id: "saved", label: "Saved", icon: <GiSouthAfricaFlag size={16} /> },
   ];
   const handlePostClick = (postId) => {
     navigate(`/postDetails/${postId}`);
@@ -487,16 +535,42 @@ const ProfilePage = () => {
       console.error('Error creating story:', error);
     }
   };
+  const [selectedUserStories, setSelectedUserStories] = useState([]);
+
   const handleStoryClick = (story) => {
-    const storyIndex = stories.findIndex(s => s._id === story._id);
+    // Get all stories from the clicked user
+    const userStories = stories.filter(s => s.userId._id === story.userId._id);
+
+    // Find which one was clicked among that user's stories
+    const storyIndex = userStories.findIndex(s => s._id === story._id);
+
+    setSelectedUserStories(userStories);
     setSelectedStoryIndex(storyIndex);
     setShowStoryViewer(true);
   };
+
   const logOut = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   };
+
+  const handleOwnStoryClick = () => {
+    const story = stories.filter(story => story.userId._id == userId);
+
+    if (story.length > 0) {
+
+      handleStoryClick(story[0])
+    }
+    else {
+      setShowCreateStory(true)
+    }
+
+  }
+
+  useEffect(() => {
+    console.log(showStoryViewer, ' showStoryViewer')
+  }, [showStoryViewer])
   return (
     <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: "#f5f5f5" }}>
       {/* Navigation Bar */}
@@ -528,7 +602,7 @@ const ProfilePage = () => {
                 style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
                 onClick={() => setShowProfileModal(true)}
               />
-              
+
               <NotificationModal
                 notifications={notifications}
                 unreadCount={unreadCount}
@@ -542,7 +616,7 @@ const ProfilePage = () => {
         </div>
       </nav>
       {/* Main Content */}
-      <div className="container-fluid mt-3 ">
+      <div className="container-fluid mt-1 ">
         <div className="row " >
           {/* Left Sidebar */}
           <div className="col-lg-3 d-none d-lg-block">
@@ -727,147 +801,144 @@ const ProfilePage = () => {
                         <p
                           className="mb-0"
                           style={{
-                            fontSize: "1.1rem",
+                            fontSize: "0.7rem",
                             opacity: 0.9,
                             maxWidth: "500px"
                           }}
                         >
                           {userData?.bio || "Tell your story..."}
                         </p>
-                      </div>
-                    </div>
-                    <div className="col-md-4 mt-4 mt-md-0">
-                      <div className="d-flex justify-content-around align-items-center">
-                        {/* Followers Stats */}
-                        <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowers}>
-                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.0rem' }}>
-                            {userData?.followers?.length || 0}
-                          </h3>
-                          <p className="mb-0 " style={{ fontSize: '0.8rem' }}>
-                            Followers
-                          </p>
-                        </div>
-                        {/* Divider */}
-                        <div className="mx-2" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)' }}></div>
+                        <div className="d-flex justify-content-around align-items-center">
+                          {/* Followers Stats */}
+                          <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowers}>
+                            <h3 className="mb-0 fw-bold" style={{ fontSize: '0.8rem' }}>
+                              {userData?.followers?.length || 0}
+                            </h3>
+                            <p className="mb-0 " style={{ fontSize: '0.7rem' }}>
+                              Followers
+                            </p>
+                          </div>
+                          {/* Divider */}
+                          <div className="mx-2" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)' }}></div>
 
-                        {/* Following Stats */}
-                        <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowing}>
-                          <h3 className="mb-0 fw-bold" style={{ fontSize: '1.0rem' }}>
-                            {userData?.following?.length || 0}
-                          </h3>
-                          <p className="mb-0 " style={{ fontSize: '0.8rem' }}>
-                            Following
-                          </p>
+                          {/* Following Stats */}
+                          <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowing}>
+                            <h3 className="mb-0 fw-bold" style={{ fontSize: '0.8rem' }}>
+                              {userData?.following?.length || 0}
+                            </h3>
+                            <p className="mb-0 " style={{ fontSize: '0.7rem' }}>
+                              Following
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
+
                   </div>
                 </div>
               </div>
             )}
-            <div className="card border-0 shadow-sm ">
-              <div className="card-body p-0">
-                <Swiper
-                  slidesPerView={8}
-                  spaceBetween={6}
-                  pagination={{ clickable: true }}
-                  modules={[Pagination]}
-                  className="stories-swiper px-4"
-                  style={{ maxHeight: '70px' }}
-                >
-                  {/* Add Story Button */}
-                  {/* Other users' stories */}
-                  {Array.from(
-                    new Map(
-                      stories
-                        // .filter(story => story.userId._id !== userId)
-                        .map(story => [story.userId._id, story])
-                    ).values()
-                  ).map((story) => (
-                    <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
 
-                      <StoryCircle
-                        story={story}
-                        onClick={handleStoryClick}
-                        currentUserId={userId}
-                      />
-                    </SwiperSlide>
-                  ))}
-                </Swiper>
-              </div>
-              <div className='d-block d-md-none'>
-                <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
-              </div>
-            </div>
             {/* Create Post Card - Enhanced */}
             <div className="card border-0 shadow-sm ">
               <div className="card-body p-0">
-                {/* <div className="d-flex align-items-center mb-3">
-                  <img
-                    src={userData?.profilePicture || "https://via.placeholder.com/40"}
-                    alt="Profile"
-                    className="rounded-circle me-3"
-                    style={{ width: "40px", height: "40px", objectFit: "cover" }}
-                  />
+                <div className="d-flex align-items-center justify-content-between mb-1  rounded-pill" style={{ background: 'gainsboro' }}>
+                  <div className="d-flex align-items-center w-100 ">
+                    <StoryButton
+                      userData={userData}
+                      hasStory={stories.filter(story => story.userId._id == userId).length > 0 ? true : false} // or false depending on user
+                      onClick={() => handleOwnStoryClick()}
+                    />
+                    {stories.length == 0 ? <button
+                      className="btn btn-light flex-grow-1 text-start"
+                      onClick={() => setShowModal(true)}
+                      style={{
+                        fontSize: "0.7rem",
+                        height: "40px",
+                        transition: "all 0.3s ease",
+                        border: "1px solid #e0e0e0"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f8f9fa";
+                        e.currentTarget.style.borderColor = "#dee2e6";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fff";
+                        e.currentTarget.style.borderColor = "#e0e0e0";
+                      }}
+                    >
+                      What's on your mind, {userData?.userName}?
+                    </button> : <div className=" border-0  w-100">
+                      <div className=" p-0">
+                        <Swiper
+                          slidesPerView={5}
+                          spaceBetween={4}
+                          pagination={{ clickable: true }}
+                          modules={[Pagination]}
+                          className="stories-swiper px-2"
+
+                        >
+                          {/* Add Story Button */}
+                          {/* Other users' stories */}
+                          {Array.from(
+                            new Map(
+                              stories
+                                .filter(story => story.userId._id !== userId)
+                                .map(story => [story.userId._id, story])
+                            ).values()
+                          ).map((story) => (
+                            <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
+
+                              <StoryCircle
+                                story={story}
+                                onClick={handleStoryClick}
+                                currentUserId={userId}
+                              />
+                            </SwiperSlide>
+                          ))}
+                        </Swiper>
+                      </div>
+                      {/* <div className='d-block d-md-none'>
+                <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
+              </div> */}
+                    </div>}
+                  </div>
+                  <button className="btn btn-light rounded-pill d-flex align-items-center" onClick={() => setShowCreateStory(true)} style={{ transition: "all 0.3s ease", border: "1px solid #e0e0e0" }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f8f9fa"; e.currentTarget.style.borderColor = "#dee2e6"; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#fff"; e.currentTarget.style.borderColor = "#e0e0e0"; }} > <i className="bi bi-plus text-danger "></i> </button>
+
                   <button
-                    className="btn btn-light flex-grow-1 text-start rounded-pill"
                     onClick={() => setShowModal(true)}
+                    className="position-fixed d-flex align-items-center justify-content-center"
                     style={{
-                      height: "40px",
+                      bottom: "25px",
+                      justifySelf: 'anchor-center',
+                      width: "65px",
+                      height: "65px",
+                      borderRadius: "50%",
+                      background: "rgba(255, 255, 255, 0.25)",
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      boxShadow: "0 4px 20px rgba(255, 0, 90, 0.4)",
                       transition: "all 0.3s ease",
-                      border: "1px solid #e0e0e0"
+                      cursor: "pointer",
+                      zIndex: 2000,
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f8f9fa";
-                      e.currentTarget.style.borderColor = "#dee2e6";
+                      e.currentTarget.style.transform = "scale(1.08)";
+                      e.currentTarget.style.boxShadow = "0 8px 30px rgba(255, 0, 90, 0.6)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "#fff";
-                      e.currentTarget.style.borderColor = "#e0e0e0";
+                      e.currentTarget.style.transform = "scale(1)";
+                      e.currentTarget.style.boxShadow = "0 4px 20px rgba(255, 0, 90, 0.4)";
                     }}
                   >
-                    What's on your mind, {userData?.userName}?
+                    <i className="bi bi-layout-text-window-reverse fs-3"></i>
+
                   </button>
-                </div> */}
-                <div className="d-flex justify-content-between border-top">
-                  <button
-                    className="btn btn-sm btn-light rounded-pill d-flex align-items-center fs-sm"
-                    onClick={() => setShowCreateStory(true)}
-                    style={{
-                      transition: "all 0.3s ease",
-                      border: "1px solid #e0e0e0"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f8f9fa";
-                      e.currentTarget.style.borderColor = "#dee2e6";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "#fff";
-                      e.currentTarget.style.borderColor = "#e0e0e0";
-                    }}
-                  >
-                    <i className="bi bi-camera-video-fill text-danger me-2"></i>
-                    Create Story
-                  </button>
-                  <button
-                    className="btn btn-light rounded-pill d-flex align-items-center"
-                    onClick={() => setShowModal(true)}
-                    style={{
-                      transition: "all 0.3s ease",
-                      border: "1px solid #e0e0e0"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f8f9fa";
-                      e.currentTarget.style.borderColor = "#dee2e6";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "#fff";
-                      e.currentTarget.style.borderColor = "#e0e0e0";
-                    }}
-                  >
-                    <i className="bi bi-plus text-danger me-2"></i>
-                    Add Post
-                  </button>
+
+                </div>
+                <div className="d-flex justify-content-around border-bottom">
+
                 </div>
               </div>
             </div>
@@ -910,7 +981,7 @@ const ProfilePage = () => {
               {activeTab === "grid" && (
                 <div className="row g-3">
                   {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts.map((post) => (
-                    <div key={post._id} className="col-lg-4 col-md-6 col-6">
+                    <div key={post._id} className="col-lg-4 col-md-4 col-4">
                       <div
                         className="card border-0 shadow-sm overflow-hidden"
                         style={{
@@ -1140,9 +1211,10 @@ const ProfilePage = () => {
       <StoryViewer
         show={showStoryViewer}
         onHide={() => setShowStoryViewer(false)}
-        stories={stories}
+        stories={selectedUserStories}
         currentStoryIndex={selectedStoryIndex}
       />
+
 
       {showPostDetail && selectedPostId && (
         <PostDetail

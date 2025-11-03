@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 const StoryCircle = ({ story, onClick, currentUserId }) => {
     const hasUnseenStories = !story.viewers?.includes(currentUserId);
     const isOwnStory = story.userId._id === currentUserId;
-   
+
     return (
         <motion.div
             whileHover={{ scale: 1.05 }}
@@ -16,7 +16,7 @@ const StoryCircle = ({ story, onClick, currentUserId }) => {
                 cursor: 'pointer',
                 width: '50px',
                 height: '50px',
-                margin: '0 8px'
+                margin: '0px 8px'
             }}
         >
             <div
@@ -57,24 +57,13 @@ const StoryCircle = ({ story, onClick, currentUserId }) => {
                     />
                 </div>
                 <div
-                className="story-user-info text-truncate"
-                style={{
-                    position: 'absolute',
-                    bottom: '-20px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    whiteSpace: 'nowrap',
-                    fontSize: '10px',
-                    color: '#666',
-                    maxWidth: '60px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                }}
-            >
-                {isOwnStory ? 'Your Story' : story.userId.userName}
+                    className=" text-truncate"
+                    
+                >
+                    {isOwnStory ? 'Your Story' : story.userId.userName}
+                </div>
             </div>
-            </div>
-            
+
         </motion.div>
     );
 };

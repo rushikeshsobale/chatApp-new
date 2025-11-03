@@ -89,56 +89,88 @@ router.get("/suggestions", verifyToken, async (req, res) => {
 });
 
 router.put("/updateUser/:userId", upload.single("profilePicture"), async (req, res) => {
-  const { firstName, lastName, bio } = req.body;
+  // 1. Destructure all fields, including the new ones
+  const { firstName, lastName, bio, interest, onboardingComplete } = req.body; 
   const { userId } = req.params;
 
-  if (!userId || !firstName || !lastName) {
-    return res.status(400).json({
-      success: false,
-      message: "User ID, First Name, and Last Name are required",
-    });
+  // --- Basic Validation ---
+  if (!userId) {
+      return res.status(400).json({
+          success: false,
+          message: "User ID is required",
+      });
   }
+
+  // You may relax the validation here since this endpoint handles both initial setup and later updates.
+  // However, if the client logic ensures firstName/lastName are always sent, keep this:
+  // if (!firstName || !lastName) {
+  //   return res.status(400).json({ success: false, message: "First Name and Last Name are required" });
+  // }
+  
   try {
-    let mediaUrl = null;
-    if (req.file) {
-      const uploadResult = await uploadToS3(req.file, {
-        folder: "profiles",
-        checkDuplicate: false, // Don't check duplicates for profile pictures
-        generateUniqueName: true
+      let mediaUrl = null;
+      // Handle file upload (Profile Picture)
+      if (req.file) {
+          const uploadResult = await uploadToS3(req.file, {
+              folder: "profiles",
+              checkDuplicate: false,
+              generateUniqueName: true
+          });
+          mediaUrl = uploadResult.url;
+      }
+
+      // 2. Prepare the data object
+      const updatedData = {
+          firstName,
+          lastName,
+          bio,
+          // Include profilePicture ONLY if a file was uploaded
+          ...(mediaUrl && { profilePicture: mediaUrl }), 
+          
+          // 3. Handle Interest Data and Onboarding Flag
+          // The client sends 'interest' as a JSON string; parse it back into an object
+          ...(interest && { interests: JSON.parse(interest) }), 
+          
+          // Set the onboardingComplete flag if it's explicitly provided (usually 'true')
+          ...(onboardingComplete && { onboardingComplete: onboardingComplete === 'true' }), 
+      };
+
+      // If the client sends an empty bio or undefined, avoid updating it to null/undefined 
+      // unless you explicitly want to clear it. For simplicity here, we keep the destructuring.
+
+      // 4. Update the User in the Database
+      const updatedUser = await Muser.findByIdAndUpdate(
+          userId, 
+          updatedData, 
+          { new: true, runValidators: true } // runValidators is good practice
+      );
+
+      if (!updatedUser) {
+          return res.status(404).json({ 
+              success: false, 
+              message: "User not found" 
+          });
+      }
+
+      res.status(200).json({
+          success: true,
+          user: updatedUser,
       });
-      mediaUrl = uploadResult.url;
-    }
-    const updatedData = {
-      firstName,
-      lastName,
-      bio,
-      profilePicture: mediaUrl || null,
-    };
-
-    const updatedUser = await Muser.findByIdAndUpdate(userId, updatedData, {
-      new: true,
-    });
-
-    if (!updatedUser) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "User not found" 
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      user: updatedUser,
-    });
   } catch (error) {
-    console.error("Error updating user:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Internal server error" 
-    });
+      console.error("Error updating user:", error);
+      // Better error handling for JSON parsing errors
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+           return res.status(400).json({ 
+              success: false, 
+              message: "Invalid format for interests data" 
+          });
+      }
+      res.status(500).json({ 
+          success: false, 
+          message: "Internal server error" 
+      });
   }
 });
-
 router.post("/follow/:id", verifyToken, async (req, res) => {
     try {
         const userId = req.decoded.userId; // Logged-in user

@@ -18,7 +18,7 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 // Configure multer for memory storage
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { 
+    limits: {
         fileSize: 50 * 1024 * 1024, // 5MB limit for stories
         files: 1 // Only one file at a time
     },
@@ -65,8 +65,8 @@ const compressVideo = async (inputBuffer) => {
             })
             .on('error', (err) => {
                 // Clean up temp files
-                fs.unlink(inputPath, () => {});
-                fs.unlink(outputPath, () => {});
+                fs.unlink(inputPath, () => { });
+                fs.unlink(outputPath, () => { });
                 reject(err);
             })
             .run();
@@ -76,7 +76,7 @@ const compressVideo = async (inputBuffer) => {
 // Middleware to compress media before upload
 const compressMedia = async (req, res, next) => {
     if (!req.file) return next();
-    
+
     try {
         if (req.file.mimetype.startsWith('image/')) {
             const compressedBuffer = await sharp(req.file.buffer)
@@ -86,7 +86,7 @@ const compressMedia = async (req, res, next) => {
                 })
                 .jpeg({ quality: 80 })
                 .toBuffer();
-            
+
             req.file.buffer = compressedBuffer;
             req.file.size = compressedBuffer.length;
         } else if (req.file.mimetype.startsWith('video/')) {
@@ -124,7 +124,13 @@ router.post('/create', verifyToken, upload.single('media'), compressMedia, async
         });
 
         await story.save();
-        res.status(201).json({ success: true, story });
+
+        const populatedStory = await story.populate('userId', 'username profilePicture');
+
+        res.status(201).json({
+            success: true,
+            story: populatedStory
+        });
     } catch (error) {
         console.error('Error creating story:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -156,12 +162,12 @@ router.get('/feed', verifyToken, async (req, res) => {
             userId: { $in: [...user.following, req.decoded.userId] },
             createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
         })
-        .populate({
-            path: 'userId',
-            select: 'userName profilePicture',
-            model: 'Muser'
-        })
-        .sort({ createdAt: -1 });
+            .populate({
+                path: 'userId',
+                select: 'userName profilePicture',
+                model: 'Muser'
+            })
+            .sort({ createdAt: -1 });
 
         res.json({ success: true, stories });
     } catch (error) {
@@ -203,7 +209,7 @@ router.delete('/:storyId', verifyToken, async (req, res) => {
 
         // Delete from S3
         await deleteFromS3(story.media);
-        
+
         await story.remove();
         res.json({ success: true });
     } catch (error) {

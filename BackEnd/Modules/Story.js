@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
+require('./Muser');
 const storySchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'Muser',
         required: true
     },
     media: {
@@ -20,7 +21,7 @@ const storySchema = new mongoose.Schema({
     },
     viewers: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'Muser'
     }],
     expiresAt: {
         type: Date,
