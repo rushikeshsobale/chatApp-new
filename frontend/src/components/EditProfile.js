@@ -523,8 +523,8 @@ const EditProfile = ({ show, onHide, userData, onSave, onLogout, onChangePasswor
 
   return (
     <>
-      <Modal show={show} onHide={onHide}  size="lg" className="edit-profile-modal"> {/* Increased size for stepper */}
-        <Modal.Header className="bg-dark text-light border-0 m-2">
+      <Modal show={show} onHide={onHide}  size="md" className="edit-profile-modal"> {/* Increased size for stepper */}
+        <Modal.Header className="bg-dark text-light border-0 ">
           <Modal.Title className="fw-bold">My Profile</Modal.Title>
           <div>
           <Button variant="link" className="text-light" onClick={() => setShowSettingsModal(true)}>

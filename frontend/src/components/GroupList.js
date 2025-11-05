@@ -25,10 +25,7 @@ const GroupList = ({handleGroupSelect,msgCounts,handleBackToFriendList}) => {
 
   return (
     <div className="friend-list-container">
-       <div className="friend-list-header">
-        <h3>Groups</h3>
-        
-      </div>
+       
       {groups.length === 0 ? (
         <p>No groups found.</p>
       ) : (

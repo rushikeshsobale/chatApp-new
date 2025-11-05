@@ -1,145 +1,119 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
 import * as bootstrap from 'bootstrap';
-
 import { createGroup } from '../services/groupServices';
-const CreateGroupModal = ({ friends }) => {
+
+const CreateGroupDrawer = ({ friends, isOpen, onClose, onGroupCreated }) => {
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const [userOptions, setUserOptions] = useState([]);
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+
+  const offcanvasRef = useRef(null);
+  const offcanvasInstance = useRef(null);
+
   useEffect(() => {
-    if (friends && Array.isArray(friends)) {
-      const options = friends.map(friend => ({
-        value: friend._id,
-        label: friend.userName,
-      }));
-      setUserOptions(options);
+    if (offcanvasRef.current && !offcanvasInstance.current) {
+      offcanvasInstance.current = new bootstrap.Offcanvas(offcanvasRef.current, {
+        backdrop: true,
+      });
     }
-  }, [friends]);
+
+    if (isOpen) {
+      offcanvasInstance.current?.show();
+      setError('');
+      setGroupName('');
+      setSelectedUsers([]);
+    } else {
+      offcanvasInstance.current?.hide();
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    onClose?.();
+  };
+
   const handleCreateGroup = async () => {
-    if (!groupName.trim()) {
-      setError('Group name is required');
-      return;
-    }
-    if (selectedUsers.length === 0) {
-      setError('Please select at least one member');
-      return;
-    }
+    if (!groupName.trim()) return setError('Group name is required');
+    if (selectedUsers.length === 0) return setError('Select at least one member');
+
     setIsLoading(true);
-    setError(null);
+    setError('');
+
     try {
       const groupData = {
         name: groupName,
-        members: selectedUsers.map(user => user.value),
-        admins: selectedUsers.map(user => user.value)
+        members: selectedUsers.map((u) => u.value),
       };
-      const response = await createGroup(groupData);    
-      const modal = document.getElementById('createGroupModal');
-      const modalInstance = bootstrap.Modal.getInstance(modal);
-      modalInstance.hide();
-      setGroupName('');
-      setSelectedUsers([]);   
-      console.log('Group created successfully:', response);
+
+      const res = await createGroup(groupData);
+      onGroupCreated?.(res);
+      handleClose();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create group');
     } finally {
       setIsLoading(false);
     }
   };
-  return (
-    <>
-      {/* Trigger Button */}
-      <button
-        className="btn btn-primary d-flex align-items-center gap-2"
-        data-bs-toggle="modal"
-        data-bs-target="#createGroupModal"
-      >
-        <i className="bi bi-plus-circle-fill"></i>
-        Create Group
-      </button>
 
-      {/* Modal */}
-      <div
-        className="modal fade"
-        id="createGroupModal"
-        tabIndex="-1"
-        aria-labelledby="createGroupModalLabel"
-        aria-hidden="true"
-      >
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content shadow">
-            <div className="modal-header bg-primary text-white">
-              <h5 className="modal-title" id="createGroupModalLabel">Create New Group</h5>
-              <button
-                type="button"
-                className="btn-close btn-close-white"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              ></button>
-            </div>
-            <div className="modal-body">
-              {error && (
-                <div className="alert alert-danger" role="alert">
-                  {error}
-                </div>
-              )}
-              <div className="mb-3">
-                <label htmlFor="groupName" className="form-label fw-semibold">
-                  Group Name
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  id="groupName"
-                  placeholder="Enter group name"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label fw-semibold">Select Users</label>
-                <Select
-                  options={userOptions}
-                  isMulti
-                  className="basic-multi-select"
-                  classNamePrefix="select"
-                  onChange={setSelectedUsers}
-                  value={selectedUsers}
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                data-bs-dismiss="modal"
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleCreateGroup}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    Creating...
-                  </>
-                ) : (
-                  'Create Group'
-                )}
-              </button>
-            </div>
-          </div>
+  const userOptions = friends.map(f => ({
+    value: f._id,
+    label: f.userName,
+  }));
+
+  return (
+    <div
+      className="offcanvas offcanvas-end "
+      tabIndex="-1"
+      id="createGroupDrawer"
+      ref={offcanvasRef}
+    >
+      <div className="offcanvas-header bg-primary text-white">
+        <h5 className="offcanvas-title">Create Group</h5>
+        <button type="button" className="btn-close btn-close-white" onClick={handleClose}></button>
+      </div>
+      <div className="offcanvas-body">
+        {error && <div className="alert alert-danger">{error}</div>}
+
+        <div className="mb-3">
+          <label className="form-label fw-semibold">Group Name</label>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Enter group name"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label fw-semibold">Select Users</label>
+          <Select
+            isMulti
+            options={userOptions}
+            value={selectedUsers}
+            onChange={setSelectedUsers}
+          />
+        </div>
+
+        <div className="d-flex justify-content-end gap-2 mt-4">
+          <button className="btn btn-secondary" onClick={handleClose}>Cancel</button>
+          <button
+            className="btn btn-primary"
+            onClick={handleCreateGroup}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2"></span>
+                Creating...
+              </>
+            ) : 'Create Group'}
+          </button>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
-export default CreateGroupModal;
+export default CreateGroupDrawer;

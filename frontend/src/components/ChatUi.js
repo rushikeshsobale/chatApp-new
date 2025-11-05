@@ -14,7 +14,7 @@ import {
   faPaperPlane,
   faPaperclip,
   faImage,
-  faVideo,
+faVideo,
   faFileAlt
 } from '@fortawesome/free-solid-svg-icons';
 import { FaArrowLeft, FaVideo } from 'react-icons/fa';
@@ -273,7 +273,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
         </button>
         <div className="user-info d-flex flex-row">
           <div className="user-avatar">
-            {console.log(member.profilePicture, 'member')}
+          
             <img
               style={{ width: "48px", height: "48px", objectFit: "cover" }}
               src={member?.profilePicture}

@@ -10,6 +10,7 @@ import SavedPosts from './pages/SavedPosts';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { initializeSocket } from './redux/socketSlice';
+
 function App() {
   const dispatch = useDispatch();
   useEffect(() => {
