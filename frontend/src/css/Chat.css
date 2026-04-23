@@ -114,7 +114,9 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: #000000;
+  color:white;
+  
 }
 
 .friend-list-header {
@@ -150,7 +152,7 @@
 .friend-item {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
+  padding: 0px 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -374,7 +376,7 @@
 }
 
 .sent .message-bubble {
-  background: #DCF8C6;
+  background: black;
   border-top-right-radius: 0;
 }
 
@@ -672,7 +674,7 @@
   top:0px;
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 0px;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   z-index: 10;
@@ -802,10 +804,7 @@
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
 }
 
-.sent .message-bubble {
-  background: #DCF8C6;
-  border-top-right-radius: 0;
-}
+
 
 .received .message-bubble {
   background: white;
@@ -962,7 +961,7 @@
 /* Input Area */
 .input-area {
   padding: 12px 16px;
-  background: white;
+  background: rgb(0, 0, 0);
   border-top: 1px solid #e5e5e5;
   position: relative;
 }

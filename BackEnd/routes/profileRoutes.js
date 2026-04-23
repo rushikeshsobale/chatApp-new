@@ -6,12 +6,12 @@ const verifyToken = require("./verifyToken.js");
 const multer = require("multer");
 const { uploadToS3 } = require("../utils/s3Upload");
 const upload = multer({ storage: multer.memoryStorage() });
-
+const Relationship = require("../Modules/relationships");
+const Post = require("../Modules/Post.js");
+const jwt = require("jsonwebtoken");
 router.get("/getUser", verifyToken, async (req, res) => {
   try {
     const user = await Muser.findById(req.decoded.userId)
-    .populate("followers", "userName profilePicture _id") 
-      .populate("following", "userName profilePicture _id");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -27,36 +27,97 @@ router.get("/getUser", verifyToken, async (req, res) => {
 router.get("/userProfile/:userId", verifyToken, async (req, res) => {
   const { userId } = req.params;
   const currentUserId = req.decoded.userId;
-  if(!currentUserId || !userId){
+
+  if (!currentUserId || !userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
+
   try {
-    const user = await Muser.findById(userId).lean();
+    // 1. Get user
+    const user = await Muser.findById(userId)
+      .select("-password")
+      .lean();
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    const isOwner = userId === currentUserId;
-    const isFollower = user.followers.includes(currentUserId);
-    // Always remove password field
-    delete user.password;
-    const basicInfo = {
-      _id: user._id,
-      userName: user.userName,
-      profilePicture: user.profilePicture,
-      bio: user.bio,
-    };
 
-    if (user.isPrivate && !isOwner && !isFollower) {
-      return res.status(200).json({
-        ...basicInfo,
-        isPrivate: true,
-        message: "This profile is private. Limited info shown.",
-      });
+    const isOwnProfile = userId === currentUserId;
+
+    // 🔥 2. Check if current user follows this profile
+    const isFollowingDoc = await Relationship.findOne({
+      requester: currentUserId,
+      recipient: userId,
+      type: "follow",
+      status: "accepted",
+    });
+
+    const isFollowing = !!isFollowingDoc;
+
+    // 🔥 3. Lock logic
+    const isLocked = user.isPrivate && !isFollowing && !isOwnProfile;
+
+    // 🔥 4. Counts (VERY IMPORTANT)
+    const [followersCount, followingCount, postsCount] = await Promise.all([
+      Relationship.countDocuments({
+        recipient: userId,
+        type: "follow",
+        status: "accepted",
+      }),
+
+      Relationship.countDocuments({
+        requester: userId,
+        type: "follow",
+        status: "accepted",
+      }),
+
+      Post.countDocuments({ user: userId }),
+    ]);
+
+    // 🔥 5. Get posts only if not locked
+    let posts = [];
+
+    if (!isLocked) {
+      const userPosts = await Post.find({ userId: userId })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      posts = userPosts.map((post) => ({
+        _id: post._id,
+        mediaUrl: post.media,
+        caption: post.text,
+
+        likesCount: post.likes?.length || 0,
+        commentsCount: post.comments?.length || 0,
+
+        isLiked: post.likes?.some(
+          (id) => id.toString() === currentUserId
+        ),
+
+        createdAt: post.createdAt,
+      }));
     }
 
-    res.status(200).json({
-      ...user,
-      isPrivate: false,
+    // 🔥 6. Final response
+    return res.status(200).json({
+      user: {
+        _id: user._id,
+        userName: user.userName,
+        profilePicture: user.profilePicture,
+        bio: user.bio,
+        firstName: user.firstName,
+        lastName: user.lastName,
+
+        isPrivate: user.isPrivate,
+        isOwnProfile,
+        isFollowing,
+        isLocked,
+
+        postsCount,
+        followersCount,
+        followingCount,
+      },
+      posts,
     });
 
   } catch (error) {
@@ -91,12 +152,12 @@ router.get("/suggestions", verifyToken, async (req, res) => {
 router.put("/updateUser/:userId", upload.single("profilePicture"), async (req, res) => {
   // 1. Destructure all fields, including the new ones
   const { firstName, lastName, bio, interest, onboardingComplete } = req.body; 
-  const { userId } = req.params;
+  const { userId } = req.params; 
 
-  // --- Basic Validation ---
+  // --- Basic Validation --- 
   if (!userId) {
-      return res.status(400).json({
-          success: false,
+      return res.status(400).json({ 
+          success: false, 
           message: "User ID is required",
       });
   }

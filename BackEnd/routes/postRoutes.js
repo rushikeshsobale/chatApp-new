@@ -23,7 +23,7 @@ router.post("/mediaPost", upload.single("media"), async (req, res) => {
     let mediaUrl = null;
     if (req.file) {
       const uploadResult = await uploadToS3(req.file, {
-        folder: "posts",
+          folder: "profiles",
         checkDuplicate: true
       });
       mediaUrl = uploadResult.url;
@@ -49,25 +49,40 @@ router.post("/mediaPost", upload.single("media"), async (req, res) => {
 });
 
 // Get all posts by a specific userId
-router.get("/getPosts/:userId", async (req, res) => {
-  const { userId } = req.params;
+const mongoose = require('mongoose');
+
+router.get("/getPosts/:userId",verifyToken, async (req, res) => {
+  
+    const userId = req.decoded.userId;  // 1. Check if userId is actually the string "undefined" or missing
+  if (!userId || userId === "undefined") {
+    return res.status(400).json({ 
+      success: false, 
+      message: "User ID is required and must be valid." 
+    });
+  }
+
+  // 2. Validate if it's a proper MongoDB ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Invalid User ID format." 
+    });
+  }
+
   try {
-    // Find posts by userId
     const posts = await Post.find({ userId })
       .populate("userId", "userName profilePicture")
       .populate("comments.userId", "userName profilePicture")
       .populate("likes.userId", "userName profilePicture");
+
     if (posts.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No posts found for this user",
       });
-    }
-    // Return the posts
-    res.status(200).json({
-      success: true,
-      posts,
-    });
+    } 
+
+    res.status(200).json({ success: true, posts });
   } catch (error) {
     console.error("Error fetching posts:", error);
     res.status(500).json({ success: false, message: "Internal server error" });

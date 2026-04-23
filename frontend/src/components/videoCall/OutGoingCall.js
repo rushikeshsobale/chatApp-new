@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useContext, useRef, useCallback } from "react";
 import { Modal, Button, Spinner } from "react-bootstrap";
-import { FaPhoneSlash } from "react-icons/fa";
+import { FaPhoneSlash, FaVideo } from "react-icons/fa";
 import { UserContext } from "../../contexts/UserContext";
 
 const OutGoingCall = ({ show, member,onCancel }) => {
@@ -188,69 +188,100 @@ const OutGoingCall = ({ show, member,onCancel }) => {
 
     return (
         // ... JSX remains the same ...
-        <Modal show={show} centered backdrop="static" keyboard={false}>
-            <Modal.Body className="text-center p-4">
-                <div className="d-flex flex-column align-items-center gap-3">
-                    {/* Video container */}
-                    <div
-                        className="position-relative"
-                        style={{
-                            width: "100%",
-                            maxWidth: "400px",
-                            height: "250px",
-                            background: "#000",
-                            borderRadius: "10px",
-                            overflow: "hidden",
-                        }}
-                    >
-                        {/* Remote video */}
-                        <video
-                            ref={remoteVideoRef}
-                            autoPlay
-                            playsInline
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-
-                        {/* Local video */}
-                        <video
-                            ref={localVideoRef}
-                            autoPlay
-                            muted
-                            playsInline
-                            style={{
-                                position: "absolute",
-                                bottom: "10px",
-                                right: "10px",
-                                width: "100px",
-                                height: "80px",
-                                objectFit: "cover",
-                                borderRadius: "8px",
-                                border: "2px solid white",
-                            }}
-                        />
+       <Modal 
+            show={show} 
+            centered 
+            backdrop="static" 
+            contentClassName="bg-dark text-white border-0 shadow-lg"
+            style={{ borderRadius: '15px', overflow: 'hidden' }}
+        >
+            <Modal.Body className="p-0 position-relative" style={{ backgroundColor: '#121212', minHeight: '450px' }}>
+                
+                {/* Status Header */}
+                <div className="position-absolute top-0 w-100 p-4 z-3 d-flex justify-content-between align-items-start"
+                     style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)' }}>
+                    <div>
+                        <h5 className="mb-1 fw-bold text-uppercase tracking-wider">
+                            {isConnected ? "Active Call" : "Calling..."}
+                        </h5>
+                        <p className="small text-light opacity-75 mb-0">
+                            {member?.userName || "User"}
+                        </p>
                     </div>
+                    {isConnected && (
+                        <div className="badge bg-success px-3 py-2 d-flex align-items-center">
+                            SECURE
+                        </div>
+                    )}
+                </div>
 
-                    {!isConnected ? (
-                        <>
-                            <h5>
-                                Calling  to {member?.userName || "User"}
-                                {dots}
-                            </h5>
-                            <Spinner animation="border" variant="primary" />
-                        </>
-                    ) : (
-                        <h5 className="text-success">Connected with {member?.userName}</h5>
+                {/* Main View Area */}
+                <div className="w-100 h-100 d-flex align-items-center justify-content-center" style={{ minHeight: '450px' }}>
+                    {/* Ringing UI */}
+                    {!isConnected && (
+                        <div className="text-center">
+                            <div className="position-relative mx-auto mb-4" style={{ width: '120px', height: '120px' }}>
+                                <div className="position-absolute top-0 start-0 w-100 h-100 rounded-circle border border-primary opacity-25" 
+                                     style={{ animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite' }}></div>
+                                <div className="rounded-circle bg-secondary d-flex align-items-center justify-content-center position-relative z-2" 
+                                     style={{ width: '100%', height: '100%', fontSize: '3rem' }}>
+                                    {member?.userName?.charAt(0) || <FaVideo />}
+                                </div>
+                            </div>
+                            <Spinner animation="grow" size="sm" variant="primary" className="me-2" />
+                            <span className="text-muted small">Awaiting Answer...</span>
+                        </div>
                     )}
 
-                    <Button
-                        variant="danger"
-                        className="d-flex align-items-center gap-2 mt-3"
-                        onClick={ handleEndCall}
+                    {/* Remote Video */}
+                    <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className={`w-100 h-100 position-absolute top-0 start-0 ${isConnected ? 'opacity-100' : 'opacity-0'}`}
+                        style={{ objectFit: 'cover', transition: 'opacity 0.5s ease-in' }}
+                    />
+
+                    {/* Local Video (Floating PiP) */}
+                    <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`position-absolute m-3 rounded shadow-lg border border-secondary ${isConnected ? 'bottom-0 end-0' : 'top-50 start-50 translate-middle opacity-0'}`}
+                        style={{ 
+                            width: isConnected ? '110px' : '0px', 
+                            height: isConnected ? '150px' : '0px', 
+                            objectFit: 'cover', 
+                            zIndex: 10,
+                            transition: 'all 0.4s ease-out'
+                        }}
+                    />
+                </div>
+
+                {/* End Call Button Overlay */}
+                <div className="position-absolute bottom-0 w-100 p-5 d-flex justify-content-center z-3">
+                    <Button 
+                        variant="danger" 
+                        onClick={handleEndCall}
+                        className="rounded-circle d-flex align-items-center justify-content-center border-0 shadow-lg"
+                        style={{ width: '65px', height: '65px', transition: 'transform 0.2s' }}
+                        onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                        onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                        <FaPhoneSlash /> End Call
+                        <FaPhoneSlash size={28} />
                     </Button>
                 </div>
             </Modal.Body>
+
+            <style>{`
+                @keyframes ping {
+                    75%, 100% { transform: scale(2); opacity: 0; }
+                }
+                .modal-content {
+                    border-radius: 20px !important;
+                }
+            `}</style>
         </Modal>
     );
 };

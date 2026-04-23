@@ -7,11 +7,11 @@
   background-image: url('https://source.unsplash.com/random/1920x1080/?social');
   background-size: cover;
   background-position: center;
-  padding: 20px;
+ 
 }
 
 .auth-card {
-  background-color: white;
+  background-color: #d7d7d7;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   padding: 40px;
@@ -21,11 +21,11 @@
 
 .auth-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 15px;
 }
 
 .auth-header h2 {
-  font-weight: 700;
+  font-weight: 400;
   color: #333;
   margin-bottom: 10px;
 }
@@ -45,14 +45,14 @@
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .form-group label {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: #333;
+  color: #ededed;
 }
 
 .input-group-text {
@@ -72,7 +72,6 @@
 .auth-divider {
   display: flex;
   align-items: center;
-  margin: 25px 0;
   color: #666;
 }
 
@@ -100,7 +99,8 @@
   gap: 10px;
   padding: 10px;
   border-radius: 8px;
-  font-weight: 500;
+  font-weight: 300;
+  font-size: 14px;
 }
 
 .btn-google {
@@ -148,6 +148,6 @@
 
 @media (max-width: 576px) {
   .auth-card {
-    padding: 30px 20px;
+    padding: 10px 20px;
   }
 }

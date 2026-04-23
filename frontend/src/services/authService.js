@@ -169,3 +169,16 @@ export const resetPassword = async (token, newPassword) => {
   });
   return response.data;
 };
+
+export const setPassword = async (password) => {
+  try {
+    const response = await api.post(
+      "auth/set-password",
+      { password },
+      { withCredentials: true } // IMPORTANT
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || "Failed to set password";
+  }
+};

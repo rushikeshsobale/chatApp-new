@@ -1,12 +1,66 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const userController = require('../controllers/userController');
-const auth = require('../middleware/auth');
+const User = require("../Modules/Muser");
+const auth = require("./verifyToken");
+const relations = require("../Modules/relationships");
+router.get("/search", auth, async (req, res) => {
+  try {
+    const q = req.query.q?.trim();
+    if (!q) {
+      return res.json([]);
+    }
+    const users = await User.find({
+      userName: { $regex: q, $options: "i" },
+      _id: { $ne: req.decoded.userId }
+    })
+      .select("_id userName profilePicture")
+      .limit(10);
+    res.json(users);
+  } catch (err) {
+    console.error("User search error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
-// Friend-related routes
-router.get('/friends/:userId', auth, userController.getFriends);
-router.get('/search', auth, userController.searchUsers);
-router.post('/addFriend', auth, userController.addFriend);
-router.post('/removeFriend', auth, userController.removeFriend);
+router.get("/friends", auth, async (req, res) => {
+  try {
+    const userId = req.decoded.userId;
 
-module.exports = router; 
+    const relationsList = await relations
+      .find({
+        status: "accepted",
+        $or: [
+          { requester: userId },
+          { recipient: userId }
+        ]
+      })
+      .populate({
+        path: "requester recipient",
+        select: "_id userName profilePicture",
+        populate: {
+          path: "keysId",
+          select: "publicKey"
+        }
+      });
+    const friendMap = new Map();
+
+    relationsList.forEach(rel => {
+      const friend =
+        rel.requester._id.toString() === userId
+          ? rel.recipient
+          : rel.requester;
+
+      friendMap.set(friend._id.toString(), friend);
+    });
+
+    const friends = Array.from(friendMap.values());
+
+    res.json(friends);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching friends" });
+  }
+});
+
+module.exports = router;

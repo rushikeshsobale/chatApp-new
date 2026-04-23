@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaUserEdit, FaUserFriends, FaPlus, FaSearch, FaBell, FaHome, FaCompass, FaVideo, FaStore, FaGamepad, FaBookmark, FaPen } from "react-icons/fa";
+import { FaUserEdit, FaUserFriends, FaPlus, FaSearch, FaBell, FaHome, FaCompass, FaVideo, FaStore, FaGamepad, FaBookmark, FaPen, FaAmazon, FaCamera } from "react-icons/fa";
 import { IoMdNotifications } from "react-icons/io";
 import { RiMessengerLine } from "react-icons/ri";
 import EditProfile from "../components/EditProfile";
 import CustomModal from "../components/customModal";
 import PostDetail from "../components/PostDetail";
 import { useParams, useLocation } from "react-router-dom";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination, Navigation } from "swiper/modules";
+
 import { IoGridSharp } from "react-icons/io5";
 import { PiSlideshowFill } from "react-icons/pi";
 import { GiSouthAfricaFlag } from "react-icons/gi";
@@ -18,7 +17,7 @@ import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
 import moment from "moment";
-import StoryCircle from "../components/StoryCircle";
+
 import StoryViewer from "../components/StoryViewer";
 import FriendSuggestion from "../components/FriendSuggestion";
 import { fetchSuggestions, getPostById } from "../services/profileService";
@@ -31,57 +30,13 @@ import { getUserData, getProfileUserData, getUserPosts, getNotifications as getP
 import Loader from '../components/Loader';
 import NotificationModal from '../components/Notification';
 import SavedPosts from "./SavedPosts";
-export const StoryButton = ({ userData, hasStory, onClick }) => {
-  return (
-    <div
-      className="position-relative d-inline-block"
-      style={{
-        cursor: "pointer",
-        padding: hasStory ? "3px" : "2px",
-        borderRadius: "50%",
-        background: hasStory
-          ? "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)" // active gradient ring
-          : "#e0e0e0", // inactive neutral border
-        transition: "all 0.3s ease",
-      }}
-      onClick={onClick}
-    >
-      {/* Profile Image */}
-      <img
-        src={userData?.profilePicture || "https://via.placeholder.com/60"}
-        alt="Profile"
-        className="rounded-circle bg-white"
-        style={{
-          width: "40px",
-          height: "40px",
-          objectFit: "cover",
-          border: "2px solid white",
-          transition: "transform 0.3s ease",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-      />
-
-      {/* Small camera icon on the edge */}
-      <div
-        className="position-absolute bg-danger rounded-circle d-flex align-items-center justify-content-center"
-        style={{
-          width: "18px",
-          height: "18px",
-          bottom: "0px",
-          right: "0px",
-          transform: "translate(25%, 25%)",
-          border: "2px solid white",
-          boxShadow: "0 0 4px rgba(0,0,0,0.2)",
-        }}
-      >
-        <i className="bi bi-camera-video-fill text-white" style={{ fontSize: "8px" }}></i>
-      </div>
-
-    </div>
-  );
-};
+import { getFollowers, getFollowing, } from '../services/relationships'
+import ResponsiveStoryCarousel from "../components/ResponsiveStoryCarousel";
 const ProfilePage = () => {
+  const [isVisible, setIsVisible] = useState(true);
+
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
   const [newPost, setNewPost] = useState("");
   const [media, setMedia] = useState(null);
   const { userProfileId } = useParams();
@@ -116,27 +71,50 @@ const ProfilePage = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [loadingStories, setLoadingStories] = useState(true);
+  const [loadingStories, setLoadingStories] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [commentInputs, setCommentInputs] = useState({});
   const [showCommentInputs, setShowCommentInputs] = useState({});
-  const [hasStory, setHasStory] = useState('');
+  const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
+  const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
+  const loadData = async () => {
+
+    const res = await getFollowers(userId);
+    setFollowers(res);
+    const res1 = await getFollowing(userId);
+    setFollowing(res1);
+  }
+  useEffect(() => {
+    loadData()
+  }, [])
+  // ... inside your component
+const lastScrollY = useRef(0); // Create the ref
+const scrollContainerRef = useRef(null); 
+
+  
   // Fetch User Data
   useEffect(() => {
     setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
     } else {
-      fetchUser2Data();
+    
     }
     getSuggestions();
-    fetchStories();
+    // fetchStories();
     fetchPosts()
     // fetchTrendingTopics();
     // fetchEvents();
 
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (followers.length > 0 || following.length > 0) {
+      fetchStories(followers, following);
+    }
+  }, [following]);
+
   useEffect(() => {
     if (user !== null) {
       fetchNotifications(user);
@@ -160,19 +138,11 @@ const ProfilePage = () => {
     }
     setLoadingUser(false);
   };
-  const fetchUser2Data = async () => {
-    console.log(userProfileId, 'userProfileId')
-    try {
-      const data = await getProfileUserData(userProfileId);
-      setUserData(data);
-      setFriends(data.friends);
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
+ 
   const fetchPosts = async () => {
     setLoadingPosts(true);
     try {
+
       const data = await getUserPosts(userId);
       setPosts(data.posts);
     } catch (error) {
@@ -182,7 +152,7 @@ const ProfilePage = () => {
   };
   const fetchPostById = async (postId, dataType) => {
     const response = await getPostById(postId);
-    console.log(response, "lets see");
+
 
     const currentPost = response.post;
 
@@ -224,16 +194,23 @@ const ProfilePage = () => {
     }
     setLoadingNotifications(false);
   };
-  const fetchStories = async () => {
+  const [storyGroups, setStoryGroups] = useState([]); // Initialize as empty array
+
+  const fetchStories = async (followers, following) => {
     setLoadingStories(true);
     try {
-      const data = await getStories();
-      setStories(data.stories);
+      const response = await getStories(following);
 
+      // Ensure you are accessing 'stories' from the response object
+      if (response.success && response.stories) {
+        setStoryGroups(response.stories);
+
+      }
     } catch (error) {
       console.error("Error fetching stories:", error);
+    } finally {
+      setLoadingStories(false);
     }
-    setLoadingStories(false);
   };
   const fetchTrendingTopics = async () => {
     try {
@@ -246,13 +223,20 @@ const ProfilePage = () => {
   useEffect(() => {
     if (!socket) return;
     socket.on('got_a_notification', (data) => {
-      console.log('got a notification, ', data)
+
       fetchNotifications();
       if (data.type == 'comment') {
         fetchPostById(data.postId, data.type)
       }
       else if (data.type == 'like') {
         fetchPostById(data.postId, data.type)
+      }
+      else if (data.type == 'follow') {
+        loadData()
+        getSuggestions();
+      }
+      else if (data.type == 'story') {
+        fetchStories();
       }
     });
     // Optional: Cleanup listener on unmount
@@ -530,78 +514,79 @@ const ProfilePage = () => {
     try {
       const data = await createStory(storyData);
       setStories(prev => [data.story, ...prev]);
-      setShowCreateStory(false);
+      setShowCreateStory(false)
+      const notificationData = {
+        sender: user._id,
+        type: 'story',
+        message: `${user.userName} has added story`,
+        createdAt: new Date().toISOString(),
+        read: false
+      };
+
+      if (data) {
+
+        socket.emit('emit_notification', notificationData)
+      }
     } catch (error) {
       console.error('Error creating story:', error);
     }
   };
-  const [selectedUserStories, setSelectedUserStories] = useState([]);
-
-  const handleStoryClick = (story) => {
-    // Get all stories from the clicked user
-    const userStories = stories.filter(s => s.userId._id === story.userId._id);
-
-    // Find which one was clicked among that user's stories
-    const storyIndex = userStories.findIndex(s => s._id === story._id);
-
-    setSelectedUserStories(userStories);
-    setSelectedStoryIndex(storyIndex);
-    setShowStoryViewer(true);
-  };
-
   const logOut = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   };
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const handleStoryClick = (userId) => {
+    setSelectedUserId(userId);
+    setShowStoryViewer(true);
+  };
 
-  const handleOwnStoryClick = () => {
-    const story = stories.filter(story => story.userId._id == userId);
-
-    if (story.length > 0) {
-
-      handleStoryClick(story[0])
-    }
-    else {
-      setShowCreateStory(true)
-    }
-
+const handleScroll = (e) => {
+  const currentScrollY = e.target.scrollTop;
+  if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+    setIsVisible(false); // scrolling down → hide
+  } else {
+    setIsVisible(true); // scrolling up → show
   }
-
-  useEffect(() => {
-    console.log(showStoryViewer, ' showStoryViewer')
-  }, [showStoryViewer])
+  lastScrollY.current = currentScrollY;
+};
   return (
-    <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: "#f5f5f5" }}>
+    <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: 'black' }}>
       {/* Navigation Bar */}
-      <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
-        <div className="container">
-          <a className="navbar-brand fw-bold text-primary" href="/" style={{ fontSize: "1.8rem" }}>
+      <nav className="navbar navbar-expand-lg navbar-light  shadow-sm sticky-top border p-0" style={{ background: '#ffffffff' }}>
+        <div className="container-fluid d-flex justify-content-between align-items-center px-2">
+          <a className="navbar-brand fw-bold " href="/" style={{ fontSize: "1.8rem" }}>
             HiBUDDY
           </a>
-          <div className="">
-            <div className=" d-flex  ">
+          
+            <div className=" d-flex gap-2 ">
+               <div className="cursor-pointer" onClick={() => console.log('Home')}><FaHome size={28} /></div>
               {/* <a href="/home" className="text-dark"><FaHome size={22} /></a> */}
               {/* <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a> */}
               {/* <a href="/watch" className="text-dark"><FaVideo size={22} /></a> */}
               {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
               <a href="/games" className="text-dark"><FaGamepad size={22} /></a> */}
               <button className="btn p-0 position-relative " onClick={() => navigate('/chats')}>
-                <RiMessengerLine size={28} className="text-dark" />
+                <RiMessengerLine size={28} className="" />
                 {unseenMessages.length > 0 &&
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                     {unseenMessages.length}
                   </span>
                 }
               </button>
-              {console.log(userData, 'userData')}
+
               <img
+
                 src={userData?.profilePicture}
                 alt="Profile"
-                className="rounded-circle mx-3"
+                className="rounded-circle "
                 style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
                 onClick={() => setShowProfileModal(true)}
               />
+              <span>
+                <FaBell size={22} onClick={() => setShowNotifications(true)} />
+              </span>
 
               <NotificationModal
                 notifications={notifications}
@@ -612,16 +597,16 @@ const ProfilePage = () => {
                 onDelete={handleDeleteNotification}
               />
             </div>
-          </div>
+         
         </div>
       </nav>
       {/* Main Content */}
       <div className="container-fluid mt-1 ">
         <div className="row " >
           {/* Left Sidebar */}
-          <div className="col-lg-3 d-none d-lg-block">
+          <div className="col-lg-3 d-none d-lg-block bg-dark">
             <div className="sticky-top" style={{ top: "70px" }}>
-              <BirthdaysCard userId={userId} />
+
               <div className="card border-0 shadow-sm mb-3">
                 <div className="card-header bg-white d-flex justify-content-between align-items-center">
                   <h6 className="mb-0 fw-bold">Contacts</h6>
@@ -726,20 +711,20 @@ const ProfilePage = () => {
           </div>
           {/* Main Content Area */}
           <div className="col-lg-6"
+            onScroll={handleScroll}
             style={{
               height: "90vh",
-              backgroundColor: "white",
               overflow: "auto",
             }}>
-
             {/* Stories */}
             {loadingStories ? <Loader text="Loading stories..." /> : userData && (
               <div
-                className="profile-header position-relative overflow-hidden mb-3"
+                className="mt-1 profile-header position-relative overflow-hidden mb-1"
+                style={{ background: '#000000ff' }}
               >
-                <div className="container">
-                  <div className="row align-items-center">
-                    <div className="col-md-8 d-flex flex-row align-items-center gap-4">
+                <div className="container text-white" >
+                  <div className="row align-items-center mt-1"  >
+                    <div className="col-md-8 d-flex flex-row align-items-center gap-4" >
                       <div className="position-relative hover-3d">
                         {userData?.profilePicture ? (
                           <img
@@ -747,8 +732,8 @@ const ProfilePage = () => {
                             alt="Profile"
                             className="rounded-circle shadow-lg"
                             style={{
-                              width: "100px",
-                              height: "100px",
+                              width: "80px",
+                              height: "80px",
                               border: "4px solid rgba(255,255,255,0.8)",
                               objectFit: "cover",
                               transform: "perspective(500px) rotateY(-5deg)",
@@ -770,8 +755,7 @@ const ProfilePage = () => {
                             style={{
                               width: "100px",
                               height: "100px",
-                              border: "4px solid rgba(255,255,255,0.8)",
-                              backgroundColor: "#6c757d",
+                              border: "4px solid hsla(0, 0%, 100%, 0.80)",
                               fontSize: "36px",
                               fontWeight: "bold",
                               transform: "perspective(500px) rotateY(-5deg)",
@@ -791,12 +775,11 @@ const ProfilePage = () => {
                         )}
                         <div className="status-indicator"></div>
                       </div>
-
-                      <div>
+                      <div >
                         <p
-                          className="mb-2"
+                          className="mb-1"
                         >
-                          <span className="text-dark text-sm">{userData?.userName}</span>
+                          <span className="text-white text-sm">{userData?.userName}</span>
                         </p>
                         <p
                           className="mb-0"
@@ -812,7 +795,7 @@ const ProfilePage = () => {
                           {/* Followers Stats */}
                           <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowers}>
                             <h3 className="mb-0 fw-bold" style={{ fontSize: '0.8rem' }}>
-                              {userData?.followers?.length || 0}
+                              {followers.length || 0}
                             </h3>
                             <p className="mb-0 " style={{ fontSize: '0.7rem' }}>
                               Followers
@@ -820,11 +803,10 @@ const ProfilePage = () => {
                           </div>
                           {/* Divider */}
                           <div className="mx-2" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)' }}></div>
-
                           {/* Following Stats */}
                           <div className="text-center cursor-pointer" style={{ cursor: 'pointer' }} onClick={handleShowFollowing}>
                             <h3 className="mb-0 fw-bold" style={{ fontSize: '0.8rem' }}>
-                              {userData?.following?.length || 0}
+                              {following.length || 0}
                             </h3>
                             <p className="mb-0 " style={{ fontSize: '0.7rem' }}>
                               Following
@@ -833,125 +815,27 @@ const ProfilePage = () => {
                         </div>
                       </div>
                     </div>
-
                   </div>
                 </div>
               </div>
             )}
-
             {/* Create Post Card - Enhanced */}
-            <div className="card border-0 shadow-sm ">
-              <div className="card-body p-0">
-                <div className="d-flex align-items-center justify-content-between mb-1  rounded-pill" style={{ background: 'gainsboro' }}>
-                  <div className="d-flex align-items-center w-100 ">
-                    <StoryButton
-                      userData={userData}
-                      hasStory={stories.filter(story => story.userId._id == userId).length > 0 ? true : false} // or false depending on user
-                      onClick={() => handleOwnStoryClick()}
-                    />
-                    {stories.length == 0 ? <button
-                      className="btn btn-light flex-grow-1 text-start"
-                      onClick={() => setShowModal(true)}
-                      style={{
-                        fontSize: "0.7rem",
-                        height: "40px",
-                        transition: "all 0.3s ease",
-                        border: "1px solid #e0e0e0"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f8f9fa";
-                        e.currentTarget.style.borderColor = "#dee2e6";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#fff";
-                        e.currentTarget.style.borderColor = "#e0e0e0";
-                      }}
-                    >
-                      What's on your mind, {userData?.userName}?
-                    </button> : <div className=" border-0  w-100">
-                      <div className=" p-0">
-                        <Swiper
-                          slidesPerView={5}
-                          spaceBetween={4}
-                          pagination={{ clickable: true }}
-                          modules={[Pagination]}
-                          className="stories-swiper px-2"
+            
 
-                        >
-                          {/* Add Story Button */}
-                          {/* Other users' stories */}
-                          {Array.from(
-                            new Map(
-                              stories
-                                .filter(story => story.userId._id !== userId)
-                                .map(story => [story.userId._id, story])
-                            ).values()
-                          ).map((story) => (
-                            <SwiperSlide key={story._id} style={{ justifyItems: "center" }}>
-
-                              <StoryCircle
-                                story={story}
-                                onClick={handleStoryClick}
-                                currentUserId={userId}
-                              />
-                            </SwiperSlide>
-                          ))}
-                        </Swiper>
-                      </div>
-                      {/* <div className='d-block d-md-none'>
-                <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
-              </div> */}
-                    </div>}
-                  </div>
-                  <button className="btn btn-light rounded-pill d-flex align-items-center" onClick={() => setShowCreateStory(true)} style={{ transition: "all 0.3s ease", border: "1px solid #e0e0e0" }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f8f9fa"; e.currentTarget.style.borderColor = "#dee2e6"; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#fff"; e.currentTarget.style.borderColor = "#e0e0e0"; }} > <i className="bi bi-plus text-danger "></i> </button>
-
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="position-fixed d-flex align-items-center justify-content-center"
-                    style={{
-                      bottom: "25px",
-                      justifySelf: 'anchor-center',
-                      width: "65px",
-                      height: "65px",
-                      borderRadius: "50%",
-                      background: "rgba(255, 255, 255, 0.25)",
-                      backdropFilter: "blur(8px)",
-                      WebkitBackdropFilter: "blur(8px)",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      boxShadow: "0 4px 20px rgba(255, 0, 90, 0.4)",
-                      transition: "all 0.3s ease",
-                      cursor: "pointer",
-                      zIndex: 2000,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "scale(1.08)";
-                      e.currentTarget.style.boxShadow = "0 8px 30px rgba(255, 0, 90, 0.6)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "scale(1)";
-                      e.currentTarget.style.boxShadow = "0 4px 20px rgba(255, 0, 90, 0.4)";
-                    }}
-                  >
-                    <i className="bi bi-layout-text-window-reverse fs-3"></i>
-
-                  </button>
-
-                </div>
-                <div className="d-flex justify-content-around border-bottom">
-
-                </div>
-              </div>
-            </div>
             {/* Profile Header */}
             {/* Profile Navigation */}
-            <div className="card border-0 shadow-sm mb-3  bg-white" style={{ zIndex: 10 }}>
+            <div className='d-block d-md-none mt-2'>
+              <FriendSuggestion suggestions={suggestions} loadData={loadData} onFollow={handleFollowUser} />
+
+            </div>
+            <div className="border-0 shadow-sm mb-3 " style={{ zIndex: 10 }}>
               <div className="card-body p-0">
                 <div className="d-flex justify-content-around border-bottom">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
                       className={`flex flex-column align-items-center  position-relative border-0 bg-transparent 
-                        ${activeTab === tab.id ? "text-dark fw-bold" : "text-secondary"}`}
+                        ${activeTab === tab.id ? "text-light fw-bold" : "text-secondary"}`}
                       onClick={() => setActiveTab(tab.id)}
                       style={{
                         transition: "all 0.3s ease",
@@ -977,10 +861,12 @@ const ProfilePage = () => {
               </div>
             </div>
             {/* Profile Content */}
-            <div className="mb-4 p-3">
+            <div className="mb-4  rounded" >
+
               {activeTab === "grid" && (
                 <div className="row g-3">
-                  {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts.map((post) => (
+
+                  {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts.reverse().map((post) => (
                     <div key={post._id} className="col-lg-4 col-md-4 col-4">
                       <div
                         className="card border-0 shadow-sm overflow-hidden"
@@ -1004,15 +890,16 @@ const ProfilePage = () => {
                       </div>
                     </div>
                   ))}
+
                 </div>
               )}
               {activeTab === "slideshow" && (
-                <div className="row justify-content-center">
-                  {loadingPosts ? <Loader text="Loading posts..." /> : posts.map((post, index) => (
-                    <div key={post._id} className="col-12 mb-4">
-                      <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: "16px" }}>
+                <div className="row justify-content-center ">
+                  {loadingPosts ? <Loader text="Loading posts..." /> : posts.reverse().map((post, index) => (
+                    <div key={post._id} className="col-12 mb-4  ">
+                      <div className="overflow-hidden  p-1" >
                         {/* Post Header */}
-                        <div className="card-header bg-white d-flex align-items-center justify-content-between p-3">
+                        <div className="card-header d-flex align-items-center justify-content-between p-3">
                           <div className="d-flex align-items-center">
                             <img
                               src={post.userId.profilePicture || "https://via.placeholder.com/40"}
@@ -1021,11 +908,11 @@ const ProfilePage = () => {
                               style={{ width: "45px", height: "45px", objectFit: "cover" }}
                             />
                             <div>
-                              <h6 className="mb-0 fw-bold">{post.userId.userName} </h6>
-                              <small className="text-muted">{moment(post.createdAt).fromNow()}</small>
+                              <h6 className="mb-0 text-light  ">{post.userId.userName} </h6>
+                              <small className="text-light">{moment(post.createdAt).fromNow()}</small>
                             </div>
                           </div>
-                          <button className="btn btn-link text-dark">
+                          <button className="btn btn-link ">
                             <i className="bi bi-three-dots"></i>
                           </button>
                         </div>
@@ -1040,47 +927,47 @@ const ProfilePage = () => {
                           }}
                         />
                         <div className="card-body">
-                          <div className="d-flex justify-content-between mb-3">
+                          <div className="d-flex justify-content-between my-1">
                             <div>
 
                               <button
                                 className="btn p-0 me-3"
                                 onClick={() => handleToggleLike(index, post, post.likes?.some(like => like.userId._id == userId))}
                               >
-                                <i className={`bi ${post.likes?.some(like => like.userId._id == userId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-4`}></i>
+                                <i className={`bi ${post.likes?.some(like => like.userId._id == userId) ? "bi-heart-fill text-danger" : "bi-heart text-light"} fs-5`}></i>
                               </button>
                               <button
                                 className="btn p-0 me-3"
                                 onClick={() => handleShowCommentInput(post._id)}
                               >
-                                <i className="bi bi-chat fs-4"></i>
+                                <i className="bi bi-chat text-light fs-5"></i>
                               </button>
                               <button
                                 className="btn p-0"
                                 onClick={() => handleSharePost(post._id)}
                               >
-                                <i className="bi bi-send fs-4"></i>
+                                <i className="bi bi-send  text-light  fs-5"></i>
                               </button>
                             </div>
                             <button
                               className="btn p-0"
                               onClick={() => handleSavePost(post._id)}
                             >
-                              <i className={`bi ${post.savedBy?.includes(userData?._id) ? "bi-bookmark-fill" : "bi-bookmark"} fs-4`}></i>
+                              <i className={`bi ${post.savedBy?.includes(userData?._id) ? "bi-bookmark-fill" : "bi-bookmark"} fs-5  text-light `}></i>
                             </button>
                           </div>
-                          <p className="fw-bold mb-2">
+                          <p className="text-light mb-2 fs-6">
                             {post.likes?.length > 0
                               ? `${post.likes.length.toLocaleString()} likes`
                               : "Be the first to like this"}
                           </p>
-                          <p className="mb-2">
-                            <span className="fw-bold me-2">{post.userId.firstName}</span>
+                          <p className="mb-2 text-light fs-6">
+                            <span className="fw-bold ">{post.userId.firstName}</span>
                             {post.text}
                           </p>
                           {post.comments?.length > 0 && (
                             <div className="mb-2">
-                              <p className="text-muted small mb-1">
+                              <p className=" small mb-1">
                                 View all {post.comments.length} comments
                               </p>
                               {/* Show last 2 comments */}
@@ -1146,18 +1033,31 @@ const ProfilePage = () => {
               )}
             </div>
           </div>
-
           {/* Right Sidebar */}
-          <div className="col-lg-3 d-lg-block">
+          <div className="col-lg-3 d-lg-block bg-dark">
+            <BirthdaysCard userId={userId} />
             <div className="sticky-top" style={{ top: "70px", zIndex: 10 }}>
               {loadingSuggestions ? <Loader text="Loading suggestions..." /> : suggestions &&
-                <FriendSuggestion suggestions={suggestions} onFollow={handleFollowUser} />
+                <FriendSuggestion suggestions={suggestions} loadData={loadData} onFollow={handleFollowUser} />
               }
             </div>
           </div>
         </div>
       </div>
 
+      <div 
+      className="position-fixed bottom-0 start-50 translate-middle-x mb-2 d-lg-none d-flex rounded-pill bg-dark justify-content-center align-items-center gap-4 px-4 py-2 shadow-sm text-white" 
+      style={{ 
+        border: '2px solid rgba(255, 255, 255, 0.8)', 
+        zIndex: 1000, 
+        opacity: isVisible ? 1 : 0, 
+        transition: 'opacity 0.3s ease-in-out',
+        pointerEvents: isVisible ? 'auto' : 'none' // Prevents clicks when faded
+      }}
+    >
+      <div className="cursor-pointer" onClick={() => setShowCreateStory(true)}><FaCamera size={20} /></div>
+      <div className="cursor-pointer" onClick={() => setShowModal(true)}><i className="bi bi-pencil-square" style={{ fontSize: '20px' }}></i></div>
+    </div>
       {/* Modals */}
       {showModal && (
         <CustomModal
@@ -1183,21 +1083,16 @@ const ProfilePage = () => {
         show={showFollowersModal}
         onHide={() => setShowFollowersModal(false)}
         title="Followers"
-        users={userData?.followers || []}
-        currentUserId={userData?._id}
-        onFollow={handleFollowUser}
-        onUnfollow={handleUnfollowUser}
+        users={followers}
+        currentUserId={userId}
       />
-
       {/* Following Modal */}
       <FollowModal
         show={showFollowingModal}
         onHide={() => setShowFollowingModal(false)}
         title="Following"
-        users={userData?.following || []}
-        currentUserId={userData?._id}
-        onFollow={handleFollowUser}
-        onUnfollow={handleUnfollowUser}
+        users={following}
+        currentUserId={userId}
       />
 
       {/* Create Story Modal */}
@@ -1208,13 +1103,14 @@ const ProfilePage = () => {
         userData={userData}
       />
 
+      {/* In your Parent Component */}
       <StoryViewer
-        show={showStoryViewer}
-        onHide={() => setShowStoryViewer(false)}
-        stories={selectedUserStories}
-        currentStoryIndex={selectedStoryIndex}
+        show={isStoryViewerOpen}
+        onHide={() => setIsStoryViewerOpen(false)}
+        setStoryGroups={setStoryGroups}
+        storyGroups={storyGroups} // The grouped array from backend
+        initialGroup={selectedStoryGroup} // The group object { user, stories } clicked
       />
-
 
       {showPostDetail && selectedPostId && (
         <PostDetail
@@ -1232,6 +1128,62 @@ const ProfilePage = () => {
           0% { transform: translateY(0) rotate(0deg); }
           100% { transform: translateY(-100vh) rotate(360deg); }
         }
+          .post-story-wrapper {
+
+}
+
+/* Add Story Button */
+.add-story-btn {
+margin-bottom: 10px;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(45deg, #ff005a, #ff7b00);
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.add-story-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 5px 20px rgba(255, 0, 90, 0.6);
+}
+
+/* Post Input Button */
+.post-input-btn {
+  background: #2c2c2e;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.6rem;
+  color: #aaa;
+  transition: 0.3s;
+}
+
+.post-input-btn:hover {
+  background: #3a3a3c;
+  color: white;
+}
+
+/* Add Post Icon */
+.add-post-btn {
+margin-bottom: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+ background: linear-gradient(45deg, #ff005a, #ff7b00);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-post-btn:hover {
+  background-color: #e0e0e0;
+}
+
         .text-gradient {
           background: linear-gradient(90deg, #fff, #ffccd5);
           -webkit-background-clip: text;

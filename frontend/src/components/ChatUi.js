@@ -14,14 +14,17 @@ import {
   faPaperPlane,
   faPaperclip,
   faImage,
-faVideo,
+  faVideo,
   faFileAlt
 } from '@fortawesome/free-solid-svg-icons';
 import { FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { UserContext } from '../contexts/UserContext';
 import OutGoingCall from './videoCall/OutGoingCall';
-import IncomingCall from './videoCall/IncomingCall';
-const ChatUi = ({ member, setMsgCounts, onBack }) => {
+import { fetchUserKeys, recieverpublickey } from '../services/keyse2e';
+import CryptoUtils from '../utils/CryptoUtils';
+import { createOrGetConversation } from '../services/conversations';
+import { fetchMessage } from '../services/messageService';
+const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation }) => {
   const { socket, loadUnseenMessages } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -36,77 +39,370 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
   const [chatId, setChatId] = useState([userId, member._id].sort().join("_"));
   const inputRef = useRef(null);
   const messageTone = new Audio('https://bigsoundbank.com/UPLOAD/mp3/1313.mp3');
-  const [callingMember, setCallingMember] = useState(null);
-  const [callUserId, setCallUserId] = useState(null);
   const [showOutgoingCall, setOutgoingCall] = useState(false);
-  const handleVideoCall = (friendSocketId) => {
-    setCallUserId(friendSocketId);
-  };
+  const [decryptedMessages, setDecryptedMessages] = useState({});
+  const [publicKey, setPublicKey] = useState(null);
+  const [userPrivateKey, setUserPrivateKey] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [senderPublicKey, setSenderPublicKey] = useState(null);
+  useEffect(() => {
+    const initializeKey = async () => {
+      try {
+        const key = await CryptoUtils.loadKeyLocally();
+        if (key) {
+          setUserPrivateKey(key);
+        } else {
+          console.warn("No Private Key found in local storage.");
+        }
+      } catch (err) {
+        console.error("Error accessing IndexedDB:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initializeKey();
+  }, []);
 
+  useEffect(() => {
+    recieverpublickey(member._id).then((publicKey) => {
+      setPublicKey(publicKey);
+    }).catch((error) => {
+      console.error('Error fetching receiver public key:', error);
+    });
+  }, []);
+  async function importReceiverPublicKey(base64Key) {
+    const binary = Uint8Array.from(atob(base64Key), c => c.charCodeAt(0));
+    return await crypto.subtle.importKey(
+      "spki",
+      binary.buffer,
+      {
+        name: "RSA-OAEP",
+        hash: "SHA-256"
+      },
+      true,
+      ["encrypt"]
+    );
+  }
+  const [receiverCryptoKey, setReceiverCryptoKey] = useState(null);
+  useEffect(() => {
+    if (!publicKey) return;
+    async function loadKey() {
+      const imported = await importReceiverPublicKey(publicKey);
+      setReceiverCryptoKey(imported);
+    }
 
+    loadKey();
+  }, [publicKey]);
+
+  async function encryptForMultiple(text, receiverPublicKey, senderPublicKey) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+
+    // 1. Generate a random AES-GCM key
+    const aesKey = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    // 2. Encrypt the message with that AES key
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      aesKey,
+      data
+    );
+    const rawKey = await crypto.subtle.exportKey("raw", aesKey);
+    const encryptedKeyForReceiver = await crypto.subtle.encrypt(
+      { name: "RSA-OAEP" },
+      receiverPublicKey,
+      rawKey
+    );
+
+    const encryptedKeyForSender = await crypto.subtle.encrypt(
+      { name: "RSA-OAEP" },
+      senderPublicKey, // This is YOUR public key
+      rawKey
+    );
+
+    return {
+      ciphertext: arrayBufferToBase64(ciphertext),
+      iv: arrayBufferToBase64(iv),
+      // Send both versions in the payload
+      keyForReceiver: arrayBufferToBase64(encryptedKeyForReceiver),
+      keyForSender: arrayBufferToBase64(encryptedKeyForSender)
+    };
+  }
+  async function encryptMessageForUser(message, receiverPublicKey) {
+
+    // 1. Generate AES key
+    const aesKey = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt"]
+    );
+
+    // 2. Encrypt message
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encryptedMessage = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      aesKey,
+      new TextEncoder().encode(message)
+    );
+
+    // 3. Export AES key
+    const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
+    // 4. Encrypt AES key using receiver public key
+    const encryptedAesKey = await crypto.subtle.encrypt(
+      { name: "RSA-OAEP" },
+      receiverPublicKey,
+      rawAesKey
+    );
+
+    return {
+      ciphertext: arrayBufferToBase64(encryptedMessage),
+      encryptedKey: arrayBufferToBase64(encryptedAesKey),
+      iv: arrayBufferToBase64(iv)
+    };
+  }
+
+  async function encryptForMultiple(text, receiverKey, senderKey) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    // Generate AES Session Key
+    const aesKey = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, data);
+
+    // Export AES key to encrypt it with RSA
+    const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
+
+    // Encrypt for Friend
+    const encryptedKeyForReceiver = await crypto.subtle.encrypt(
+      { name: "RSA-OAEP" },
+      receiverKey,
+      rawAesKey
+    );
+    // Encrypt for YOU (Sender)
+    const encryptedKeyForSender = await crypto.subtle.encrypt(
+      { name: "RSA-OAEP" },
+      senderKey,
+      rawAesKey
+    );
+
+    return {
+      ciphertext: arrayBufferToBase64(ciphertext),
+      iv: arrayBufferToBase64(iv),
+      keyForReceiver: arrayBufferToBase64(encryptedKeyForReceiver),
+      keyForSender: arrayBufferToBase64(encryptedKeyForSender)
+    };
+  }
+  function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
+  async function decryptMessage(data, privateKey, currentUserId) {
+    try {
+      const payload = data.content
+      const isMe = data.senderId._id === currentUserId || data.senderId === currentUserId;
+      const encryptedKeyBase64 = isMe ? payload.keyForSender : payload.keyForReceiver;
+      const rawAesKey = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        privateKey,
+        base64ToArrayBuffer(encryptedKeyBase64)
+      );
+      const aesKey = await crypto.subtle.importKey(
+        "raw",
+        rawAesKey,
+        "AES-GCM",
+        false,
+        ["decrypt"]
+      );
+      const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: base64ToArrayBuffer(payload.iv) },
+        aesKey,
+        base64ToArrayBuffer(payload.ciphertext)
+      );
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error("Decryption failed:", error);
+      return "[Unable to decrypt]";
+    }
+  }
   useEffect(() => {
     setChatId([userId, member._id].sort().join("_"));
   }, [userId, member._id]);
-  const fetchMessages = async (page = 1, limit = 20) => {
+  const callFetchMessages = async (page = 1, limit = 20) => {
+    if (!conversation) return;
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/messages/getMessages?page=${page}&limit=${limit}&senderId=${userId}&receiverId=${member._id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (!response.ok) throw new Error("Failed to fetch messages");
-      const data = await response.json();
-      if (limit == 1) {
-        setMessages((pre) => [...pre, data[0]])
-        // handleMarkMessagesAsRead(data)
+  
+      const data = await fetchMessage(conversation._id, page, limit)
+      if (!data || data.length === 0) return;
+      if (limit === 1) {
+        // Append new incoming message (like real-time update)
+        setMessages((prev) => [...prev, data[0]]);
       } else {
-        setMessages(data.reverse());
+        // Initial load or pagination
+        setMessages((prev) =>
+          page === 1
+            ? data.reverse() // first load
+            : [...data.reverse(), ...prev] // prepend older messages
+        );
       }
+
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
   useEffect(() => {
-    if (chatId) fetchMessages();
+    if (chatId) callFetchMessages();
   }, [chatId]);
+
+  useEffect(() => {
+    if (!userPrivateKey || !messages.length) return;
+
+    let cancelled = false;
+
+    async function decryptMessages() {
+      const result = {};
+      for (const message of messages) {
+        // Determine the unique ID for the mapping
+        const msgId = message._id || message.id || Math.random();
+        try {
+
+          const text = await decryptMessage(
+            message,
+            userPrivateKey,
+            userId // Pass this to help the function choose the key
+          );
+
+          result[msgId] = text;
+        } catch (err) {
+          console.error("Decryption loop error:", err);
+          result[msgId] = "[Unable to decrypt]";
+        }
+      }
+
+      if (!cancelled) {
+        setDecryptedMessages(result);
+      }
+    }
+
+    decryptMessages();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, userPrivateKey]);
+
+  async function decryptMessage(message, privateKey, currentUserId) {
+
+    try {
+      // 1. Handle content whether it's a string OR an already-parsed object
+      let payload;
+      if (typeof message.content === 'string') {
+        payload = JSON.parse(message.content);
+      } else {
+        payload = message.content; // It's already an object
+      }
+      // 2. Fix the ID comparison (Ensure isMe is a Boolean)
+      const msgSenderId = (message.senderId?._id || message.senderId || "").toString();
+      const myId = (currentUserId || "").toString();
+      const isMe = msgSenderId === myId;
+      const encryptedKeyBase64 = isMe ? payload.keyForSender : payload.keyForReceiver;
+
+      // 3. Decrypt the AES key with your RSA Private Key
+      const rawAesKey = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        privateKey,
+        base64ToArrayBuffer(encryptedKeyBase64)
+      );
+
+      // 4. Import the AES key
+      const aesKey = await crypto.subtle.importKey(
+        "raw", rawAesKey, "AES-GCM", false, ["decrypt"]
+      );
+
+      // 5. Decrypt the actual text
+      const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: base64ToArrayBuffer(payload.iv) },
+        aesKey,
+        base64ToArrayBuffer(payload.ciphertext)
+      );
+
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error("Internal Decryption Error:", error);
+      return "[Decryption Error]";
+    }
+  }
+
+
+  useEffect(() => {
+    fetchUserKeys().then(async (response) => {
+      const publicKeyBuffer = new Uint8Array(response.publicKey.data);
+      const importedKey = await crypto.subtle.importKey(
+        "spki", // Common format for public keys
+        publicKeyBuffer,
+        {
+          name: "RSA-OAEP",
+          hash: "SHA-256",
+        },
+        true, // allow the key to be used for encryption
+        ["encrypt"]
+      );
+      setSenderPublicKey(importedKey);
+    });
+  }, []);
   const sendMessage = async (attachment) => {
     if (!messageInput.trim()) return;
     try {
+      const encryptedPayload = await encryptForMultiple(
+        messageInput,
+        receiverCryptoKey,
+        senderPublicKey
+      );
+  
       const formData = new FormData();
-      formData.append('chatId', chatId);
-      formData.append('groupId', '')
       formData.append('senderId', userId);
       formData.append('receiverId', member._id);
-      formData.append('content', messageInput);
+      formData.append('content', JSON.stringify(encryptedPayload));
       if (attachment) {
         formData.append('attachment', attachment); // Ensure `attachment` is a File object
       }
-      setMessages((prev) => [
-        ...prev,
-        {
-          chatId,
-          senderId: { _id: userId },
-          receiverId: member._id,
-          content: messageInput,
-          ...(attachment && {   // ✅ Only add attachment if it exists
-            attachment: {
-              name: URL.createObjectURL(attachment),  // ✅ This should be 'url', not 'name'
-              type: attachment.type.startsWith('image')
-                ? 'image'
-                : attachment.type.startsWith('video')
-                  ? 'video'
-                  : 'file',
-            }
-          }),
-          timestamp: Date.now(),
-        },
-      ]);
       const response = await fetch(`${apiUrl}/messages/postMessage`, {
         method: 'POST',
         body: formData,
       });
+
+      const data = await response.json();
+      const message = data.message;
+     setSelectedConversation(data.conversation);
+      const normalizedMessage = {
+        ...message,
+        content: JSON.parse(message.content), // 🔥 IMPORTANT
+      };
+      setMessages((prev) => {
+        return [...prev, normalizedMessage];
+      });
+
+   
       if (!response.ok) throw new Error('Failed to send message');
       if (response.ok) {
         const notificationData = {
@@ -117,11 +413,10 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
           createdAt: new Date().toISOString(),
           read: false
         };
-        await createNotification(notificationData);
-        socket.emit('emit_notification', notificationData)
+        // await createNotification(notificationData);
+        // socket.emit('emit_notification', notificationData)
       }
-      const data = await response.json();
-      socket.emit('sendMessage', data);
+      socket.emit('sendMessage', message);
       setMessageInput('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -129,17 +424,24 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
   };
   useEffect(() => {
     socket.on("setDoubleCheckRecieved", (payload) => {
-      setMessages((prev) => {
-        if (prev.length === 0) return [payload];
-        return [...prev.slice(0, -1), payload];
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+
+        if (!last || last._id !== payload._id) return prev;
+
+        return [
+          ...prev.slice(0, -1),
+          { ...last, status: payload.status }
+        ];
       });
     });
+
     socket.on("recievedMessage", (message) => {
-      if (message.senderId._id == member._id) {
+      if (message.senderId._id || message.senderId == member._id) {
         messageTone.play().catch((err) => {
           console.error("Failed to play message tone:", err);
         });
-        fetchMessages(1, 1)
+        callFetchMessages(1, 1)
         if (chatId) {
           const friendId = member._id
           socket.emit('setDoubleCheck', { friendId, chatId, message });
@@ -252,16 +554,14 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
   //   }
   // };
   useEffect(() => {
+
     const messageIds = messages
-      .filter(msg => msg.status === 'sent') // include only "sent" messages
+      .filter(msg => msg.status === 'sent' && msg.senderId !== userId) // include only "sent" messages from other users
       .map(msg => msg._id);
     if (messageIds.length > 0) {
-      console.log(messageIds, 'messageIds')
       socket.emit('checkUnseenMsg', { friendId: member._id, messageIds });
     }
-
   }, [messages]);
-
 
 
   return (
@@ -273,7 +573,6 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
         </button>
         <div className="user-info d-flex flex-row">
           <div className="user-avatar">
-          
             <img
               style={{ width: "48px", height: "48px", objectFit: "cover" }}
               src={member?.profilePicture}
@@ -329,21 +628,28 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
       </div>
 
       {/* Messages Area */}
-      <div className="messages-area">
+      <div className="messages-area" style={{ background: "rgb(177 177 177)" }}>
         {messages?.length === 0 ? (
           <div className="empty-state">
             <p>Start a conversation with {member?.userName} !</p>
           </div>
         ) : (
           messages?.map((message, index) => (
+
             <div
-              key={index}
-              className={`message-container ${message?.senderId?._id === userId ? 'sent' : 'received'}`}
+              key={message._id || index}
+              className={`message-container ${message.receiverId === userId ? 'received ' : 'sent text-light'}`}
             >
               <div className="message-bubble">
-                {/* Message Content */}
-                {message?.content && (
-                  <div className="message-text">{message.content}</div>
+                {/* {console.log(decryptedMessages[message._id], 'decrypted message')} */}
+                {decryptedMessages[message._id] ? (
+                  <div className="message-text">
+                    {decryptedMessages[message._id]}
+                  </div>
+                ) : (
+                  <div className="message-text loading">
+                    …
+                  </div>
                 )}
 
                 {/* Attachment */}
@@ -385,7 +691,7 @@ const ChatUi = ({ member, setMsgCounts, onBack }) => {
                     {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
 
-                  {message?.senderId?._id === userId && (
+                  {message?.receiverId !== userId && (
                     <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
                       {message?.status === 'read' ? (
                         <FontAwesomeIcon icon={faCheckDouble} />

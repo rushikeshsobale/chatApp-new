@@ -1,84 +1,76 @@
-// src/components/incomingCall.js (UPDATED)
-
 import React, { useEffect, useRef, useState, useContext, useCallback } from "react";
 import { Modal, Button, Spinner } from "react-bootstrap";
-import { FaPhoneAlt, FaPhoneSlash } from "react-icons/fa";
+import { FaPhoneAlt, FaPhoneSlash, FaVideo } from "react-icons/fa";
 import { UserContext } from "../../contexts/UserContext";
 
 const IncomingCall = () => {
-    const { socket, incomingCall, setIncomingCall } = useContext(UserContext); // Assuming setIncomingCall is available
-    const [show, setShow] = useState(false); // Controlled by incomingCall
-    const [caller, setCaller] = useState(null);
+    const { socket, incomingCall, setIncomingCall } = useContext(UserContext);
+    const [show, setShow] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [connecting, setConnecting] = useState(false);
+    
     const peerRef = useRef(null);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
     const localStreamRef = useRef(null);
     const pendingIceCandidates = useRef([]);
 
-    // --- Initialize incoming call ---
     useEffect(() => {
         if (incomingCall) {
-            setCaller(incomingCall?.from?.userName);
             setShow(true);
-            
             setConnecting(false);
         } else {
             setShow(false);
+            setIsConnected(false);
         }
     }, [incomingCall]);
 
-    // --- Unified Signal Handler ---
     const handleIncomingSignal = useCallback(async (data) => {
-        // Only handle ICE candidates here, as the Offer is handled by the main incomingCall context
         if (data.type !== 'ice-candidate') return;
-
         const candidate = data.candidate;
         if (!candidate) return;
 
-        // Use the raw candidate object as provided by the browser
-        const formattedCandidate = candidate;
-
         if (peerRef.current && peerRef.current.remoteDescription) {
             try {
-                // Ensure peerRef.current is the RTCPeerConnection object
-                await peerRef.current.addIceCandidate(new RTCIceCandidate(formattedCandidate));
+                await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
             } catch (err) {
                 console.error("Error adding ICE candidate:", err);
             }
         } else {
-            // Queue candidate if RTCSessionDescription (Offer) is not yet set
-            pendingIceCandidates.current.push(formattedCandidate);
+            pendingIceCandidates.current.push(candidate);
         }
     }, []);
 
-    const handleCallCanceled = (data) => {
-        setShow(false)
-       
-    }
-
-    const handleCallEnded = (data) => {
-        setShow(false)
-       
-    }
+    const cleanup = useCallback(() => {
+        if (peerRef.current) {
+            peerRef.current.close();
+            peerRef.current = null;
+        }
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
+        }
+        setIsConnected(false);
+        setConnecting(false);
+        setIncomingCall(null);
+        setShow(false);
+    }, [setIncomingCall]);
 
     useEffect(() => {
         if (!socket) return;
-
-        // ✅ FIX 3: Listen to the unified signaling event
-        socket.on('call-ended', handleCallEnded)
+        socket.on('call-ended', cleanup);
         socket.on("receive-signal", handleIncomingSignal);
-        socket.on("call-canceled", handleCallCanceled)
-        return () => socket.off("receive-signal", handleIncomingSignal);
-    }, [socket, handleIncomingSignal]);
+        socket.on("call-canceled", cleanup);
+        return () => {
+            socket.off('call-ended', cleanup);
+            socket.off("receive-signal", handleIncomingSignal);
+            socket.off("call-canceled", cleanup);
+        };
+    }, [socket, handleIncomingSignal, cleanup]);
 
-
-    // --- Accept Call ---
     const handleAccept = async () => {
         if (!incomingCall) return;
         setConnecting(true);
-        console.log("📞 Accepting call...");
 
         try {
             const peer = new RTCPeerConnection({
@@ -88,58 +80,42 @@ const IncomingCall = () => {
 
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: true,
-                audio: true, // Ensure audio is included
+                audio: true,
             });
 
-            localVideoRef.current.srcObject = stream;
+            if (localVideoRef.current) localVideoRef.current.srcObject = stream;
             localStreamRef.current = stream;
-            // 3️⃣ Add local tracks
             stream.getTracks().forEach((track) => peer.addTrack(track, stream));
 
-
-            // 4️⃣ Remote tracks
             peer.ontrack = (event) => {
-                console.log('ontrack received on RECEIVER side', event.streams[0]);
-                if (remoteVideoRef.current.srcObject !== event.streams[0]) {
+                if (remoteVideoRef.current) {
                     remoteVideoRef.current.srcObject = event.streams[0];
-                    setIsConnected(true); // Set connected status here
+                    setIsConnected(true);
+                    setConnecting(false);
                 }
             };
 
-
-            // 5️⃣ ICE candidates
             peer.onicecandidate = event => {
                 if (event.candidate) {
-                    // ✅ FIX 4: Use unified signaling event 'send-signal'
                     socket.emit("send-signal", {
                         to: incomingCall.from,
-                        type: 'ice-candidate', // IMPORTANT: Specify type
+                        type: 'ice-candidate',
                         candidate: event.candidate
                     });
                 }
             };
 
-            // 6️⃣ Set remote description (The Offer)
             await peer.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
-            console.log("Set Remote Description (Offer)");
-
-            // 7️⃣ Add pending ICE candidates
+            
             for (let candidate of pendingIceCandidates.current) {
-                // We assume candidates were queued while waiting for peer connection initialization
                 await peer.addIceCandidate(new RTCIceCandidate(candidate));
             }
             pendingIceCandidates.current = [];
 
-            // 8️⃣ Create and send answer
             const answer = await peer.createAnswer();
             await peer.setLocalDescription(answer);
-
-            // Use your existing 'answer' event for the initial answer handshake
             socket.emit("answer", { to: incomingCall.from, answer });
 
-            setConnecting(false);
-            // setIsConnected(true); // Should be set inside ontrack for video confirmation, but can be set here too.
-            console.log("✅ Answer sent!");
         } catch (err) {
             console.error("❌ Error accepting call:", err);
             setConnecting(false);
@@ -148,92 +124,137 @@ const IncomingCall = () => {
 
     const handleReject = () => {
         if (incomingCall) socket.emit("reject-call", { to: incomingCall.from });
-        setShow(false);
-        setIncomingCall(null); // Clear incoming call context
-        handleEndCall(); // Cleanup resources
+        cleanup();
     };
 
     const handleEndCall = () => {
-        if (peerRef.current) peerRef.current.close();
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => track.stop());
-        }
-
-        socket.emit('end-call', { to: caller })
-        setIsConnected(false);
-        // Ensure modal closes and context is reset if not already
-        if (show) setShow(false);
-        if (incomingCall) setIncomingCall(null);
-
+        if (incomingCall) socket.emit('end-call', { to: incomingCall.from });
+        cleanup();
     };
 
     return (
-        <>
-            {/* Incoming call modal */}
-            <Modal show={show} onHide={handleReject} centered backdrop="static" keyboard={false}>
-                <Modal.Header closeButton>
-                    <Modal.Title>{isConnected ? "Video Call" : `Incoming Call from ${incomingCall.fromName}`}</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="text-center p-0"> {/* Adjusted padding */}
-                    <div style={{ position: "relative", width: "100%", height: isConnected ? "400px" : "auto", background: "#000" }}>
-                        {/* Remote video */}
-                        <video
-                            ref={remoteVideoRef}
-                            autoPlay
-                            playsInline
-                            style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                display: isConnected ? 'block' : 'none' // Hide remote video until connected
-                            }}
-                        />
-
-                        {/* Connecting/Ringing Overlay */}
-                        {!isConnected && (
-                            <div style={{ padding: '20px' }}>
-                                <h3>Ringing...</h3>
-                                <Spinner animation="border" />
-                            </div>
-                        )}
-
-                        {/* Local video (Muted, Picture-in-Picture) */}
-                        <video
-                            ref={localVideoRef}
-                            autoPlay
-                            playsInline
-                            style={{
-                                position: "absolute",
-                                bottom: "10px",
-                                right: "10px",
-                                width: isConnected ? "100px" : "0", // Hide when not connected
-                                height: isConnected ? "80px" : "0",
-                                objectFit: "cover",
-                                borderRadius: "8px",
-                                border: "2px solid white",
-                                transition: 'width 0.3s, height 0.3s'
-                            }}
-                        />
+        <Modal 
+            show={show} 
+            onHide={handleReject} 
+            centered 
+            backdrop="static" 
+            contentClassName="bg-dark text-white border-0 shadow-lg"
+            style={{ borderRadius: '15px', overflow: 'hidden' }}
+        >
+            <Modal.Body className="p-0 position-relative" style={{ backgroundColor: '#121212', minHeight: '450px' }}>
+                
+                {/* Header Overlay */}
+                <div className="position-absolute top-0 w-100 p-4 z-3 d-flex justify-content-between align-items-start" 
+                     style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)' }}>
+                    <div>
+                        <h5 className="mb-1 fw-bold text-uppercase tracking-wider">
+                            {isConnected ? "In Call" : "Incoming Video Call"}
+                        </h5>
+                        <p className="small text-light opacity-75 mb-0">
+                            {incomingCall?.fromName || "Unknown User"}
+                        </p>
                     </div>
-                </Modal.Body>
-                <Modal.Footer>
+                    {isConnected && (
+                        <div className="badge bg-danger px-3 py-2 d-flex align-items-center">
+                            <span className="me-2 d-inline-block" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white', animation: 'pulse 1.5s infinite' }}></span>
+                            LIVE
+                        </div>
+                    )}
+                </div>
+
+                {/* Main View Area */}
+                <div className="w-100 h-100 d-flex align-items-center justify-content-center" style={{ minHeight: '450px' }}>
+                    {/* Placeholder when not connected */}
+                    {!isConnected && !connecting && (
+                        <div className="text-center">
+                            <div className="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto mb-4" 
+                                 style={{ width: '100px', height: '100px', fontSize: '2.5rem' }}>
+                                {incomingCall?.fromName?.charAt(0) || <FaVideo />}
+                            </div>
+                            <h4 className="mb-2">{incomingCall?.fromName}</h4>
+                            <p className="text-muted">Is calling you...</p>
+                        </div>
+                    )}
+
+                    {/* Connecting Spinner */}
+                    {connecting && (
+                        <div className="text-center">
+                            <Spinner animation="grow" variant="primary" />
+                            <p className="mt-3 text-muted">Establishing connection...</p>
+                        </div>
+                    )}
+
+                    {/* Remote Video */}
+                    <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className={`w-100 h-100 position-absolute top-0 start-0 ${isConnected ? 'opacity-100' : 'opacity-0'}`}
+                        style={{ objectFit: 'cover', transition: 'opacity 0.5s ease-in' }}
+                    />
+
+                    {/* Local Video (PiP) */}
+                    <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`position-absolute bottom-0 end-0 m-3 rounded shadow-lg border border-secondary ${isConnected ? 'opacity-100' : 'opacity-0'}`}
+                        style={{ 
+                            width: '120px', 
+                            height: '160px', 
+                            objectFit: 'cover', 
+                            zIndex: 10,
+                            transition: 'opacity 0.5s ease-in'
+                        }}
+                    />
+                </div>
+
+                {/* Action Buttons Overlay */}
+                <div className="position-absolute bottom-0 w-100 p-4 d-flex justify-content-center gap-4 z-3"
+                     style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}>
+                    
                     {!isConnected ? (
                         <>
-                            <Button variant="success" onClick={handleAccept} disabled={connecting}>
-                                {connecting ? <Spinner as="span" animation="border" size="sm" /> : <FaPhoneAlt />} Accept
+                            <Button 
+                                variant="success" 
+                                onClick={handleAccept} 
+                                disabled={connecting}
+                                className="rounded-circle p-3 d-flex align-items-center justify-content-center border-0 shadow"
+                                style={{ width: '60px', height: '60px' }}
+                            >
+                                <FaPhoneAlt size={24} />
                             </Button>
-                            <Button variant="danger" onClick={handleReject} disabled={connecting}>
-                                <FaPhoneSlash /> Reject
+                            <Button 
+                                variant="danger" 
+                                onClick={handleReject} 
+                                className="rounded-circle p-3 d-flex align-items-center justify-content-center border-0 shadow"
+                                style={{ width: '60px', height: '60px' }}
+                            >
+                                <FaPhoneSlash size={24} />
                             </Button>
                         </>
                     ) : (
-                        <Button variant="danger" onClick={handleEndCall}>
-                            <FaPhoneSlash /> End Call
+                        <Button 
+                            variant="danger" 
+                            onClick={handleEndCall}
+                            className="rounded-pill px-5 py-2 d-flex align-items-center justify-content-center border-0 shadow fw-bold"
+                        >
+                            <FaPhoneSlash className="me-2" /> End Call
                         </Button>
                     )}
-                </Modal.Footer>
-            </Modal>
-        </>
+                </div>
+            </Modal.Body>
+            
+            {/* Minimal CSS for the pulse effect */}
+            <style>{`
+                @keyframes pulse {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.3; }
+                    100% { opacity: 1; }
+                }
+            `}</style>
+        </Modal>
     );
 };
 

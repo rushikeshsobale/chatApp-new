@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const Story = require('../Modules/Story');
+const Relationships = require("../Modules/relationships");
 const verifyToken = require('./verifyToken');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3Upload');
 const sharp = require('sharp');
@@ -112,7 +113,7 @@ router.post('/create', verifyToken, upload.single('media'), compressMedia, async
 
         // Upload to S3
         const uploadResult = await uploadToS3(req.file, {
-            folder: 'stories',
+            folder: 'posts',
             checkDuplicate: false
         });
 
@@ -152,33 +153,66 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
 // Get all stories for the feed (stories from users the current user follows)
 router.get('/feed', verifyToken, async (req, res) => {
     try {
-        const user = await Muser.findById(req.decoded.userId);
-        if (!user) {
-            return res.status(404).json({ success: false, error: 'User not found' });
-        }
+        const currentUserId = req.decoded.userId;
 
-        // Get stories from user's following and their own stories
+        // 1️⃣ Get accepted follow relationships
+        const relationships = await Relationships.find({
+            requester: currentUserId,
+            type: "follow",
+            status: "accepted"
+        }).select("recipient");
+
+        const followingIds = relationships.map(rel => rel.recipient);
+        followingIds.push(currentUserId);
+
+        // 2️⃣ Get stories (last 24 hours)
         const stories = await Story.find({
-            userId: { $in: [...user.following, req.decoded.userId] },
-            createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+            userId: { $in: followingIds },
+            createdAt: {
+                $gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+            }
         })
-            .populate({
-                path: 'userId',
-                select: 'userName profilePicture',
-                model: 'Muser'
-            })
-            .sort({ createdAt: -1 });
+        .populate({
+            path: "userId",
+            select: "userName profilePicture",
+            model: "Muser"
+        })
+        .sort({ createdAt: -1 });
 
-        res.json({ success: true, stories });
+        // 3️⃣ Group stories by User ID
+        const groupedStories = stories.reduce((acc, story) => {
+            const user = story.userId; // This is the populated object
+            const userIdString = user._id.toString();
+
+            if (!acc[userIdString]) {
+                acc[userIdString] = {
+                    user: {
+                        _id: user._id,
+                        userName: user.userName,
+                        profilePicture: user.profilePicture
+                    },
+                    stories: []
+                };
+            }
+            
+            acc[userIdString].stories.push(story);
+            return acc;
+        }, {});
+
+        // 4️⃣ Convert object back to array for easier frontend mapping
+        const result = Object.values(groupedStories);
+
+        res.json({ success: true, stories: result });
+
     } catch (error) {
-        console.error('Error fetching stories feed:', error);
+        console.error("Error fetching stories feed:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
-
 // Mark a story as viewed
 router.post('/view/:storyId', verifyToken, async (req, res) => {
     try {
+        console.log(req.decoded.userId, 'userId from view route')
         const story = await Story.findById(req.params.storyId);
         if (!story) {
             return res.status(404).json({ success: false, error: 'Story not found' });

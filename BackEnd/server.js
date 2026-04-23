@@ -7,7 +7,6 @@ app.use(express.json())
 // Load environment variables
 dotenv.config();
 
-
 // Setup Socket.IO
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -20,6 +19,7 @@ const io = socketIo(server, {
 });
 // Import and initialize Socket.IO logic
 require("./socket/socket")(io);
+const KeysModel = require('./Modules/keysModel')
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

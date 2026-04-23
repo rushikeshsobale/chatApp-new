@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch } from 'react-redux';
-import {jwtDecode} from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 import {
   FaUser,
   FaLock,
@@ -26,6 +26,8 @@ import {
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../css/AuthForms.css";
 import { SET_USER } from "../store/action";
+import { fetchUserKeys, uploadUserKeys } from "../services/keyse2e";
+import CryptoUtils from "../utils/CryptoUtils";
 const AuthPage = () => {
   const dispatch = useDispatch();
   const [isLogin, setIsLogin] = useState(true);
@@ -78,28 +80,80 @@ const AuthPage = () => {
     console.log(Object.keys(newErrors), "seeing");
     return Object.keys(newErrors).length === 0;
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validate() === false) return;
     setLoading(true);
+
     try {
       if (isLogin) {
-        const {token} = await login({
+        // 1. Authenticate with Server
+        const { token, hasKeys } = await login({
           email: formData.email,
           password: formData.password,
         });
+
         localStorage.setItem("token", token);
-        // if (token) {
-          const decodedData = jwtDecode(token);
-          dispatch({
-            type: SET_USER,
-            payload: { user: decodedData }, // Replace with actual userId
+        const decodedData = jwtDecode(token);
+        dispatch({ type: SET_USER, payload: { user: decodedData } });
+        localStorage.setItem("user", JSON.stringify(decodedData));
+
+        // 2. Handle Encryption Keys
+        if (!hasKeys) {
+          /** * CASE A: FIRST TIME KEY SETUP 
+           * User has no keys in DB. Create, Encrypt, and Upload.
+           */
+          const keyPair = await crypto.subtle.generateKey(
+            {
+              name: "RSA-OAEP",
+              modulusLength: 2048,
+              publicExponent: new Uint8Array([1, 0, 1]),
+              hash: "SHA-256",
+            },
+            true,
+            ["encrypt", "decrypt"]
+          );
+          const { encrypted, salt, iv } = await CryptoUtils.encryptPrivateKey(
+            keyPair.privateKey,
+            formData.password
+          );
+          // Export the public key to send to DB
+          const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+          // Upload to server
+          console.log(keyPair, 'keypair');
+          await uploadUserKeys( {
+            publicKey: new Uint8Array(publicKey),
+            encryptedPrivateKey: new Uint8Array(encrypted),
+            salt: new Uint8Array(salt),
+            iv: new Uint8Array(iv),
           });
-          localStorage.setItem("user", JSON.stringify(decodedData));
+          // Save the raw private key locally so we don't need to decrypt it again this session
+          await CryptoUtils.saveKeyLocally(keyPair.privateKey);
+          console.log("Keys generated and saved locally.");
+
+        } else {
+          /** * CASE B: RESTORE KEYS 
+           * User has keys in DB. Check if they exist on this browser.
+           */
+          let localKey = await CryptoUtils.loadKeyLocally()
+          if (!localKey) {
+            console.log("Device not recognized. Syncing keys...");
+            const dbKeys = await fetchUserKeys();
+            console.log(dbKeys, 'dbkey')
+            const unlockedKey = await CryptoUtils.getPrivateKeyFromBackup(dbKeys, formData.password);
+              await CryptoUtils.saveKeyLocally(unlockedKey);
+              console.log("Keys restored to this device.");
+            
+          } else {
+
+          }
+        }
         navigate("/profile");
       } else {
+        // --- REGISTRATION FLOW ---
         if (authStep === 1) {
-        const response =   await sendVerification(formData.email);
+          await sendVerification(formData.email);
           setAuthStep(2);
         } else if (authStep === 2) {
           const verified = await verifyEmail({
@@ -115,29 +169,17 @@ const AuthPage = () => {
             ...formData,
             verificationCode,
           });
-          console.log(response)
-          localStorage.setItem('userId',response.userId)
-          // if (token) {
-          //   const decodedData = jwtDecode(token);
-          //   dispatch({
-          //     type: SET_USER,
-          //     payload: { user: decodedData }, // Replace with actual userId
-          //   });
-          //   console.log(decodedData, "decodeData");
-          //   localStorage.setItem("user", JSON.stringify(decodedData));
-            
-          // }
-         
+          localStorage.setItem('userId', response.userId);
           navigate("/onboarding");
         }
       }
     } catch (error) {
-      console.error("Authentication error:", error);
+      console.error("Authentication/Crypto error:", error);
       setErrors({
         ...errors,
         form: error.message || "Authentication failed",
       });
-    } finally {
+    } finally { 
       setLoading(false);
     }
   };
@@ -152,31 +194,20 @@ const AuthPage = () => {
             {isLogin
               ? "Welcome Back"
               : authStep === 1
-              ? "Create Account Here"
-              : authStep === 2
-              ? "Verify Email"
-              : "Complete Profile"}
+                ? "Create Account Here"
+                : authStep === 2
+                  ? "Verify Email"
+                  : "Complete Profile"}
           </h2>
-          <p>
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <span
-              className="auth-toggle"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setAuthStep(1);
-              }}
-            >
-              {isLogin ? "Sign Up" : "Log In"}
-            </span>
-          </p>
+
         </div>
         {errors.form && <div className="alert alert-danger">{errors.form}</div>}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ background: 'black', padding: '20px', borderRadius: '8px' }}>
           {authStep === 1 && (
             <>
-              <div className="form-group">
+              <div className="form-group text-white">
                 <label>Email</label>
-                <div className="input-group">
+                <div className="input-group input-group-sm">
                   <span className="input-group-text">
                     <FaEnvelope />
                   </span>
@@ -186,9 +217,8 @@ const AuthPage = () => {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="your@email.com"
-                    className={`form-control ${
-                      errors.email ? "is-invalid" : ""
-                    }`}
+                    className={`form-control ${errors.email ? "is-invalid" : ""
+                      }`}
                   />
                   {errors.email && (
                     <div className="invalid-feedback">{errors.email}</div>
@@ -198,7 +228,7 @@ const AuthPage = () => {
               {isLogin && (
                 <div className="form-group">
                   <label>Password</label>
-                  <div className="input-group">
+                  <div className="input-group input-group-sm">
                     <span className="input-group-text">
                       <FaLock />
                     </span>
@@ -208,9 +238,8 @@ const AuthPage = () => {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className={`form-control ${
-                        errors.password ? "is-invalid" : ""
-                      }`}
+                      className={`form-control ${errors.password ? "is-invalid" : ""
+                        }`}
                     />
                     <button
                       type="button"
@@ -275,9 +304,8 @@ const AuthPage = () => {
                     value={formData.username}
                     onChange={handleChange}
                     placeholder="username"
-                    className={`form-control ${
-                      errors.username ? "is-invalid" : ""
-                    }`}
+                    className={`form-control ${errors.username ? "is-invalid" : ""
+                      }`}
                   />
                   {errors.username && (
                     <div className="invalid-feedback">{errors.username}</div>
@@ -349,8 +377,8 @@ const AuthPage = () => {
                     placeholder="••••••••"
                     className={`form-control ${errors.password ? 'is-invalid' : ''}`}
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="input-group-text"
                     onClick={() => setShowPassword(!showPassword)}
                   >
@@ -365,7 +393,7 @@ const AuthPage = () => {
           <div className="form-group mt-4">
             <button
               type="submit"
-              className="btn btn-primary w-100"
+              className="btn btn-primary btn-sm w-100"
               disabled={loading}
             >
               {loading ? (
@@ -385,9 +413,20 @@ const AuthPage = () => {
               )}
             </button>
           </div>
-
+          <p className="small text-center text-light">
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <span
+              className="auth-toggle"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setAuthStep(1);
+              }}
+            >
+              {isLogin ? "Sign Up" : "Log In"}
+            </span>
+          </p>
           {isLogin && (
-            <div className="text-center mt-3">
+            <div className="text-center small mt-3">
               <Link to="/forgot-password" className="text-decoration-none">
                 Forgot Password?
               </Link>
@@ -401,29 +440,29 @@ const AuthPage = () => {
 
         <div className="social-auth">
           <button
-            className="btn btn-social btn-google"
+            className="btn small btn-social btn-google py-1 px-0"
             onClick={() => handleSocialLogin("google")}
           >
             <FaGoogle /> Continue with Google
           </button>
-          <button
-            className="btn btn-social btn-facebook"
+          {/* <button
+            className="btn btn-social btn-facebook py-1 px-0"
             onClick={() => handleSocialLogin("facebook")}
           >
             <FaFacebook /> Continue with Facebook
-          </button>
-          <button
-            className="btn btn-social btn-twitter"
+          </button> */}
+          {/* <button
+            className="btn btn-social btn-twitter py-1 px-0"
             onClick={() => handleSocialLogin("twitter")}
           >
             <FaTwitter /> Continue with Twitter
           </button>
           <button
-            className="btn btn-social btn-apple"
+            className="btn btn-social btn-apple py-1 px-0"
             onClick={() => handleSocialLogin("apple")}
           >
             <FaApple /> Continue with Apple
-          </button>
+          </button> */}
         </div>
 
         <div className="auth-footer">

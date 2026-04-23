@@ -29,13 +29,14 @@ const userSchema = new mongoose.Schema({
   location: { type: String },
   profilePicture: {
     type: String,
-    default: ''
+    default: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
   },
   bio: { type: String, maxlength: 300 },
   isPrivate: { type: Boolean, default: false }, // If true, requests must be accepted
-  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Muser" }], 
-  following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Muser" }], 
-  followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "Muser" }],
+  keysId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "keysModel"
+  },
   // Interests
   interests: {
     music: [{ type: String }],
@@ -85,7 +86,7 @@ const userSchema = new mongoose.Schema({
   requests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'Muser'
   }]
 });
 

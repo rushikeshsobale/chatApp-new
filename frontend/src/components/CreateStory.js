@@ -1,293 +1,186 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Modal } from 'react-bootstrap';
-import { FaCamera, FaVideo, FaTimes, FaPlusCircle, FaArrowRight, FaCompress } from 'react-icons/fa';
-import { motion } from 'framer-motion';
-// Assuming this utility is available and works as intended
-// import { compressImage } from '../utils/imageCompression'; 
+import { FaCamera, FaTimes, FaPlus, FaCircleNotch } from 'react-icons/fa';
 
-// Placeholder for compressImage if you don't have the actual utility in this environment
-const compressImage = (file) => new Promise(resolve => resolve(file)); 
-
-// --- Component Start ---
-
-const CreateStory = ({ show, onHide, onCreateStory, userData }) => {
+const CreateStory = ({ show, onHide, onCreateStory }) => {
     const [media, setMedia] = useState(null);
     const [mediaType, setMediaType] = useState(null);
     const [caption, setCaption] = useState('');
     const [previewUrl, setPreviewUrl] = useState(null);
-    const [isCompressing, setIsCompressing] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    // Clean up object URLs when they are no longer needed
-    const cleanupPreviewUrl = useCallback(() => {
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-        }
-    }, [previewUrl]);
-
-    const resetForm = useCallback(() => {
-        cleanupPreviewUrl();
+    const resetForm = () => {
         setMedia(null);
-        setMediaType(null);
-        setCaption('');
         setPreviewUrl(null);
         onHide();
-    }, [onHide, cleanupPreviewUrl]);
-
-    const handleMediaSelect = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            cleanupPreviewUrl(); // Cleanup previous URL before setting a new one
-            setIsCompressing(true);
-            
-            try {
-                let processedFile = file;
-                const newMediaType = file.type.startsWith('image/') ? 'image' : 'video';
-                
-                // Compress if it's an image
-                if (newMediaType === 'image') {
-                    processedFile = await compressImage(file, {
-                        maxSizeMB: 1,
-                        maxWidthOrHeight: 1920,
-                        useWebWorker: true
-                    });
-                }
-                
-                setMedia(processedFile);
-                setMediaType(newMediaType);
-                setPreviewUrl(URL.createObjectURL(processedFile));
-            } catch (error) {
-                console.error('Error processing media:', error);
-                // Fallback to original file if compression fails
-                setMedia(file);
-                setMediaType(file.type.startsWith('image/') ? 'image' : 'video');
-                setPreviewUrl(URL.createObjectURL(file));
-            } finally {
-                setIsCompressing(false);
-                // Reset file input value to allow selecting the same file again
-                e.target.value = null; 
-            }
-        }
     };
-
-    const handleSubmit = (e) => {
-        e.preventDefault(); // Good practice, though not strictly needed without a <form>
-        if (media && !isCompressing) {
-            onCreateStory({
-                media,
-                mediaType,
-                caption
-            });
-            resetForm();
-        }
-    };
-    
-    // Framer motion variants for the media upload area
-    const uploadVariants = {
-        hidden: { opacity: 0, scale: 0.95 },
-        visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
-    };
-
-    const mediaIcon = useMemo(() => mediaType === 'image' ? <FaCamera size={18} /> : <FaVideo size={18} />, [mediaType]);
 
     return (
-        <Modal
-            show={show}
-            onHide={resetForm}
-            centered
-            size="md" // Smaller size for a modern, focused look
-            className="create-story-modal-genz"
+        <Modal 
+            show={show} 
+            onHide={resetForm} 
+            centered 
+            size="md"
+            contentClassName="prof-compact-modal"
         >
-            <Modal.Header closeButton className="border-0 p-3 pb-0">
-                <Modal.Title className="fw-bold fs-6">
-                    <span className="text-primary me-1"><FaPlusCircle /></span> 
-                    New Story
-                </Modal.Title>
-            </Modal.Header>
-            
-            {/* The main content area is wrapped in a 'form' only for the onSubmit handler for accessibility, but no default submission is allowed. */}
-            <form onSubmit={handleSubmit}>
-                <Modal.Body className="p-3 pt-2">
-                    <div className="row g-2"> {/* Tighter gutters for mobile */}
-                        {/* Left side - Media Preview */}
-                        <div className={`col-12 ${previewUrl ? 'col-md-7' : 'col-md-12'}`}>
-                            <div 
-                                className="media-preview-container-genz"
-                                // Reduced height for mobile/short content vibe
-                                style={{ height: previewUrl ? '200px' : '200px', position: 'relative' }} 
-                            >
-                                {!previewUrl ? (
-                                    <motion.div 
-                                        className="media-upload-area-genz p-4"
-                                        initial="hidden"
-                                        animate="visible"
-                                        variants={uploadVariants}
-                                        onClick={() => document.getElementById('media-input-genz').click()}
-                                    >
-                                        <div className="upload-icon-container-genz mb-2">
-                                            <FaCamera size={24} className="text-white" />
-                                            <FaVideo size={24} className="text-white ms-2" />
-                                        </div>
-                                        <h6 className="text-white mb-1">Tap to Share Life</h6>
-                                        <p className="text-light small mb-3">
-                                            Photo/Video 🤳 (24h vibe)
-                                        </p>
-                                        <button
-                                            type="button"
-                                            className="btn btn-light btn-sm rounded-pill px-3"
-                                            disabled={isCompressing}
-                                        >
-                                            {isCompressing ? <><FaCompress className="me-1"/> Processing...</> : 'Select Media'}
-                                        </button>
-                                        <input
-                                            id="media-input-genz"
-                                            type="file"
-                                            className="d-none"
-                                            accept="image/*,video/*"
-                                            onChange={handleMediaSelect}
-                                            disabled={isCompressing}
-                                        />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.3 }}
-                                        style={{ width: '100%', height: '100%' }}
-                                    >
-                                        {mediaType === 'image' ? (
-                                            <img src={previewUrl} alt="Preview" className="media-preview-content" />
-                                        ) : (
-                                            <video src={previewUrl} controls className="media-preview-content" />
-                                        )}
-                                        <button
-                                            type="button"
-                                            className="btn btn-danger btn-sm rounded-circle position-absolute top-0 end-0 m-2 shadow-sm"
-                                            onClick={() => { setMedia(null); setMediaType(null); setPreviewUrl(null); cleanupPreviewUrl(); }}
-                                            disabled={isCompressing}
-                                        >
-                                            <FaTimes size={12} />
-                                        </button>
-                                    </motion.div>
-                                )}
+            <Modal.Body className="p-0 overflow-hidden">
+                <div className="prof-flex-container">
+                    
+                    {/* Left Side: Media Surface (Compact Height) */}
+                    <div className="prof-media-aside">
+                        {!previewUrl ? (
+                            <div className="prof-upload-trigger" onClick={() => document.getElementById('story-input').click()}>
+                                <FaPlus size={14} />
+                                <input id="story-input" type="file" hidden onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    setPreviewUrl(URL.createObjectURL(file));
+                                    setMediaType(file.type.startsWith('image') ? 'image' : 'video');
+                                    setMedia(file);
+                                }} />
                             </div>
-                        </div>
-
-                        {/* Right side - Caption and Controls (Conditionally show controls side-by-side on larger screens) */}
-                        {previewUrl && (
-                             <motion.div 
-                                className="col-12 col-md-5"
-                                initial={{ x: 50, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ duration: 0.3 }}
-                             >
-                                <div className="p-1">
-                                    <div className="d-flex align-items-center mb-1">
-                                        <img
-                                            src={userData?.profilePicture || "https://via.placeholder.com/40"}
-                                            alt="Profile"
-                                            className="rounded-circle me-2"
-                                            style={{ width: '30px', height: '30px', objectFit: 'cover', border: '2px solid var(--bs-primary)' }}
-                                        />
-                                        <div>
-                                            <h6 className="mb-0 small fw-bold">{userData?.userName || 'Your Name'}</h6>
-                                            <small className="text-muted" style={{fontSize: '0.7rem'}}>Adding {mediaIcon}</small>
-                                        </div>
-                                    </div>
-
-                                    <div className="mb-2">
-                                        <label className="form-label fs-9 small">Caption (optional)</label>
-                                        <textarea
-                                            className="form-control"
-                                            rows="2" // Smaller rows for short content
-                                            value={caption}
-                                            onChange={(e) => setCaption(e.target.value)}
-                                            placeholder="Say something cool..."
-                                            disabled={isCompressing}
-                                            style={{
-                                                borderRadius: '10px',
-                                                border: '2px solid #ddd',
-                                                padding: '6px',
-                                                fontSize: '0.85rem', // Smaller text on mobile
-                                                resize: 'none',
-                                            }}
-                                        />
-                                    </div>
-
-                                    <div className="d-grid gap-2">
-                                        <button
-                                            type="submit" // Set to submit to trigger form handler
-                                            className="btn btn-primary btn-sm fw-bold"
-                                            disabled={!media || isCompressing}
-                                            style={{ borderRadius: '8px', padding: '6px', fontSize: '0.8rem' }}
-                                        >
-                                            {isCompressing ? 'Processing...' : <>Share Vibe <FaArrowRight className="ms-1"/></>}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline-secondary btn-sm"
-                                            onClick={resetForm}
-                                            disabled={isCompressing}
-                                            style={{ borderRadius: '8px', padding: '6px', fontSize: '0.8rem' }}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
+                        ) : (
+                            <div className="prof-media-mini-preview">
+                                {mediaType === 'image' ? <img src={previewUrl} alt="" /> : <video src={previewUrl} muted autoPlay loop />}
+                                <button className="prof-mini-remove" onClick={() => setPreviewUrl(null)}><FaTimes /></button>
+                            </div>
                         )}
                     </div>
-                </Modal.Body>
-            </form>
 
-            {/* Gen Z-inspired Styling */}
+                    {/* Right Side: Content & Actions */}
+                    <div className="prof-content-main">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="prof-label-sm">New Story</span>
+                            <button onClick={onHide} className="prof-close-x"><FaTimes /></button>
+                        </div>
+
+                        <input 
+                            className="prof-minimal-input"
+                            placeholder="Add a brief caption..."
+                            value={caption}
+                            onChange={(e) => setCaption(e.target.value)}
+                        />
+
+                        <div className="prof-footer-actions">
+                            <button 
+                                className="prof-btn-confirm"
+                                disabled={!media || isProcessing}
+                                onClick={() => onCreateStory({ media, mediaType, caption })}
+                            >
+                                Share
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Modal.Body>
+
             <style jsx>{`
-                .create-story-modal-genz .modal-content {
-                
-                    border: none;
-                    overflow: hidden;
+                :global(.prof-compact-modal) {
+                    background: #0d0d0d !important;
+                    border: 1px solid #1f1f1f !important;
+                    border-radius: 12px !important;
+                    width: 480px; /* Slightly wider, but much shorter */
                 }
-                .create-story-modal-genz .modal-body {
-                    padding: 10px;
+
+                .prof-flex-container {
+                    display: flex;
+                    height: 160px; /* Fixed small height */
                 }
-                .media-preview-container-genz {
-                   
-                    background: #20232a; /* Darker background for contrast */
+
+                /* Left Side Media Styles */
+                .prof-media-aside {
+                    width: 120px;
+                    background: #141414;
+                    border-right: 1px solid #1f1f1f;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    overflow: hidden;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
                 }
-                .media-upload-area-genz {
-                    text-align: center;
+
+                .prof-upload-trigger {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    border: 1px dashed #333;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #f4f4f4ff;
                     cursor: pointer;
+                }
+
+                .prof-media-mini-preview {
                     width: 100%;
                     height: 100%;
+                    position: relative;
+                }
+
+                .prof-media-mini-preview img, .prof-media-mini-preview video {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+
+                .prof-mini-remove {
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    background: rgba(0,0,0,0.7);
+                    color: #fff;
+                    border: none;
+                    border-radius: 50%;
+                    width: 18px;
+                    height: 18px;
+                    font-size: 0.6rem;
+                }
+
+                /* Right Side Content Styles */
+                .prof-content-main {
+                    flex: 1;
+                    padding: 16px;
                     display: flex;
                     flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    background: linear-gradient(45deg, #4f46e5, #8b5cf6); /* Vibrant gradient */
-                    transition: transform 0.2s;
+                    justify-content: space-between;
                 }
-                .media-upload-area-genz:hover {
-                    transform: scale(1.02);
+
+                .prof-label-sm {
+                    font-size: 0.7rem;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    color: #fff6f6ff;
                 }
-                .upload-icon-container-genz {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 60px; /* Smaller icon container */
-                    height: 60px;
-                    border-radius: 50%;
-                    background: rgba(255, 255, 255, 0.2);
-                    backdrop-filter: blur(5px);
+
+                .prof-close-x { background: none; border: none; color: #ffffffff; font-size: 0.8rem; }
+
+                .prof-minimal-input {
+                    background: transparent;
+                    border: none;
+                    border-bottom: 1px solid #1f1f1f;
+                    color: #fff;
+                    font-size: 0.85rem;
+                    padding: 8px 0;
+                    outline: none;
                 }
-                .media-preview-content {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover; /* Changed to cover for a fuller look */
-                    display: block;
+
+                .prof-minimal-input::placeholder { color: #333; }
+
+                .prof-footer-actions {
+                    display: flex;
+                    justify-content: flex-end;
+                }
+
+                .prof-btn-confirm {
+                    background: #fff;
+                    color: #000;
+                    border: none;
+                    padding: 4px 20px;
+                    border-radius: 4px;
+                    font-size: 0.8rem;
+                    font-weight: 500;
+                }
+
+                .prof-btn-confirm:disabled {
+                    background: #222;
+                    color: #f4efefff;
                 }
             `}</style>
         </Modal>

@@ -27,7 +27,10 @@ const storyRoutes = require("./routes/storyRoutes.js");
 const notificationRoutes = require("./routes/notificationRoutes.js");
 const messageRoutes = require("./routes/messageRoutes.js");
 const groupRoutes = require("./routes/groupRoutes.js")
+const relationships = require("./routes/relationships.js")
 const passport = require('passport');
+const conversationRoutes = require("./routes/conversationRoutes.js");   
+const userRoutes = require("./routes/userRoutes.js");
  app.use( router);
  app.use("/auth", authRoutes);
  app.use("/profile", profileRoutes);
@@ -36,5 +39,8 @@ const passport = require('passport');
  app.use("/notifications", notificationRoutes);
  app.use("/messages", messageRoutes);
  app.use("/group", groupRoutes);
+ app.use("/relationships", relationships);
+ app.use("/conversations", conversationRoutes);
+  app.use("/users", userRoutes);
  app.use(passport.initialize());
 module.exports = app;

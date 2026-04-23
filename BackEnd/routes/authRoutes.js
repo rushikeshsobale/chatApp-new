@@ -10,7 +10,8 @@ const sendVerificationEmail = require("../utils/emailService.js");
 const verifyToken = require("./verifyToken.js");
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-
+const KeysModel = require("../Modules/keysModel.js");
+const { hash } = require("crypto");
 // Multer configuration
 const upload = multer({ storage: multer.memoryStorage() });
 passport.use(new GoogleStrategy({
@@ -35,11 +36,9 @@ passport.use(new GoogleStrategy({
         userName: uniqueUserName,
         firstName: profile.name.givenName,
         lastName: profile.name.familyName,
-        profilePicture: profile.photos?.[0]?.value || "",
         emailVerified: true
       });
     }
-
     done(null, user);
   } catch (err) {
     done(err, null);
@@ -51,11 +50,40 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/login', session: false }),
   (req, res) => {
-    const token = jwt.sign({ userId: req.user._id, userName: req.user.userName, followers:req.user.followers, following:req.user.following  }, secretKey, { expiresIn: '7d' });
-    res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${token}`);
+    if (req.user.password) {
+      const token = jwt.sign(
+        {
+          userId: req.user._id,
+          userName: req.user.userName,
+          followers: req.user.followers,
+          following: req.user.following,
+        },
+        secretKey,
+        { expiresIn: "7d" }
+      );
+
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: true,        // true in production
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return res.redirect(`${process.env.FRONTEND_URL}/home`);
+    }
+
+    // 🔹 CASE 2: No password → ask user to set it
+    res.cookie("oauth_email", req.user.email, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 5 * 60 * 1000, // 5 minutes
+    });
+
+    res.redirect(`${process.env.FRONTEND_URL}/set_password`);
   }
 );
-// Register route
+// Register route 
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
   try {
     const { email, password, username, birthdate, phone } = req.body;
@@ -312,8 +340,12 @@ router.post("/login", async (req, res) => {
         secretKey,
         { expiresIn: "3560d" }
       );
+
+      const hasKeys = await KeysModel.exists({
+        userId: validateEmail._id
+      });
       res.cookie("token", token, { httpOnly: true, sameSite: "strict" });
-      res.status(200).json({ message: "Successfully logged in", token });
+      res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
     } else {
       res.status(400).json({ message: "Password does not match" });
     }
@@ -349,8 +381,8 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 
-router.post('/reset-password', async (req, res) => {
-  const { token, newPassword } = req.body;
+router.post('/reset-password', verifyToken, async (req, res) => {
+  const { newPassword } = req.body;
   console.log(req.body, 'reset-Password');
 
   if (!token || !newPassword) {
@@ -358,11 +390,7 @@ router.post('/reset-password', async (req, res) => {
   }
 
   try {
-    // ✅ Decode the reset token
-    const decoded = jwt.verify(token, secretKey);
-
-    // ✅ Extract userId from decoded payload
-    const userId = decoded.userId;
+    const userId = req.userId;
     const user = await Muser.findById(userId);
 
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -380,4 +408,120 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// Add verifyToken as the second argument to protect this route
+router.post('/upload-keys', verifyToken, async (req, res) => {
+
+  try {
+    // req.userId is now automatically available thanks to the middleware
+
+    const userId = req.decoded.userId;
+    const keysData = req.body;
+
+
+    if (!keysData || !keysData.publicKey || !keysData.encryptedPrivateKey || !keysData.salt || !keysData.iv) {
+      return res.status(400).json({ error: 'Incomplete keys data provided' });
+    }
+    // Convert incoming JSON object-arrays to Node.js Buffers
+    const publicKey = Buffer.from(Object.values(keysData.publicKey));
+    const encryptedPrivateKey = Buffer.from(Object.values(keysData.encryptedPrivateKey));
+    const salt = Buffer.from(Object.values(keysData.salt));
+    const iv = Buffer.from(Object.values(keysData.iv));
+    // Update the existing keys for this user, or create new ones if they don't exist
+  const keys =  await KeysModel.findOneAndUpdate(
+      { userId: userId },
+      {
+        userId,
+        publicKey,
+        encryptedPrivateKey,
+        salt,
+        iv
+      },
+      { upsert: true, new: true }
+    );
+
+    console.log(keys, 'keys')
+
+    await Muser.findOneAndUpdate(
+      {_id: userId},
+      {
+        keysId:keys._id
+      }
+    )
+
+    res.status(200).json({ message: 'Keys uploaded and secured successfully' });
+  } catch (error) {
+    console.error('Keys upload error:', error);
+    res.status(500).json({ error: 'Internal server error during key upload' });
+  }
+});
+router.get('/reciever-public-key', async (req, res) => {
+  console.log('Received request for receiver public key with query:', req.query);
+  try {
+    const { recieverId } = req.query;
+    if (!recieverId) {
+      return res.status(400).json({ message: "Receiver ID is required" });
+    }
+    console.log('Fetching public key for receiver ID:', recieverId);
+    const keys = await KeysModel.findOne({ userId: recieverId });
+    if (!keys) {
+      return res.status(404).json({ error: 'Public key not found for the specified user' });
+    }
+    res.status(200).json({ publicKey: keys.publicKey.toString("base64") });
+  } catch (error) {
+    console.error('Failed to fetch receiver public key:', error);
+    res.status(500).json({ error: 'Failed to fetch receiver public key' });
+  }
+});
+router.get('/user-keys', verifyToken, async (req, res) => {
+  try {
+    const userId = req.decoded.userId;
+    const keys = await KeysModel.findOne({ userId });
+    if (!keys) {
+      return res.status(404).json({ error: 'Keys not found for the user' });
+    }
+    // Send the keys object back to the frontend
+    res.status(200).json(keys);
+  } catch (error) {
+    console.error('Failed to fetch user keys:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.post("/set-password", async (req, res) => {
+  try {
+    const email = req.cookies.oauth_email;
+    if (!email) {
+      return res.status(401).json({ message: "Session expired" });
+    }
+
+    const validateEmail = await Muser.findOne({ email: email })
+    const token = jwt.sign(
+      {
+        userId: validateEmail._id,
+        email: validateEmail.email,
+        userName: validateEmail.userName,
+        requests: validateEmail.requests,
+        friends: validateEmail.friends,
+        followers: validateEmail.followers
+      },
+      secretKey,
+      { expiresIn: "3560d" }
+    );
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    const response = await Muser.findOneAndUpdate(
+      { email },
+      { password: hashedPassword, isPasswordSet: true },
+      { new: true }
+    );
+
+    res.clearCookie("oauth_email");
+    const hasKeys = await KeysModel.exists({
+      userId: validateEmail._id
+    });
+    res.cookie("token", token, { httpOnly: true, sameSite: "strict" });
+    res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to set password" });
+  }
+});
 module.exports = router;

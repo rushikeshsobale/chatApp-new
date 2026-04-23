@@ -33,22 +33,22 @@ const UsersList = () => {
   const [viewMode, setViewMode] = useState("grid");
 
   const fetchUsers = async () => {
-    try {
-      const response = await fetch(`${apiUrl}/getUsers`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Network response was not ok");
-      const data = await response.json();
-      setUsers(data);
-      setFilteredUsers(data);
-    } catch (error) {
-      console.error("Problem fetching users:", error);
-    }
+    // try {
+    //   const response = await fetch(`${apiUrl}/getUsers`, {
+    //     method: "GET",
+    //     headers: {
+    //       Authorization: `Bearer ${token}`,
+    //       "Content-Type": "application/json",
+    //     },
+    //     credentials: "include",
+    //   });
+    //   if (!response.ok) throw new Error("Network response was not ok");
+    //   const data = await response.json();
+    //   setUsers(data);
+    //   setFilteredUsers(data);
+    // } catch (error) {
+    //   console.error("Problem fetching users:", error);
+    // }
   };
 
   useEffect(() => {
@@ -76,24 +76,24 @@ const UsersList = () => {
   };
 
   const fetchUserData = async () => {
-    try {
-      const response = await fetch(`${apiUrl}/getUser`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUserData(data);
-      } else {
-        console.error("Failed to fetch user data:", response.statusText);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    }
+    // try {
+    //   const response = await fetch(`${apiUrl}/getUser`, {
+    //     method: "GET",
+    //     credentials: "include",
+    //     headers: {
+    //       Authorization: `Bearer ${token}`,
+    //       "Content-Type": "application/json",
+    //     },
+    //   });
+    //   if (response.ok) {
+    //     const data = await response.json();
+    //     setUserData(data);
+    //   } else {
+    //     console.error("Failed to fetch user data:", response.statusText);
+    //   }
+    // } catch (error) {
+    //   console.error("Error:", error);
+    // }
   };
 
   useEffect(() => {
@@ -101,23 +101,23 @@ const UsersList = () => {
   }, []);
 
   const acceptFriendRequest = async (userId) => {
-    try {
-      const response = await fetch(`${apiUrl}/acceptFriendRequest/${userId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
-      if (response.ok) {
-        await fetchUserData();
-        fetchUsers();
-        const message = {
-          text: `${senderName} has accepted your friend request`,
-        };
-        socket.emit("raisedRequest", { userId, senderId, message });
-      }
-    } catch (error) {
-      console.error("Error accepting friend request:", error);
-    }
+    // try {
+    //   const response = await fetch(`${apiUrl}/acceptFriendRequest/${userId}`, {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     credentials: "include",
+    //   });
+    //   if (response.ok) {
+    //     await fetchUserData();
+    //     fetchUsers();
+    //     const message = {
+    //       text: `${senderName} has accepted your friend request`,
+    //     };
+    //     socket.emit("raisedRequest", { userId, senderId, message });
+    //   }
+    // } catch (error) {
+    //   console.error("Error accepting friend request:", error);
+    // }
   };
 
   const getFriendStatus = (userId) => {

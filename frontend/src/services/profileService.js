@@ -12,7 +12,7 @@ export const getUserData = async () => {
 };
 
 // Get profile user data
-export const getProfileUserData = async (userId) => {
+export const getUserProfilePage = async (userId) => {
     console.log(userId, 'sertggffgf')
     try {
         const response = await api.get(`/profile/userProfile/${userId}`);
@@ -25,6 +25,7 @@ export const getProfileUserData = async (userId) => {
 
 // Get user posts
 export const getUserPosts = async (userId) => {
+    
     try {
         const response = await api.get(`/post/getPosts/${userId}`);
         return response.data;
@@ -50,14 +51,17 @@ export const getNotifications = async (id) => {
     }
 };
 // Get stories
-export const getStories = async () => {
+export const getStories = async (followers) => {
     try {
-        const response = await api.get('/stories/feed');
+        const response = await api.get('/stories/feed', {
+            params: { followers }
+        });
         return response.data;
     } catch (error) {
         throw new Error("Failed to fetch stories");
     }
 };
+
 // Get trending topics
 export const getTrendingTopics = async () => {
     try {
@@ -94,6 +98,16 @@ export const createStory = async (storyData) => {
         throw new Error("Failed to create story");
     }
 };
+
+export const updateStoryViewer = async (storyId) => {
+    console.log(storyId, 'storyId from services')
+    try {  const response = await api.post(`/stories/view/${storyId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to update story viewer");
+    }       
+};
+
 
 // Update user profile
 export const updateUserProfile = async (userId, profileData) => {

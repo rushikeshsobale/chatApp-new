@@ -16,11 +16,13 @@ export const UserProvider = ({ children }) => {
   const [member, setMember] = useState({});
   const [incomingCall, setIncomingCall] = useState(null);
   const [callData, setCallData] = useState(null);
-
+  
   const loadUnseenMessages = async () => {
+
     if (user?.userId) {
       try {
         const unseen = await fetchUnseenMessages(user.userId);
+        
         setUnseenMessages(unseen);
       } catch (err) {
         console.error('Error fetching unseen messages:', err);
@@ -36,7 +38,7 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     if (!user?.userId) {
       if (socket) {
-        console.log('User logged out, disconnecting socket.');
+      
         socket.disconnect();
         setSocket(null);
         setActiveUsers([]);
@@ -46,16 +48,19 @@ export const UserProvider = ({ children }) => {
     const socketConnection = io(process.env.REACT_APP_API_URL, {
       query: { id: user.userId },
     });
+    
     setSocket(socketConnection);
     socketConnection.on('connect', () => {
       const user3 = JSON.parse(localStorage.getItem('user3'));
-      const friends = user3?.followers || [];
-      socketConnection.emit('joinRoom', { userId: user.userId, friends });
+    
+      socketConnection.emit('joinRoom', { userId: user.userId });
     });
     const handleRestatus = (data) => {
+    
       setActiveUsers(data)
     };
     const handleStatus = (data) => {
+    
       setActiveUsers((prev) => {
         if (!prev.some((u) => u._id === data.userId)) {
           return [...prev, data.userId];
@@ -77,10 +82,9 @@ export const UserProvider = ({ children }) => {
     };
     initMedia();
     const handleUserLeft = ({ userId: leftUserId }) => {
-      setActiveUsers((prev) => prev.filter((u) => u._id !== leftUserId));
+      setActiveUsers((prevUsers) => prevUsers.filter(id => id !== leftUserId));
     };
     const handleIncomingCall = ({ offer, from , fromName}) => {
-      console.log(from, offer, 'incomingCall');
       setCallData(offer)
       setShowIncoming(true);
       setIncomingCall({ from, fromName, offer });
@@ -89,18 +93,19 @@ export const UserProvider = ({ children }) => {
     socketConnection.on('restatus', handleRestatus);
     socketConnection.on('status', handleStatus);
     socketConnection.on('userLeft', handleUserLeft);
-    // socketConnection.on('recievedMessage', handleRecievedMessage); // ✅ FIXED HERE
+   
     socketConnection.on('disconnect', () => setActiveUsers([]));
+    socketConnection.on('checkit', loadUnseenMessages)
+    socketConnection.on('recievedGroupMessage', ({ messageIds }) => console.log('recievedGroupMessage', messageIds));
     // socketConnection.on('incomingOffer', handleOffer)
     socketConnection.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
     });
-
     return () => {
       socketConnection.off('restatus', handleRestatus);
       socketConnection.off('status', handleStatus);
       socketConnection.off('userLeft', handleUserLeft);
-      // socketConnection.off('recievedMessage', handleRecievedMessage); // ✅ CLEANUP
+    // ✅ CLEANUP
       socketConnection.off('connect');
       socketConnection.off('disconnect');
       socketConnection.off('connect_error');
@@ -108,11 +113,8 @@ export const UserProvider = ({ children }) => {
       socketConnection.disconnect();
     };
   }, [user?.userId]);
-
   // Listen for incoming ICE candidates from the callee
   // Listen for incoming ICE candidates from the callee
-
-
   return (
     <UserContext.Provider
       value={{

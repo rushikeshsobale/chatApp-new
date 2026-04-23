@@ -11,6 +11,24 @@ export const fetchUnseenMessages = async (receiverId) => {
     throw error;
   }
 };
+  
+export const fetchMessage = async (conversationId, page = 1, limit = 20) => {
+  try {
+    const response = await api.get('/messages/getMessages', {
+      params: {
+        conversationId,
+        page,
+        limit
+      }
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    throw error;
+  }
+};
+
 
 export const updateMessageStatus = async (messageIds, status = 'read') => {
   try {

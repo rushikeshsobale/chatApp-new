@@ -10,40 +10,104 @@ import UsersList from "./Users";
 import GroupList from "../components/GroupList"
 import GroupChatUi from "../components/GroupChatUi"
 import { UserContext } from "../contexts/UserContext";
-import { fetchUnseenMessages } from "../services/messageService";
 import { updateMessageStatus } from "../services/messageService";
-import { FaArrowLeft, FaPlusCircle, FaUserFriends, FaUsers, FaSearch, FaCog } from "react-icons/fa";
+import { FaArrowLeft, FaPlusCircle, FaUsers, FaCog, FaTrash, FaBellSlash, FaArchive, FaTimes } from "react-icons/fa";
 import CreateGroupDrawer from "../components/CreateGroup";
-
+import UserSearchBox from "../components/UserSearchBox";
+import { fetchConversations } from "../services/conversations";
+import NewGroup from "../components/NewGroup";
+import { createOrGetConversation } from "../services/conversations";
+import { fetchUserKeys } from "../services/keyse2e";
+import CryptoUtils from "../utils/CryptoUtils";
+import { decryptGroupKey } from "../utils/CryptoUtils";
 const ChatComponent = () => {
   const navigate = useNavigate()
+  const groupModalRef = useRef();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userName, setUserName] = useState("");
-  const [friends, setFriends] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedConversation, setSelectedConversation] = useState(null);
   const [msgCounts, setMsgCounts] = useState({});
   const [profilePicture, setProfilePicture] = useState("");
   const [isMobileView, setIsMobileView] = useState(false);
   const [activeList, setActiveList] = useState('friends');
-  const [searchQuery, setSearchQuery] = useState("");
   const touchStartX = useRef(0);
   const { socket, userId, activeUsers, unseenMessages, setUnseenMessages, loadUnseenMessages } = useContext(UserContext);
   const chatHistory = useSelector((state) => state.chat.chatHistory);
   const token = localStorage.getItem("token");
   const dispatch = useDispatch();
   const apiUrl = process.env.REACT_APP_API_URL;
+  const [senderPublicKey, setSenderPublicKey] = useState(null)
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef();
+  useEffect(() => {
+    fetchUserKeys().then(async (response) => {
+      const publicKeyBuffer = new Uint8Array(response.publicKey.data);
 
+      setSenderPublicKey(publicKeyBuffer);
+    });
+  }, []);
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+
+  useEffect(() => {
+  const loadConversations = async () => {
+    try {
+      const data = await fetchConversations();
+   
+      const privateKey = await CryptoUtils.loadKeyLocally();
+      if (!privateKey) return;
+      // 🔐 Decrypt group keys for all conversations
+      const updatedConversations = await Promise.all(
+        data.map(async (conv) => {
+          try {
+            // only for group chats
+            if (!conv.isGroup || !conv.encryptedGroupKey) {
+              return conv;
+            }
+            
+            const groupKey = await decryptGroupKey(conv, privateKey);
+           
+            return {
+              ...conv,
+              groupKey // ✅ attach decrypted key
+            };
+          } catch (err) {
+            console.error("Group key decrypt failed:", err);
+            return conv;
+          }
+        })
+      );
+
+      setConversations(updatedConversations);
+     
+
+    } catch (err) {
+      console.error("Error loading conversations:", err);
+    }
+  };
+
+  loadConversations();
+}, [selectedFriend, unseenMessages]);
   // Swipe Handlers
   const handleTouchStart = (e) => {
     if (isMobileView && !selectedFriend && !selectedGroup) {
       touchStartX.current = e.touches[0].clientX;
     }
   };
-
   const handleTouchEnd = (e) => {
     if (!isMobileView || selectedFriend || selectedGroup) return;
-
     const touchEndX = e.changedTouches[0].clientX;
     const diffX = touchEndX - touchStartX.current;
     const swipeThreshold = 50;
@@ -56,7 +120,6 @@ const ChatComponent = () => {
       }
     }
   };
-
   const fetchUserData = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/profile/getUser`, {
@@ -71,7 +134,7 @@ const ChatComponent = () => {
         const data = await response.json();
         setUserName(data.userName);
         setProfilePicture(data.profilePicture);
-        setFriends(data.followers);
+
         dispatch(setUser({ userId: data._id, name: data.firstName }));
       } else {
         console.error("Failed to fetch user data:", response.statusText);
@@ -93,10 +156,19 @@ const ChatComponent = () => {
     window.addEventListener("resize", handleResize);
     handleResize();
     return () => window.removeEventListener("resize", handleResize);
-  }, [loadUnseenMessages]);
-
-  const handleFriendSelect = async (friend, lastUnseenMsg = []) => {
-    setSelectedGroup(null);
+  }, [selectedFriend]);
+  const handleFriendSelect = async (member) => {
+    setSelectedFriend(member);
+  };
+  const handleConversationSelect = async (conversation, lastUnseenMsg = []) => {
+    if (conversation?.isGroup) {
+      setSelectedGroup(conversation);
+      setSelectedFriend(null);
+    }
+    setSelectedConversation(conversation);
+    const friend = conversation.participants.find(
+      (p) => p._id !== userId
+    );
     setSelectedFriend(friend);
     const messageIds = lastUnseenMsg.map(msg => msg._id);
     if (messageIds.length > 0) {
@@ -110,11 +182,6 @@ const ChatComponent = () => {
     } else {
       loadUnseenMessages();
     }
-  };
-
-  const handleGroupSelect = (group) => {
-    setSelectedFriend(null);
-    setSelectedGroup(group);
   }
 
   const handleBackToFriendList = () => {
@@ -122,43 +189,125 @@ const ChatComponent = () => {
     setSelectedGroup(null);
     setActiveList('friends');
   };
-
-  useEffect(() => {
-    if (!socket) return;
-    const handleRecievedMessage = () => {
-      console.log("received message on frontend!");
-      loadUnseenMessages();
-    };
-    socket.on('recievedMessage', handleRecievedMessage);
-    return () => {
-      socket.off('recievedMessage', handleRecievedMessage);
-    };
-  }, [socket, loadUnseenMessages]);
-
   const handleBack = () => {
     navigate(-1);
   };
-
-  const handleGroupCreated = (newGroup) => {
-    console.log("New group created, refresh list:", newGroup);
+  const handleCreateGroup = async (group) => {
+    try {
+      // 1️⃣ Generate group AES key
+      const groupKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+      );
+      const exportedGroupKey = await crypto.subtle.exportKey("raw", groupKey);
+      const allParticipants = [
+        ...group.participants,
+        {
+          _id: userId,
+          keysId: {
+            publicKey: {
+              type: "Buffer",
+              data: Array.from(senderPublicKey)
+            }
+          }
+        }
+      ];
+    
+      const encryptedKeys = [];
+      for (const user of allParticipants) {
+        // 🔥 Convert Buffer → ArrayBuffer
+        const bufferData = new Uint8Array(user.keysId.publicKey.data);
+        // 🔥 Import DER (SPKI) public key
+        const publicKey = await crypto.subtle.importKey(
+          "spki",
+          bufferData,
+          {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+          },
+          true,
+          ["encrypt"]
+        );
+        // Encrypt group key
+        const encryptedGroupKey = await crypto.subtle.encrypt(
+          { name: "RSA-OAEP" },
+          publicKey,
+          exportedGroupKey
+        );
+        encryptedKeys.push({
+          userId: user._id,
+          encryptedKey: btoa(
+            String.fromCharCode(...new Uint8Array(encryptedGroupKey))
+          ),
+        });
+      }
+      const payload = {
+        groupName: group.groupName,
+        groupCaption: group.groupCaption,
+        groupAvatar: group.groupAvatar,
+        participants: group.participants.map((p) => p._id),
+        encryptedKeys,
+      };
+      await createOrGetConversation(payload);
+    } catch (err) {
+      console.error("Group creation error:", err);
+    }
   };
-
   return (
-    <div className="chat-container-genz">
+    <div className="chat-container-genz " style={{ background: "black" }} >
       {/* Header */}
-      <div className={`chat-header-glass ${(selectedFriend||selectedGroup)?'d-none':''}`}>
+      <div ref={menuRef} style={{ position: "relative" }}>
+        {open && (
+          <div className="settings-dropdown-glass">
+            <div className="dropdown-item" onClick={() => groupModalRef.current.open()} >
+              <FaUsers className="menu-icon" />
+              Create Group
+            </div>
+            <div className="dropdown-item">
+              <FaTrash className="menu-icon" />
+              Clear Chat History
+            </div>
+            <div className="dropdown-item">
+              <FaBellSlash className="menu-icon" />
+              Mute Notifications
+            </div>
+            <div className="dropdown-item">
+              <FaArchive className="menu-icon" />
+              Archived Chats
+            </div>
+            <div className="dropdown-divider"></div>
+            <div className="dropdown-item danger">
+              <FaTimes className="menu-icon" />
+              Close
+            </div>
+          </div>
+        )}
+      </div>
+      <NewGroup ref={groupModalRef} users={[]} onCreate={(group) => {
+        handleCreateGroup(group)
+        groupModalRef.current?.close();
+      }} onClose={() => setIsModalOpen(false)} />
+      <div className={` bg-light text-dark chat-header-glass  ${(selectedFriend || selectedGroup) ? 'd-none' : ''}`}  >
         <button className="back-btn-glass" onClick={handleBack}>
           <FaArrowLeft />
         </button>
-        <div className="header-content">
-          <h2 className="header-title">Messages 💬</h2>
-          <p className="header-subtitle">Chat with friends and groups</p>
+        <div className="header-content " >
+          <h2 className="header-title">Messages </h2>
         </div>
-        <button className="settings-btn-glass">
+        <button
+          className="settings-btn-glass"
+          onClick={() => setOpen(!open)}
+        >
           <FaCog />
         </button>
       </div>
-
+      {!selectedFriend && <UserSearchBox
+        onUserSelect={(user) => {
+          handleFriendSelect(user);
+          // setSelectedUser(user);
+        }}
+      />}
       <div className="chat-layout-genz">
         {/* Sidebar */}
         {(!isMobileView || (!selectedFriend && !selectedGroup)) && (
@@ -167,28 +316,13 @@ const ChatComponent = () => {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            {/* Search Bar */}
-            <div className="search-container">
-              <div className="search-bar-glass">
-                <FaSearch className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search messages..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-            </div>
 
-            {/* Tab Navigation */}
-            <div className="tab-nav-genz">
+            {/* <div className="tab-nav-genz">
               <button
                 onClick={() => setActiveList('friends')}
                 className={`tab-btn-genz ${activeList === 'friends' ? 'active' : ''}`}
               >
                 <FaUserFriends className="tab-icon" />
-                <span>Friends</span>
                 {unseenMessages && Object.keys(unseenMessages).length > 0 && (
                   <span className="notification-bubble">
                     {Object.keys(unseenMessages).length}
@@ -200,42 +334,37 @@ const ChatComponent = () => {
                 className={`tab-btn-genz ${activeList === 'groups' ? 'active' : ''}`}
               >
                 <FaUsers className="tab-icon" />
-                <span>Groups</span>
               </button>
-            </div>
-
-            {/* Sliding Content */}
+            </div> */}
             <div className={`slide-wrapper-genz ${activeList === 'groups' ? 'show-groups' : ''}`}>
               {/* Friends Slide */}
               <div className="slide-content friend-slide">
                 <FriendList
-                  friends={friends}
+                  currentUserId={userId}
+                  conversations={conversations}
+                  selectedConversation={selectedConversation}
+                  setSelectedConversation={setSelectedConversation}
                   activeUsers={activeUsers}
                   msgCounts={msgCounts}
                   unseenMessages={unseenMessages}
                   selectedFriend={selectedFriend}
                   handleFriendSelect={handleFriendSelect}
+                  handleConversationSelect={handleConversationSelect}
                   handleBackToFriendList={handleBackToFriendList}
                 />
               </div>
-
-              {/* Groups Slide */}
-              <div className="slide-content group-slide">
-                <div className="groups-header">
-                  <h4>Your Groups</h4>
+              <div className="slide-content group-slide d-flex flex-column" style={{ height: '100%' }}>
+                <div className="flex-grow-1 overflow-auto">
+                </div>
+                <div className="p-3 border-top d-flex justify-content-center">
                   <button
-                    className="create-group-btn-genz"
+                    className="create-group-btn-genz text-dark  btn-sm"
                     onClick={() => setIsModalOpen(true)}
                   >
-                    <FaPlusCircle className="me-2" />
+                    <FaPlusCircle className="me-2 text-dark" />
                     New Group
                   </button>
                 </div>
-                <GroupList
-                  msgCounts={msgCounts}
-                  handleGroupSelect={handleGroupSelect}
-                  handleBackToFriendList={handleBackToFriendList}
-                />
               </div>
             </div>
           </div>
@@ -246,16 +375,14 @@ const ChatComponent = () => {
           {selectedGroup ? (
             <GroupChatUi
               group={selectedGroup}
-              setSelectedGroup={setSelectedGroup}
               userId={userId}
-              userName={userName}
               socket={socket}
-              history={chatHistory}
-              setMsgCounts={setMsgCounts}
               onBack={isMobileView ? handleBackToFriendList : () => setSelectedGroup(null)}
             />
           ) : selectedFriend ? (
             <ChatUi
+              conversation={selectedConversation} 
+              setSelectedConversation={setSelectedConversation}
               member={selectedFriend}
               setSelectedFriend={setSelectedFriend}
               userId={userId}
@@ -292,33 +419,34 @@ const ChatComponent = () => {
         </div>
       </div>
 
-      <CreateGroupDrawer            
-        friends={friends}
+      <CreateGroupDrawer
+        conversations={conversations}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onGroupCreated={handleGroupCreated}
+        onGroupCreated={handleCreateGroup}
       />
 
       <style jsx>{`
-        .chat-container-genz {
+  /* --- Dark Mode Theme Overrides --- */
+ .chat-container-genz {
           height: 100vh;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           display: flex;
           flex-direction: column;
+
         }
 
         .chat-header-glass {
-          background: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-          padding: 16px 20px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 6px 20px;
           display: flex;
           align-items: center;
           justify-content: space-between;
         }
 
         .back-btn-glass, .settings-btn-glass {
-          background: rgba(255, 255, 255, 0.2);
+          /* Darker button background */
+          background: rgba(255, 255, 255, 0.1);
           border: none;
           border-radius: 50%;
           width: 40px;
@@ -326,46 +454,36 @@ const ChatComponent = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
           cursor: pointer;
           transition: all 0.3s ease;
         }
-
         .back-btn-glass:hover, .settings-btn-glass:hover {
-          background: rgba(255, 255, 255, 0.3);
+          background: rgba(255, 255, 255, 0.2);
           transform: scale(1.1);
         }
-
         .header-content {
           text-align: center;
           flex-grow: 1;
         }
-
         .header-title {
-          color: white;
-          font-weight: 700;
           margin: 0;
-          font-size: 1.5rem;
+          font-size: 1.2rem;
         }
-
         .header-subtitle {
-          color: rgba(255, 255, 255, 0.8);
+          color: rgba(255, 255, 255, 0.6); /* Dimmer white */
           margin: 0;
           font-size: 0.9rem;
         }
-
         .chat-layout-genz {
           display: flex;
           flex: 1;
           overflow: hidden;
         }
-
         .sidebar-glass {
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(20px);
-          border-right: 1px solid rgba(255, 255, 255, 0.2);
+         
+          border-right: 1px solid rgba(255, 255, 255, 0.1);
           width: 350px;
-          min-width: 350px;
+         
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -373,40 +491,21 @@ const ChatComponent = () => {
 
         .search-container {
           padding: 20px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .search-bar-glass {
           display: flex;
           align-items: center;
-          background: rgba(0, 0, 0, 0.05);
           border-radius: 20px;
           padding: 10px 16px;
           transition: all 0.3s ease;
         }
 
-        .search-bar-glass:focus-within {
-          background: rgba(255, 255, 255, 0.9);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .search-icon {
-          color: #666;
-          margin-right: 10px;
-        }
-
-        .search-input {
-          border: none;
-          background: none;
-          outline: none;
-          flex: 1;
-          font-size: 0.9rem;
-        }
-
         .tab-nav-genz {
           display: flex;
           padding: 0 20px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .tab-btn-genz {
@@ -415,23 +514,23 @@ const ChatComponent = () => {
           align-items: center;
           justify-content: center;
           gap: 8px;
-          padding: 15px 0;
+          padding: 5px 0;
           background: none;
           border: none;
           cursor: pointer;
           transition: all 0.3s ease;
           font-weight: 600;
-          color: #666;
+          color: #94a3b8; /* Muted slate */
           position: relative;
         }
 
         .tab-btn-genz.active {
-          color: #667eea;
-          border-bottom: 3px solid #667eea;
+          color: rgb(255, 255, 255); /* Bright Indigo */
+          border-bottom: 3px solid #f3f3f3;
         }
 
         .tab-btn-genz:hover:not(.active) {
-          background: rgba(0, 0, 0, 0.05);
+          background: rgba(255, 255, 255, 0.05);
         }
 
         .notification-bubble {
@@ -467,17 +566,16 @@ const ChatComponent = () => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .groups-header h4 {
           margin: 0;
           font-weight: 600;
-          color: #333;
+          color: #f1f5f9; /* Near white */
         }
 
         .create-group-btn-genz {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
           border: none;
           border-radius: 20px;
@@ -496,7 +594,6 @@ const ChatComponent = () => {
 
         .main-chat-genz {
           flex: 1;
-          background: white;
           position: relative;
         }
 
@@ -505,12 +602,12 @@ const ChatComponent = () => {
         }
 
         .welcome-screen-genz {
+         background: whitesmoke,
           height: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          background: white;
           padding: 40px;
         }
 
@@ -525,13 +622,13 @@ const ChatComponent = () => {
         }
 
         .welcome-content h2 {
-          color: #333;
+          color: #ffffff;
           margin-bottom: 10px;
           font-weight: 700;
         }
 
         .welcome-content p {
-          color: #666;
+          color: #94a3b8;
           margin-bottom: 30px;
         }
 
@@ -549,8 +646,8 @@ const ChatComponent = () => {
           gap: 8px;
           padding: 15px;
           border-radius: 15px;
-          background: rgba(102, 126, 234, 0.1);
           min-width: 80px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .feature-icon {
@@ -560,24 +657,73 @@ const ChatComponent = () => {
         .feature-card span {
           font-size: 0.8rem;
           font-weight: 600;
-          color: #667eea;
+          color: #818cf8; /* Light Indigo */
         }
 
-        @media (max-width: 768px) {
-          .sidebar-glass {
-            width: 100%;
-            min-width: 100%;
-          }
-          
-          .chat-header-glass {
-            padding: 12px 16px;
-          }
-          
-          .header-title {
-            font-size: 1.3rem;
-          }
-        }
-      `}</style>
+        .settings-dropdown-glass{
+  position:absolute;
+  top:40px;
+  right:0;
+
+  width:220px;
+
+  backdrop-filter: blur(14px);
+  background: rgba(30,30,30,0.7);
+
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.1);
+
+  padding:6px 0;
+
+  box-shadow:0 8px 25px rgba(0,0,0,0.35);
+
+  animation:dropdownFade 0.2s ease;
+  z-index:1000;
+}
+
+.dropdown-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  padding:10px 16px;
+  font-size:14px;
+  color:white;
+
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.dropdown-item:hover{
+  background:rgba(255,255,255,0.08);
+}
+
+.menu-icon{
+  font-size:14px;
+  opacity:0.8;
+}
+
+.dropdown-divider{
+  height:1px;
+  background:rgba(255,255,255,0.1);
+  margin:6px 0;
+}
+
+.danger{
+  color:#ff6b6b;
+}
+
+@keyframes dropdownFade{
+  from{
+    opacity:0;
+    transform:translateY(-6px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+`}</style>
     </div>
   );
 };

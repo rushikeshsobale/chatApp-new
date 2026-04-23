@@ -19,11 +19,12 @@ import ExplorePage from './pages/ExplorePage.js';
 import ForgotPassword from './components/ForgotPassword.js';
 import Onboarding from './components/Onboarding.js';
 import Friends from './pages/Friends.js';
-import UserProfilePage from './pages/userProfile.js';
+import UserProfilePage  from "./components/profile/UserProfilePage";
 import ResetPassword from './components/ResetPassword.js';
 import { UserProvider, UserContext} from './contexts/UserContext';
 import AuthSuccess from "./pages/AuthSuccess";
 import IncomingCall from './components/videoCall/IncomingCall.js';
+import SetPasswordcomponent from './pages/PasswordSetting.js';
 const AppWrapper = () => {
   const { isLoggedIn } = useSelector((state) => state.chat);  // Access isLoggedIn from Redux store
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -57,15 +58,14 @@ const AppWrapper = () => {
       return
     }
     const handleRecievedMessage = () => {
-      console.log("received message on frontend!");
       loadUnseenMessages();
     };
     socket.on('recievedMessage', handleRecievedMessage);
-   
+
   }, [socket]);
  
   return (
-    <div className="" style={{background:'black'}}>
+    <div className="" >
       {incomingCall && (
         <IncomingCall
           show={showIncoming}
@@ -95,8 +95,8 @@ const AppWrapper = () => {
           <Route path="/userProfile/:userId" element = {<UserProfilePage/>}/>
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth-success" element={<AuthSuccess />} />
+          <Route path="/set_password" element={<SetPasswordcomponent />} />
         </Routes>
-        
       </BrowserRouter>
     </div>
   );

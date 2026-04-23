@@ -1,439 +1,298 @@
-import React, { useState } from 'react';
-import '../css/profilePage.css';
-import { FaUpload, FaTimes, FaImage, FaVideo, FaFont, FaMagic } from 'react-icons/fa';
+import React, { useState, useRef, useEffect } from 'react';
+import { FaImage, FaTimes, FaRegSmile, FaChartBar, FaGlobeAmericas, FaChevronDown } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const PostModal = ({ showModal, onClose, handleAddPost }) => {
-  const [activeTab, setActiveTab] = useState('text');
-  const [newPost, setNewPost] = useState('');
+  const [text, setText] = useState('');
   const [media, setMedia] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Auto-focus logic
+  const textareaRef = useRef(null);
+  useEffect(() => {
+    if (showModal && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [showModal]);
 
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setMedia({ file, url, type: file.type });
+      setMedia({ file, url: URL.createObjectURL(file), type: file.type });
     }
-  };
-
-  const removeMedia = () => {
-    setMedia(null);
   };
 
   if (!showModal) return null;
 
   return (
-    <div className="genz-modal-overlay">
-      <div className="genz-modal-container">
-        <div className="genz-modal-glass">
-          {/* Header */}
-          <div className="genz-modal-header">
-            <div className="genz-modal-title">
-              <FaMagic className="sparkle-icon" />
-              <h3>Create Post</h3>
-            </div>
-            <button onClick={onClose} className="genz-close-btn">
+    <AnimatePresence>
+      <motion.div 
+        className="studio-modal-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div 
+          className="studio-card"
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        >
+          {/* Top Navigation */}
+          <div className="studio-nav">
+            <button onClick={onClose} className="studio-close-btn">
               <FaTimes />
             </button>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="genz-tab-nav">
-            <button
-              onClick={() => setActiveTab('text')}
-              className={`genz-tab ${activeTab === 'text' ? 'active' : ''}`}
+            <div className="studio-privacy-pill">
+              <FaGlobeAmericas size={12} />
+              <span>Public</span>
+              <FaChevronDown size={10} />
+            </div>
+            <button 
+              onClick={() => handleAddPost(text, media)}
+              disabled={!text.trim() && !media}
+              className="studio-publish-btn"
             >
-              <FaFont className="tab-icon" />
-              <span>Text</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('media')}
-              className={`genz-tab ${activeTab === 'media' ? 'active' : ''}`}
-            >
-              <FaImage className="tab-icon" />
-              <span>Media</span>
+              Publish
             </button>
           </div>
 
-          {/* Content Area */}
-          <div className="genz-modal-content">
-            {activeTab === 'text' && (
-              <div className="text-input-container">
-                <textarea
-                  value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
-                  rows="5"
-                  className="genz-textarea"
-                  placeholder="What's the tea? ☕️..."
-                  maxLength="280"
-                />
-                <div className="character-count">
-                  {newPost.length}/280
-                </div>
-              </div>
-            )}
+          <div className="studio-scroll-area">
+            {/* Input Section */}
+            <div className="studio-input-wrapper">
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="What's happening?"
+                className="studio-textarea"
+                rows={media ? 2 : 5}
+              />
+            </div>
 
-            {activeTab === 'media' && (
-              <div className="media-upload-section">
-                {!media ? (
-                  <div className="upload-zone">
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      onChange={handleMediaUpload}
-                      id="file-upload"
-                      className="file-input-hidden"
-                    />
-                    <label htmlFor="file-upload" className="upload-label">
-                      <div className="upload-icon">
-                        <FaUpload size={32} />
-                      </div>
-                      <div className="upload-text">
-                        <h4>Drop your media here</h4>
-                        <p>or click to browse</p>
-                      </div>
-                      <div className="upload-hint">
-                        Supports images & videos • Max 50MB
-                      </div>
-                    </label>
-                  </div>
+            {/* Media Preview */}
+            {media && (
+              <div className="studio-media-preview">
+                <button onClick={() => setMedia(null)} className="studio-remove-media">
+                  <FaTimes size={12} />
+                </button>
+                {media.type.startsWith('image') ? (
+                  <img src={media.url} alt="upload" className="studio-preview-obj" />
                 ) : (
-                  <div className="media-preview-container">
-                    <div className="media-preview-header">
-                      <span>Preview</span>
-                      <button onClick={removeMedia} className="remove-media-btn">
-                        <FaTimes />
-                      </button>
-                    </div>
-                    {media.type.startsWith('image') ? (
-                      <div className="image-preview">
-                        <img src={media.url} alt="Preview" className="preview-media" />
-                      </div>
-                    ) : (
-                      <div className="video-preview">
-                        <video controls className="preview-media">
-                          <source src={media.url} type={media.type} />
-                          Your browser doesn't support video
-                        </video>
-                      </div>
-                    )}
-                  </div>
+                  <video src={media.url} muted autoPlay loop className="studio-preview-obj" />
                 )}
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="genz-modal-footer">
-            <button onClick={onClose} className="genz-btn secondary">
-              Cancel
-            </button>
-            <button
-              onClick={() => handleAddPost(newPost, media)}
-              className="genz-btn primary"
-              disabled={!newPost && !media}
-            >
-              Post It! 🚀
-            </button>
+          {/* Bottom Interactive Bar */}
+          <div className="studio-footer">
+            <div className="studio-actions">
+              <input 
+                type="file" 
+                hidden 
+                ref={fileInputRef} 
+                onChange={handleMediaUpload} 
+                accept="image/*,video/*" 
+              />
+              <button className="studio-action-btn" onClick={() => fileInputRef.current.click()}>
+                <FaImage />
+              </button>
+              <button className="studio-action-btn"><FaChartBar /></button>
+              <button className="studio-action-btn"><FaRegSmile /></button>
+            </div>
+
+            <div className={`studio-counter ${text.length > 250 ? 'warning' : ''}`}>
+              <svg width="24" height="24" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="#222" strokeWidth="2" fill="none" />
+                <circle 
+                  cx="12" cy="12" r="10" 
+                  stroke={text.length > 250 ? "#ff4d4d" : "#fff"} 
+                  strokeWidth="2" 
+                  fill="none"
+                  strokeDasharray="62.8"
+                  strokeDashoffset={62.8 - (62.8 * Math.min(text.length, 280)) / 280}
+                  style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                />
+              </svg>
+            </div>
           </div>
-        </div>
-      </div>
+        </motion.div>
 
-      <style jsx>{`
-        .genz-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(10px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 10000;
-          padding: 20px;
-        }
-
-        .genz-modal-container {
-          width: 100%;
-          max-width: 500px;
-          animation: slideUp 0.3s ease-out;
-        }
-
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
+        <style jsx>{`
+          .studio-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 5vh;
+            z-index: 10000;
           }
-          to {
-            opacity: 1;
-            transform: translateY(0);
+
+          .studio-card {
+            width: 100%;
+            max-width: 580px;
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
           }
-        }
 
-        .genz-modal-glass {
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(20px);
-          border-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: 
-            0 20px 40px rgba(0, 0, 0, 0.1),
-            0 0 0 1px rgba(255, 255, 255, 0.3);
-          overflow: hidden;
-        }
+          .studio-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #141414;
+          }
 
-        .genz-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 24px 24px 16px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        }
+          .studio-close-btn {
+            background: #1a1a1a;
+            border: none;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+          }
 
-        .genz-modal-title {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
+          .studio-close-btn:hover { background: #252525; }
 
-        .genz-modal-title h3 {
-          margin: 0;
-          font-weight: 700;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          font-size: 1.5rem;
-        }
+          .studio-privacy-pill {
+            background: #141414;
+            border: 1px solid #222;
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #888;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+          }
 
-        .sparkle-icon {
-          color: #ff6b6b;
-          animation: sparkle 2s ease-in-out infinite;
-        }
+          .studio-publish-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+          }
 
-        @keyframes sparkle {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.1); }
-        }
+          .studio-publish-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+          }
 
-        .genz-close-btn {
-          background: rgba(0, 0, 0, 0.1);
-          border: none;
-          border-radius: 50%;
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
+          .studio-scroll-area {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+          }
 
-        .genz-close-btn:hover {
-          background: rgba(0, 0, 0, 0.15);
-          transform: scale(1.1);
-        }
+          .studio-textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            resize: none;
+            outline: none;
+            line-height: 1.4;
+            font-weight: 300;
+          }
 
-        .genz-tab-nav {
-          display: flex;
-          padding: 0 24px;
-          gap: 8px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        }
+          .studio-media-preview {
+            position: relative;
+            margin-top: 15px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #222;
+          }
 
-        .genz-tab {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
-          background: none;
-          border: none;
-          border-radius: 16px 16px 0 0;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          font-weight: 600;
-          color: #666;
-        }
+          .studio-preview-obj {
+            width: 100%;
+            max-height: 350px;
+            object-fit: cover;
+          }
 
-        .genz-tab.active {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          transform: translateY(1px);
-        }
+          .studio-remove-media {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            z-index: 5;
+          }
 
-        .genz-tab:not(.active):hover {
-          background: rgba(0, 0, 0, 0.05);
-        }
+          .studio-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #141414;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
 
-        .tab-icon {
-          font-size: 0.9rem;
-        }
+          .studio-actions {
+            display: flex;
+            gap: 12px;
+          }
 
-        .genz-modal-content {
-          padding: 24px;
-          min-height: 200px;
-        }
+          .studio-action-btn {
+            background: #111;
+            border: 1px solid #1a1a1a;
+            color: #666;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
 
-        .text-input-container {
-          position: relative;
-        }
+          .studio-action-btn:hover {
+            background: #1a1a1a;
+            color: #fff;
+            border-color: #333;
+          }
 
-        .genz-textarea {
-          width: 100%;
-          border: 2px solid #e0e0e0;
-          border-radius: 16px;
-          padding: 16px;
-          font-size: 1rem;
-          resize: none;
-          transition: all 0.3s ease;
-          background: white;
-          font-family: inherit;
-        }
+          .studio-counter {
+            display: flex;
+            align-items: center;
+          }
 
-        .genz-textarea:focus {
-          outline: none;
-          border-color: #667eea;
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
+          .studio-counter svg { transform: rotate(-90deg); }
 
-        .character-count {
-          text-align: right;
-          font-size: 0.8rem;
-          color: #666;
-          margin-top: 8px;
-        }
-
-        .upload-zone {
-          border: 3px dashed #e0e0e0;
-          border-radius: 20px;
-          padding: 40px 20px;
-          text-align: center;
-          transition: all 0.3s ease;
-          cursor: pointer;
-        }
-
-        .upload-zone:hover {
-          border-color: #667eea;
-          background: rgba(102, 126, 234, 0.05);
-        }
-
-        .upload-label {
-          cursor: pointer;
-          display: block;
-        }
-
-        .upload-icon {
-          color: #667eea;
-          margin-bottom: 16px;
-        }
-
-        .upload-text h4 {
-          margin: 0 0 8px 0;
-          color: #333;
-          font-weight: 600;
-        }
-
-        .upload-text p {
-          margin: 0;
-          color: #666;
-        }
-
-        .upload-hint {
-          margin-top: 16px;
-          font-size: 0.8rem;
-          color: #999;
-        }
-
-        .file-input-hidden {
-          display: none;
-        }
-
-        .media-preview-container {
-          border: 2px solid #e0e0e0;
-          border-radius: 16px;
-          overflow: hidden;
-        }
-
-        .media-preview-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 16px;
-          background: #f8f9fa;
-          border-bottom: 1px solid #e0e0e0;
-        }
-
-        .remove-media-btn {
-          background: rgba(255, 107, 107, 0.1);
-          border: none;
-          border-radius: 50%;
-          width: 28px;
-          height: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #ff6b6b;
-          transition: all 0.2s ease;
-        }
-
-        .remove-media-btn:hover {
-          background: rgba(255, 107, 107, 0.2);
-          transform: scale(1.1);
-        }
-
-        .preview-media {
-          width: 100%;
-          max-height: 300px;
-          object-fit: contain;
-          display: block;
-        }
-
-        .genz-modal-footer {
-          display: flex;
-          justify-content: space-between;
-          padding: 20px 24px;
-          border-top: 1px solid rgba(0, 0, 0, 0.1);
-          gap: 12px;
-        }
-
-        .genz-btn {
-          padding: 12px 24px;
-          border: none;
-          border-radius: 50px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          font-size: 0.95rem;
-          flex: 1;
-        }
-
-        .genz-btn.primary {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-        }
-
-        .genz-btn.primary:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .genz-btn.primary:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .genz-btn.secondary {
-          background: rgba(0, 0, 0, 0.05);
-          color: #666;
-        }
-
-        .genz-btn.secondary:hover {
-          background: rgba(0, 0, 0, 0.1);
-          transform: translateY(-1px);
-        }
-      `}</style>
-    </div>
+          .studio-scroll-area::-webkit-scrollbar { width: 4px; }
+          .studio-scroll-area::-webkit-scrollbar-thumb {
+            background: #222;
+            border-radius: 10px;
+          }
+        `}</style>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 

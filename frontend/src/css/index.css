@@ -67,4 +67,17 @@ code {
     display: none;
   }
 }
+.modal-backdrop.show {
+    background-color: rgba(45, 45, 45, 0.9) !important;
+    
+}
 
+/* 2. Add extra blur to focus strictly on the modal */
+.modal {
+    backdrop-filter: blur(8px);
+}
+
+/* 3. Ensure the modal border doesn't glow against the dark backdrop */
+.modal-content {
+    box-shadow: 0 0 0 1px #1a1a1a !important; /* Sharp thin edge */
+}
