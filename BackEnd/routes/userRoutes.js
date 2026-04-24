@@ -29,6 +29,8 @@ router.get("/friends", auth, async (req, res) => {
     const relationsList = await relations
       .find({
         status: "accepted",
+        requester: { $ne: null },
+        recipient: { $ne: null },
         $or: [
           { requester: userId },
           { recipient: userId }
@@ -42,13 +44,22 @@ router.get("/friends", auth, async (req, res) => {
           select: "publicKey"
         }
       });
+
     const friendMap = new Map();
 
     relationsList.forEach(rel => {
-      const friend =
-        rel.requester._id.toString() === userId
-          ? rel.recipient
-          : rel.requester;
+      // extra safety (in case populate fails)
+      if (!rel.requester || !rel.recipient) return;
+
+      const isRequester =
+        rel.requester._id.toString() === userId;
+
+      const friend = isRequester
+        ? rel.recipient
+        : rel.requester;
+
+      // final guard
+      if (!friend?._id) return;
 
       friendMap.set(friend._id.toString(), friend);
     });
@@ -59,7 +70,9 @@ router.get("/friends", auth, async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error fetching friends" });
+    res.status(500).json({
+      message: "Error fetching friends"
+    });
   }
 });
 

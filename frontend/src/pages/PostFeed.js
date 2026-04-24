@@ -228,7 +228,7 @@ const PostFeed = () => {
 
       {/* Posts Grid */}
       <div className="d-flex flex-column gap-3 p-2 bg-dark" style={{ height: '90vh', overflow: 'auto' }}>
-        {posts.map(post => (
+        {posts?.map(post => (
           <div key={post._id} className="card">
             <div className="card-header d-flex align-items-center justify-content-between">
               <div className="d-flex align-items-center gap-2">
