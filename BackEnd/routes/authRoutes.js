@@ -69,7 +69,7 @@ router.get('/google/callback',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      return res.redirect(`${process.env.FRONTEND_URL}/home`);
+      return res.redirect(`${process.env.FRONTEND_URL}/profile`);
     }
 
     // 🔹 CASE 2: No password → ask user to set it
@@ -439,7 +439,7 @@ router.post('/upload-keys', verifyToken, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    console.log(keys, 'keys')
+    
 
     await Muser.findOneAndUpdate(
       {_id: userId},
