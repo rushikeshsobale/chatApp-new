@@ -10,16 +10,18 @@ dotenv.config();
 // Setup Socket.IO
 const server = http.createServer(app);
 const io = socketIo(server, {
-    cors: {
-        origin: process.env.FRONTEND_URL,
-        methods: ["GET", "POST"],
-        allowedHeaders: ["Content-Type"],
-        credentials: true
-    }
+  cors: {
+    origin: [
+      "http://localhost:3000",
+      "https://hibuddy-opal.vercel.app"
+    ],
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+    credentials: true
+  }
 });
 // Import and initialize Socket.IO logic
 require("./socket/socket")(io);
-const KeysModel = require('./Modules/keysModel')
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -34,5 +36,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
 });
 server.on('error', (err) => {
-    console.error('HTTP server error:', err.message);
+  console.error('HTTP server error:', err.message);
 });
