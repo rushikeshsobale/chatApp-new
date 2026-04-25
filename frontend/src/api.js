@@ -1,6 +1,6 @@
 // src/api.js
 import axios from 'axios';
-
+console.log("API base URL:", process.env.REACT_APP_API_URL); // Debug log to check the base URL
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL,
   timeout: 10000, // 10 seconds
