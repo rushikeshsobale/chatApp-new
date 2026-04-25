@@ -7,7 +7,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000",
-    "https://hibuddy.vercel.app"
+    "https://chatapp-new-1.onrender.com"
   ],
   credentials: true
 }));
