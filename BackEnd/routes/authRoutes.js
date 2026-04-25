@@ -65,7 +65,7 @@ router.get('/google/callback',
       res.cookie("token", token, {
         httpOnly: true,
         secure: true,        // true in production
-        sameSite: "lax",
+        sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
@@ -76,7 +76,7 @@ router.get('/google/callback',
     res.cookie("oauth_email", req.user.email, {
       httpOnly: true,
       secure: true,
-      sameSite: "lax",
+      sameSite: "none",
       maxAge: 5 * 60 * 1000, // 5 minutes
     });
 
@@ -344,7 +344,7 @@ router.post("/login", async (req, res) => {
       const hasKeys = await KeysModel.exists({
         userId: validateEmail._id
       });
-      res.cookie("token", token, { httpOnly: true, sameSite: "strict" });
+      res.cookie("token", token, { httpOnly: true, sameSite: "none" });
       res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
     } else {
       res.status(400).json({ message: "Password does not match" });
@@ -518,7 +518,7 @@ router.post("/set-password", async (req, res) => {
     const hasKeys = await KeysModel.exists({
       userId: validateEmail._id
     });
-    res.cookie("token", token, { httpOnly: true, sameSite: "strict" });
+    res.cookie("token", token, { httpOnly: true, sameSite: "none" });
     res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
   } catch (err) {
     res.status(500).json({ message: "Failed to set password" });
