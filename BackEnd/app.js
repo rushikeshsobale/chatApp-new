@@ -11,7 +11,7 @@ app.use(cors({
   ],
   credentials: true
 }));
-app.use(cors(corsOptions));
+
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
