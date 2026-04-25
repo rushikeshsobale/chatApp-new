@@ -4,10 +4,13 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const app = express();
 // CORS Configuration
-const corsOptions = {
-    origin: process.env.FRONTEND_URL,
-    credentials: true,
-};
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://hibuddy.vercel.app"
+  ],
+  credentials: true
+}));
 app.use(cors(corsOptions));
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
