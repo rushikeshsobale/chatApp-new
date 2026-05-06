@@ -724,7 +724,7 @@ const handleScroll = (e) => {
               >
                 <div className="container text-white" >
                   <div className="row align-items-center mt-1"  >
-                    <div className="col-md-8 d-flex flex-row align-items-center justify-content" >
+                    <div className="col-md-8 d-flex flex-row align-items-center justify-content-between" >
                       <div className="position-relative hover-3d">
                         {userData?.profilePicture ? (
                           <img

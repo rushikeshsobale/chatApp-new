@@ -61,44 +61,44 @@ const ChatComponent = () => {
 
 
   useEffect(() => {
-  const loadConversations = async () => {
-    try {
-      const data = await fetchConversations();
-   
-      const privateKey = await CryptoUtils.loadKeyLocally();
-      if (!privateKey) return;
-      // 🔐 Decrypt group keys for all conversations
-      const updatedConversations = await Promise.all(
-        data.map(async (conv) => {
-          try {
-            // only for group chats
-            if (!conv.isGroup || !conv.encryptedGroupKey) {
+    const loadConversations = async () => {
+      try {
+        const data = await fetchConversations();
+
+        const privateKey = await CryptoUtils.loadKeyLocally();
+        if (!privateKey) return;
+        // 🔐 Decrypt group keys for all conversations
+        const updatedConversations = await Promise.all(
+          data.map(async (conv) => {
+            try {
+              // only for group chats
+              if (!conv.isGroup || !conv.encryptedGroupKey) {
+                return conv;
+              }
+
+              const groupKey = await decryptGroupKey(conv, privateKey);
+
+              return {
+                ...conv,
+                groupKey // ✅ attach decrypted key
+              };
+            } catch (err) {
+              console.error("Group key decrypt failed:", err);
               return conv;
             }
-            
-            const groupKey = await decryptGroupKey(conv, privateKey);
-           
-            return {
-              ...conv,
-              groupKey // ✅ attach decrypted key
-            };
-          } catch (err) {
-            console.error("Group key decrypt failed:", err);
-            return conv;
-          }
-        })
-      );
+          })
+        );
 
-      setConversations(updatedConversations);
-     
+        setConversations(updatedConversations);
 
-    } catch (err) {
-      console.error("Error loading conversations:", err);
-    }
-  };
 
-  loadConversations();
-}, [selectedFriend, unseenMessages]);
+      } catch (err) {
+        console.error("Error loading conversations:", err);
+      }
+    };
+
+    loadConversations();
+  }, [selectedFriend, unseenMessages]);
   // Swipe Handlers
   const handleTouchStart = (e) => {
     if (isMobileView && !selectedFriend && !selectedGroup) {
@@ -212,7 +212,7 @@ const ChatComponent = () => {
           }
         }
       ];
-    
+
       const encryptedKeys = [];
       for (const user of allParticipants) {
         // 🔥 Convert Buffer → ArrayBuffer
@@ -380,7 +380,7 @@ const ChatComponent = () => {
             />
           ) : selectedFriend ? (
             <ChatUi
-              conversation={selectedConversation} 
+              conversation={selectedConversation}
               setSelectedConversation={setSelectedConversation}
               member={selectedFriend}
               setSelectedFriend={setSelectedFriend}
@@ -427,12 +427,9 @@ const ChatComponent = () => {
 
       <style jsx>{`
   /* --- Dark Mode Theme Overrides --- */
- .chat-container-genz {
-          height: 100dvh;
-          display: flex;
-          flex-direction: column;
-
-        }
+.chat-container-genz {
+  height: calc(var(--vh) * 100);
+}
 
         .chat-header-glass {
           backdrop-filter: blur(20px);

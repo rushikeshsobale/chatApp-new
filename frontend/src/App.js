@@ -17,6 +17,15 @@ function App() {
     dispatch(initializeSocket());
   }, [dispatch]);
 
+  function setHeight() {
+  document.documentElement.style.setProperty(
+    '--vh',
+    `${window.innerHeight * 0.01}px`
+  );
+}
+
+setHeight();
+window.addEventListener('resize', setHeight);
   return (
     <Router>
       <div className="App">
