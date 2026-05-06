@@ -427,8 +427,11 @@ const ChatComponent = () => {
 
       <style jsx>{`
   /* --- Dark Mode Theme Overrides --- */
-.chat-container-genz {
-  height: calc(var(--vh) * 100);
+        .chat-container-genz {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
 }
 
         .chat-header-glass {
