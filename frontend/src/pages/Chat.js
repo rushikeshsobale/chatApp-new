@@ -7,7 +7,6 @@ import ChatUi from "../components/ChatUi";
 import FriendList from "../components/FriendList";
 import { useNavigate } from "react-router-dom";
 import UsersList from "./Users";
-import GroupList from "../components/GroupList"
 import GroupChatUi from "../components/GroupChatUi"
 import { UserContext } from "../contexts/UserContext";
 import { updateMessageStatus } from "../services/messageService";
@@ -429,7 +428,7 @@ const ChatComponent = () => {
       <style jsx>{`
   /* --- Dark Mode Theme Overrides --- */
  .chat-container-genz {
-          height: 100vh;
+          height: 100dvh;
           display: flex;
           flex-direction: column;
 

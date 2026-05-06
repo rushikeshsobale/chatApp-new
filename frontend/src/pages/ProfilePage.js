@@ -556,19 +556,19 @@ const handleScroll = (e) => {
       {/* Navigation Bar */}
       <nav className="navbar navbar-expand-lg navbar-light  shadow-sm sticky-top border p-0" style={{ background: '#ffffffff' }}>
         <div className="container-fluid d-flex justify-content-between align-items-center px-2">
-          <a className="navbar-brand fw-bold " href="/" style={{ fontSize: "1.8rem" }}>
+          <a className="navbar-brand fw-bold " href="/" style={{ fontSize: "2rem" }}>
             HiBUDDY
           </a>
           
-            <div className=" d-flex gap-2 ">
-               <div className="cursor-pointer" onClick={() => console.log('Home')}><FaHome size={28} /></div>
+            <div className=" d-flex gap-3 ">
+               <div className="cursor-pointer" onClick={() => console.log('Home')}><FaHome size={30} /></div>
               {/* <a href="/home" className="text-dark"><FaHome size={22} /></a> */}
               {/* <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a> */}
               {/* <a href="/watch" className="text-dark"><FaVideo size={22} /></a> */}
               {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
               <a href="/games" className="text-dark"><FaGamepad size={22} /></a> */}
               <button className="btn p-0 position-relative " onClick={() => navigate('/chats')}>
-                <RiMessengerLine size={28} className="" />
+                <RiMessengerLine size={30} className="" />
                 {unseenMessages.length > 0 &&
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                     {unseenMessages.length}
@@ -581,11 +581,11 @@ const handleScroll = (e) => {
                 src={userData?.profilePicture}
                 alt="Profile"
                 className="rounded-circle "
-                style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
+                style={{ width: "35px", height: "35px", objectFit: "cover", cursor: 'pointer' }}
                 onClick={() => setShowProfileModal(true)}
               />
               <span>
-                <FaBell size={22} onClick={() => setShowNotifications(true)} />
+                <FaBell size={24} onClick={() => setShowNotifications(true)} />
               </span>
 
               <NotificationModal
@@ -724,7 +724,7 @@ const handleScroll = (e) => {
               >
                 <div className="container text-white" >
                   <div className="row align-items-center mt-1"  >
-                    <div className="col-md-8 d-flex flex-row align-items-center gap-4" >
+                    <div className="col-md-8 d-flex flex-row align-items-center justify-content" >
                       <div className="position-relative hover-3d">
                         {userData?.profilePicture ? (
                           <img
@@ -779,12 +779,12 @@ const handleScroll = (e) => {
                         <p
                           className="mb-1"
                         >
-                          <span className="text-white text-sm">{userData?.userName}</span>
+                          <span className="text-white ">{userData?.userName}</span>
                         </p>
                         <p
                           className="mb-0"
                           style={{
-                            fontSize: "0.7rem",
+                            fontSize: "0.8rem",
                             opacity: 0.9,
                             maxWidth: "500px"
                           }}
@@ -819,14 +819,8 @@ const handleScroll = (e) => {
                 </div>
               </div>
             )}
-            {/* Create Post Card - Enhanced */}
-            
-
-            {/* Profile Header */}
-            {/* Profile Navigation */}
             <div className='d-block d-md-none mt-2'>
               <FriendSuggestion suggestions={suggestions} loadData={loadData} onFollow={handleFollowUser} />
-
             </div>
             <div className="border-0 shadow-sm mb-3 " style={{ zIndex: 10 }}>
               <div className="card-body p-0">
@@ -843,7 +837,6 @@ const handleScroll = (e) => {
                       }}
                     >
                       <div className="mb-1">{tab.icon}</div>
-
                       {activeTab === tab.id && (
                         <div
                           className="position-absolute w-100 bg-primary"
@@ -862,10 +855,8 @@ const handleScroll = (e) => {
             </div>
             {/* Profile Content */}
             <div className="mb-4  rounded" >
-
               {activeTab === "grid" && (
                 <div className="row g-3">
-
                   {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts.reverse().map((post) => (
                     <div key={post._id} className="col-lg-4 col-md-4 col-4">
                       <div
