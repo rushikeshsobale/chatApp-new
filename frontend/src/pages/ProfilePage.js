@@ -732,8 +732,8 @@ const handleScroll = (e) => {
                             alt="Profile"
                             className="rounded-circle shadow-lg"
                             style={{
-                              width: "80px",
-                              height: "80px",
+                              width: "100px",
+                              height: "100px",
                               border: "4px solid rgba(255,255,255,0.8)",
                               objectFit: "cover",
                               transform: "perspective(500px) rotateY(-5deg)",
