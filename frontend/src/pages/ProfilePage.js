@@ -779,12 +779,12 @@ const handleScroll = (e) => {
                         <p
                           className="mb-1"
                         >
-                          <span className="text-white ">{userData?.userName}</span>
+                          <span className="text-white text-lg ">{userData?.userName}</span>
                         </p>
                         <p
                           className="mb-0"
                           style={{
-                            fontSize: "0.8rem",
+                            fontSize: "0.9rem",
                             opacity: 0.9,
                             maxWidth: "500px"
                           }}

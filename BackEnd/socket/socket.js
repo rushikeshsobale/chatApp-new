@@ -46,23 +46,26 @@ module.exports = (io) => {
         // It is used by both the Caller and the Receiver to send ICE candidates to the opposite peer.
         // LISTENS: Both peers use 'send-signal' to transmit candidates.
         // EMITS: 'receive-signal' is sent to the target, containing the sender's ID and the candidate payload.
-        socket.on('send-signal', (data) => {
-            if (!data || !data.to || data.type !== 'ice-candidate') {
-                return console.warn("Invalid signal data received:", data);
-            }
+        // 1. Fixed 'send-signal' listener
+socket.on('send-signal', (data) => {
+    if (!data || !data.to || data.type !== 'ice-candidate') {
+        return console.warn("Invalid signal data received:", data);
+    }
 
-            io.to(data.to).emit('receive-signal', {
-                // We pass the sender's ID so the receiver can verify it's from the active call partner
-                from: socket.id,
-                type: data.type, // 'ice-candidate'
-                candidate: data.candidate,
-            });
-            // console.log(`Relaket.on("cancel-call", (data) => {
-            if (data && data.to) {
-                io.to(data.to).emit("call-canceled", { from: socket.id });
-            }
-            console.log(`Call canceled by ${socket.id}`);
-        });
+    io.to(data.to).emit('receive-signal', {
+        from: socket.id,
+        type: data.type, 
+        candidate: data.candidate,
+    });
+}); // <--- Make sure this is closed properly
+
+// 2. Separate 'cancel-call' listener
+socket.on("cancel-call", (data) => {
+    if (data && data.to) {
+        io.to(data.to).emit("call-canceled", { from: socket.id });
+    }
+    console.log(`Call canceled by ${socket.id}`);
+});
         socket.on("end-call", (data) => {
             if (data && data.to) {
                 io.to(data.to).emit("call-ended", { from: socket.id });
