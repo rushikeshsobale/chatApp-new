@@ -1,6 +1,5 @@
 // src/api.js
-import axios from 'axios';
-console.log("API base URL:", process.env.REACT_APP_API_URL); // Debug log to check the base URL
+import axios from 'axios'; // Debug log to check the base URL
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL,
   timeout: 10000, // 10 seconds
@@ -27,6 +26,7 @@ api.interceptors.request.use(
       localStorage.getItem("token") ||
        getCookie("token");
 
+       console.log(token, 'token from api interceptor')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
