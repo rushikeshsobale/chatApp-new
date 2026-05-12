@@ -130,7 +130,7 @@ const scrollContainerRef = useRef(null);
     setLoadingUser(true);
     try {
       const data = await getUserData();
-      localStorage.setItem('user3', JSON.stringify(data));
+      localStorage.setItem('user', JSON.stringify(data));
       setUserData(data);
       setFriends(data.friends);
     } catch (error) {
@@ -141,8 +141,8 @@ const scrollContainerRef = useRef(null);
  
   const fetchPosts = async () => {
     setLoadingPosts(true);
+    console.log(userId, 'userId from profile page')
     try {
-
       const data = await getUserPosts(userId);
       setPosts(data.posts);
     } catch (error) {
@@ -779,7 +779,7 @@ const handleScroll = (e) => {
                         <p
                           className="mb-1"
                         >
-                          <span className="text-white text-lg ">{userData?.userName}</span>
+                          <span className="text-white ">{userData?.userName}</span>
                         </p>
                         <p
                           className="mb-0"
