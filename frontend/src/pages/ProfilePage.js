@@ -65,7 +65,7 @@ const ProfilePage = () => {
   const [showPostDetail, setShowPostDetail] = useState(false);
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user"));
-  const userId = user?.userId;
+  const userId = user?._id;
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
   const { socket, setFlag, unseenMessages } = useContext(UserContext);
@@ -88,11 +88,11 @@ const ProfilePage = () => {
   }
   useEffect(() => {
     
-    if (user) {
+    if (userId) {
       loadData()
     }
 
-  }, [])
+  }, [userId])
   // ... inside your component
   const lastScrollY = useRef(0); // Create the ref
   const scrollContainerRef = useRef(null);

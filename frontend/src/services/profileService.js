@@ -208,16 +208,16 @@ export const handleFollowRequest = async (requesterId, action) => {
 };
 
 export const fetchBirthdays = async (userId) => {
-    try {
-        console.log(userId, 'userID from services')
-        const response = await api.get('/profile/getBirthDays', {
-            params: { userId },
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching birthdays:', error);
-        return null;
-    }
+    // try {
+    //     console.log(userId, 'userID from services')
+    //     const response = await api.get('/profile/getBirthDays', {
+    //         params: { userId },
+    //     });
+    //     return response.data;
+    // } catch (error) {
+    //     console.error('Error fetching birthdays:', error);
+    //     return null;
+    // }
 };
 
 // Like post

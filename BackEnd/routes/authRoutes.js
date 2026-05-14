@@ -55,6 +55,7 @@ router.get('/google/callback',
         {
           userId: req.user._id,
           userName: req.user.userName,
+          profilePicture: req.user.profilePicture,
           followers: req.user.followers,
           following: req.user.following,
         },
@@ -84,16 +85,9 @@ router.get('/google/callback',
   }
 );
 router.get("/me", verifyToken, async (req, res) => {
-  const user = await Muser.findById(req.user.userId);
-
-  res.json({
-    user: {
-      id: user._id,
-      userName: user.userName,
-      followers: user.followers,
-      following: user.following,
-    },
-  });
+  console.log('Decoded token data in /me route:', req.decoded);
+  const user = await Muser.findById(req.decoded.userId);
+  res.json(user);
 });
 // Register route 
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
