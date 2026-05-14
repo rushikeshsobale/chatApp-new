@@ -19,9 +19,9 @@ export const UserProvider = ({ children }) => {
   
   const loadUnseenMessages = async () => {
 
-    if (user?.userId) {
+    if (user?._id) {
       try {
-        const unseen = await fetchUnseenMessages(user.userId);
+        const unseen = await fetchUnseenMessages(user._id);
         
         setUnseenMessages(unseen);
       } catch (err) {
@@ -32,11 +32,11 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       loadUnseenMessages();
-      setUserId(user.userId);
+      setUserId(user._id);
     }
   }, []);
   useEffect(() => {
-    if (!user?.userId) {
+    if (!user?._id) {
       if (socket) {
       
         socket.disconnect();
@@ -46,14 +46,14 @@ export const UserProvider = ({ children }) => {
       return;
     }
     const socketConnection = io(process.env.REACT_APP_API_URL, {
-      query: { id: user.userId },
+      query: { id: user._id },
     });
     
     setSocket(socketConnection);
     socketConnection.on('connect', () => {
       const user3 = JSON.parse(localStorage.getItem('user3'));
     
-      socketConnection.emit('joinRoom', { userId: user.userId });
+      socketConnection.emit('joinRoom', { userId: user._id });
     });
     const handleRestatus = (data) => {
     
@@ -93,7 +93,6 @@ export const UserProvider = ({ children }) => {
     socketConnection.on('restatus', handleRestatus);
     socketConnection.on('status', handleStatus);
     socketConnection.on('userLeft', handleUserLeft);
-   
     socketConnection.on('disconnect', () => setActiveUsers([]));
     socketConnection.on('checkit', loadUnseenMessages)
     socketConnection.on('recievedGroupMessage', ({ messageIds }) => console.log('recievedGroupMessage', messageIds));

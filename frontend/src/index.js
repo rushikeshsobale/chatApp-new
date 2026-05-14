@@ -54,7 +54,7 @@ const AppWrapper = () => {
   }, [socket]);
   useEffect(() => {
     if (!socket) {
-      console.log('')
+      console.log('not soket')
       return
     }
     const handleRecievedMessage = () => {
