@@ -26,12 +26,13 @@ import CreateStory from "../components/CreateStory";
 import { createNotification, getNotifications, updateNotification } from "../services/notificationService";
 import { UserContext } from "../contexts/UserContext";
 import BirthdaysCard from "../components/BirthdaysCard";
-import { getUserData, getProfileUserData, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment } from "../services/profileService";
+import { getUserData, getProfileUserData, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment,} from "../services/profileService";
 import Loader from '../components/Loader';
 import NotificationModal from '../components/Notification';
 import SavedPosts from "./SavedPosts";
 import { getFollowers, getFollowing, } from '../services/relationships'
 import ResponsiveStoryCarousel from "../components/ResponsiveStoryCarousel";
+import { getMe } from "../services/authService";
 const ProfilePage = () => {
   const [isVisible, setIsVisible] = useState(true);
 
@@ -138,6 +139,14 @@ const scrollContainerRef = useRef(null);
     }
     setLoadingUser(false);
   };
+
+  const fetchMe = ()=>{
+    getMe().then(data => {    
+      localStorage.setItem('user', JSON.stringify(data));
+      setUserData(data);
+      console.log(data, 'from getME')
+    }).catch(err => console.error("Error fetching user data:", err)); 
+  }
  
   const fetchPosts = async () => {
     setLoadingPosts(true);

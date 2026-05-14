@@ -12,29 +12,6 @@ const api = axios.create({
 
 // Add request interceptor for auth tokens
 
-  function getCookie(name) {
-    console.log(document.cookie, 'cookies')
-  return document.cookie
-    .split("; ")
-    .find(row => row.startsWith(name + "="))
-    ?.split("=")[1];
-}
-
-api.interceptors.request.use(
-  (config) => {
-    const token =
-      localStorage.getItem("token") ||
-       getCookie("token");
-
-       console.log(token, 'token from api interceptor')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
-  (error) => Promise.reject(error)
-)
 
 
 // Add response interceptor for error handling

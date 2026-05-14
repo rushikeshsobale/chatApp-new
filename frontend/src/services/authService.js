@@ -31,6 +31,13 @@ export const register = async (userData) => {
     throw error.response?.data?.error || 'Registration failed';
   }
 };
+export const getMe = async () => {
+  try {    const response = await api.get('auth/me');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.error || 'Failed to fetch user data';
+  } 
+};
 export const login = async (credentials) => {
   console.log(credentials, 'credentials')
   try {

@@ -83,6 +83,18 @@ router.get('/google/callback',
     res.redirect(`${process.env.FRONTEND_URL}/set_password`);
   }
 );
+router.get("/me", verifyToken, async (req, res) => {
+  const user = await Muser.findById(req.user.userId);
+
+  res.json({
+    user: {
+      id: user._id,
+      userName: user.userName,
+      followers: user.followers,
+      following: user.following,
+    },
+  });
+});
 // Register route 
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
   try {
