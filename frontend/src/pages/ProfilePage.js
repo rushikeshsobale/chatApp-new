@@ -26,7 +26,7 @@ import CreateStory from "../components/CreateStory";
 import { createNotification, getNotifications, updateNotification } from "../services/notificationService";
 import { UserContext } from "../contexts/UserContext";
 import BirthdaysCard from "../components/BirthdaysCard";
-import { getUserData, getProfileUserData, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment,} from "../services/profileService";
+import { getUserData, getProfileUserData, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment, } from "../services/profileService";
 import Loader from '../components/Loader';
 import NotificationModal from '../components/Notification';
 import SavedPosts from "./SavedPosts";
@@ -87,20 +87,25 @@ const ProfilePage = () => {
     setFollowing(res1);
   }
   useEffect(() => {
-    loadData()
+    
+    if (user) {
+      loadData()
+    }
+
   }, [])
   // ... inside your component
-const lastScrollY = useRef(0); // Create the ref
-const scrollContainerRef = useRef(null); 
+  const lastScrollY = useRef(0); // Create the ref
+  const scrollContainerRef = useRef(null);
 
-  
+
   // Fetch User Data
   useEffect(() => {
     setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
+      fetchMe()
     } else {
-    
+
     }
     getSuggestions();
     // fetchStories();
@@ -140,14 +145,14 @@ const scrollContainerRef = useRef(null);
     setLoadingUser(false);
   };
 
-  const fetchMe = ()=>{
-    getMe().then(data => {    
+  const fetchMe = () => {
+    getMe().then(data => {
       localStorage.setItem('user', JSON.stringify(data));
       setUserData(data);
       console.log(data, 'from getME')
-    }).catch(err => console.error("Error fetching user data:", err)); 
+    }).catch(err => console.error("Error fetching user data:", err));
   }
- 
+
   const fetchPosts = async () => {
     setLoadingPosts(true);
     console.log(userId, 'userId from profile page')
@@ -551,15 +556,15 @@ const scrollContainerRef = useRef(null);
     setShowStoryViewer(true);
   };
 
-const handleScroll = (e) => {
-  const currentScrollY = e.target.scrollTop;
-  if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
-    setIsVisible(false); // scrolling down → hide
-  } else {
-    setIsVisible(true); // scrolling up → show
-  }
-  lastScrollY.current = currentScrollY;
-};
+  const handleScroll = (e) => {
+    const currentScrollY = e.target.scrollTop;
+    if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+      setIsVisible(false); // scrolling down → hide
+    } else {
+      setIsVisible(true); // scrolling up → show
+    }
+    lastScrollY.current = currentScrollY;
+  };
   return (
     <div className="profile-page" style={{ fontFamily: "'Poppins', sans-serif", background: 'black' }}>
       {/* Navigation Bar */}
@@ -568,45 +573,45 @@ const handleScroll = (e) => {
           <a className="navbar-brand fw-bold " href="/" style={{ fontSize: "2rem" }}>
             HiBUDDY
           </a>
-          
-            <div className=" d-flex gap-3 ">
-               <div className="cursor-pointer" onClick={() => console.log('Home')}><FaHome size={30} /></div>
-              {/* <a href="/home" className="text-dark"><FaHome size={22} /></a> */}
-              {/* <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a> */}
-              {/* <a href="/watch" className="text-dark"><FaVideo size={22} /></a> */}
-              {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
+
+          <div className=" d-flex gap-3 ">
+            <div className="cursor-pointer" onClick={() => console.log('Home')}><FaHome size={30} /></div>
+            {/* <a href="/home" className="text-dark"><FaHome size={22} /></a> */}
+            {/* <a href="/friends" className="text-dark"><FaUserFriends size={22} /></a> */}
+            {/* <a href="/watch" className="text-dark"><FaVideo size={22} /></a> */}
+            {/* <a href="/marketplace" className="text-dark"><FaStore size={22} /></a>
               <a href="/games" className="text-dark"><FaGamepad size={22} /></a> */}
-              <button className="btn p-0 position-relative " onClick={() => navigate('/chats')}>
-                <RiMessengerLine size={30} className="" />
-                {unseenMessages.length > 0 &&
-                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    {unseenMessages.length}
-                  </span>
-                }
-              </button>
+            <button className="btn p-0 position-relative " onClick={() => navigate('/chats')}>
+              <RiMessengerLine size={30} className="" />
+              {unseenMessages.length > 0 &&
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {unseenMessages.length}
+                </span>
+              }
+            </button>
 
-              <img
+            <img
 
-                src={userData?.profilePicture}
-                alt="Profile"
-                className="rounded-circle "
-                style={{ width: "35px", height: "35px", objectFit: "cover", cursor: 'pointer' }}
-                onClick={() => setShowProfileModal(true)}
-              />
-              <span>
-                <FaBell size={24} onClick={() => setShowNotifications(true)} />
-              </span>
+              src={userData?.profilePicture}
+              alt="Profile"
+              className="rounded-circle "
+              style={{ width: "35px", height: "35px", objectFit: "cover", cursor: 'pointer' }}
+              onClick={() => setShowProfileModal(true)}
+            />
+            <span>
+              <FaBell size={24} onClick={() => setShowNotifications(true)} />
+            </span>
 
-              <NotificationModal
-                notifications={notifications}
-                unreadCount={unreadCount}
-                show={showNotifications}
-                onToggle={() => setShowNotifications(!showNotifications)}
-                onMarkRead={handleMarkNotificationAsRead}
-                onDelete={handleDeleteNotification}
-              />
-            </div>
-         
+            <NotificationModal
+              notifications={notifications}
+              unreadCount={unreadCount}
+              show={showNotifications}
+              onToggle={() => setShowNotifications(!showNotifications)}
+              onMarkRead={handleMarkNotificationAsRead}
+              onDelete={handleDeleteNotification}
+            />
+          </div>
+
         </div>
       </nav>
       {/* Main Content */}
@@ -1045,19 +1050,19 @@ const handleScroll = (e) => {
         </div>
       </div>
 
-      <div 
-      className="position-fixed bottom-0 start-50 translate-middle-x mb-2 d-lg-none d-flex rounded-pill bg-dark justify-content-center align-items-center gap-4 px-4 py-2 shadow-sm text-white" 
-      style={{ 
-        border: '2px solid rgba(255, 255, 255, 0.8)', 
-        zIndex: 1000, 
-        opacity: isVisible ? 1 : 0, 
-        transition: 'opacity 0.3s ease-in-out',
-        pointerEvents: isVisible ? 'auto' : 'none' // Prevents clicks when faded
-      }}
-    >
-      <div className="cursor-pointer" onClick={() => setShowCreateStory(true)}><FaCamera size={20} /></div>
-      <div className="cursor-pointer" onClick={() => setShowModal(true)}><i className="bi bi-pencil-square" style={{ fontSize: '20px' }}></i></div>
-    </div>
+      <div
+        className="position-fixed bottom-0 start-50 translate-middle-x mb-2 d-lg-none d-flex rounded-pill bg-dark justify-content-center align-items-center gap-4 px-4 py-2 shadow-sm text-white"
+        style={{
+          border: '2px solid rgba(255, 255, 255, 0.8)',
+          zIndex: 1000,
+          opacity: isVisible ? 1 : 0,
+          transition: 'opacity 0.3s ease-in-out',
+          pointerEvents: isVisible ? 'auto' : 'none' // Prevents clicks when faded
+        }}
+      >
+        <div className="cursor-pointer" onClick={() => setShowCreateStory(true)}><FaCamera size={20} /></div>
+        <div className="cursor-pointer" onClick={() => setShowModal(true)}><i className="bi bi-pencil-square" style={{ fontSize: '20px' }}></i></div>
+      </div>
       {/* Modals */}
       {showModal && (
         <CustomModal
