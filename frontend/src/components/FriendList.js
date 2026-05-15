@@ -14,7 +14,7 @@ const FriendList = ({
   const [privateKey, setUserPrivateKey] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const user = JSON.parse(localStorage.getItem("user"));
-  const currentUserId = user?.userId;
+  const currentUserId = user?._id;
   useEffect(() => {
     const initializeKey = async () => {
       try {
