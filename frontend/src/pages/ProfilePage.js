@@ -155,8 +155,8 @@ const ProfilePage = () => {
 
   const fetchPosts = async () => {
     setLoadingPosts(true);
-    console.log(userId, 'userId from profile page')
-    try {
+    console.log(userId, 'userId from profile page new code')
+    try { 
       const data = await getUserPosts(userId);
       setPosts(data.posts);
     } catch (error) {
@@ -166,14 +166,10 @@ const ProfilePage = () => {
   };
   const fetchPostById = async (postId, dataType) => {
     const response = await getPostById(postId);
-
-
     const currentPost = response.post;
-
     setPosts(prevPosts =>
       prevPosts.map(post => {
         if (post._id !== currentPost._id) return post; // unchanged posts
-
         if (dataType === "comment") {
           const latestComment =
             currentPost.comments[currentPost.comments.length - 1];
@@ -190,7 +186,6 @@ const ProfilePage = () => {
             likes: currentPost.likes, // or `likeCount` depending on your schema
           };
         }
-
         // default → full replace
         return { ...currentPost };
       })
