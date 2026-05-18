@@ -350,7 +350,12 @@ router.post("/login", async (req, res) => {
       const hasKeys = await KeysModel.exists({
         userId: validateEmail._id
       });
-      res.cookie("token", token, { httpOnly: true, sameSite: "none" });
+        res.cookie("token", token, {
+        httpOnly: true,
+        secure: true,        // true in production
+        sameSite: "none",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
       res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
     } else {
       res.status(400).json({ message: "Password does not match" });
@@ -444,16 +449,12 @@ router.post('/upload-keys', verifyToken, async (req, res) => {
       },
       { upsert: true, new: true }
     );
-
-    
-
     await Muser.findOneAndUpdate(
       {_id: userId},
       {
         keysId:keys._id
       }
     )
-
     res.status(200).json({ message: 'Keys uploaded and secured successfully' });
   } catch (error) {
     console.error('Keys upload error:', error);
@@ -524,7 +525,12 @@ router.post("/set-password", async (req, res) => {
     const hasKeys = await KeysModel.exists({
       userId: validateEmail._id
     });
-    res.cookie("token", token, { httpOnly: true, sameSite: "none" });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
     res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
   } catch (err) {
     res.status(500).json({ message: "Failed to set password" });
