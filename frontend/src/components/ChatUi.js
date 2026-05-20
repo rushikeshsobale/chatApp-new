@@ -566,6 +566,10 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
 
   return (
     <>
+     
+    <div className="chat-ui-container">
+      {/* Chat Header */}
+     
      <div className="chat-header d-flex align-items-center justify-content-between p-1 border-bottom bg-light">
         <button className="back-button" onClick={onBack}>
           <FaArrowLeft />
@@ -625,10 +629,6 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
         </div>
 
       </div>
-    <div className="chat-ui-container">
-      {/* Chat Header */}
-     
-
       {/* Messages Area */}
       <div className="messages-area" style={{ background: "rgb(177 177 177)" }}>
         {messages?.length === 0 ? (
