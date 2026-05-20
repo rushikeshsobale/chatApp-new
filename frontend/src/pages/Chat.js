@@ -593,7 +593,7 @@ const ChatComponent = () => {
 
         .main-chat-genz {
           flex: 1;
-          position: relative;
+          position:fixed;
         }
 
         .main-chat-genz.hidden-mobile {

@@ -566,7 +566,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
 
   return (
     <>
-     <div className="chat-header sticky-top d-flex align-items-center justify-content-between p-1 border-bottom bg-light">
+     <div className="chat-header d-flex align-items-center justify-content-between p-1 border-bottom bg-light">
         <button className="back-button" onClick={onBack}>
           <FaArrowLeft />
         </button>
