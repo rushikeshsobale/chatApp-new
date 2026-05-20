@@ -68,7 +68,7 @@ const ProfilePage = () => {
   const userId = user?._id;
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
-  const { socket, setFlag, unseenMessages } = useContext(UserContext);
+  const { socket, setFlag, unseenMessages, setUser, setUserId } = useContext(UserContext);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -138,6 +138,8 @@ const ProfilePage = () => {
       const data = await getUserData();
       localStorage.setItem('user', JSON.stringify(data));
       setUserData(data);
+          setUser(data);
+      setUserId(data._id);
       setFriends(data.friends);
     } catch (error) {
       console.error("Error:", error);
@@ -149,7 +151,8 @@ const ProfilePage = () => {
     getMe().then(data => {
       localStorage.setItem('user', JSON.stringify(data));
       setUserData(data);
-      console.log(data, 'from getME')
+      setUser(data);
+      setUserId(data._id);
     }).catch(err => console.error("Error fetching user data:", err));
   }
 

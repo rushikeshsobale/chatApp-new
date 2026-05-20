@@ -8,7 +8,6 @@ export const UserProvider = ({ children }) => {
   const [activeUsers, setActiveUsers] = useState([]);
   const [unseenMessages, setUnseenMessages] = useState([]);
   const [flag, setFlag] = useState(false);
-  const user = JSON.parse(localStorage.getItem('user'));
   const [myStream, setMyStream] = useState(null);
   const myVideoRef = useRef();
   const [answer, setAnswer] = useState(null);
@@ -16,7 +15,10 @@ export const UserProvider = ({ children }) => {
   const [member, setMember] = useState({});
   const [incomingCall, setIncomingCall] = useState(null);
   const [callData, setCallData] = useState(null);
-  
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const loadUnseenMessages = async () => {
 
     if (user?._id) {
@@ -35,19 +37,24 @@ export const UserProvider = ({ children }) => {
       setUserId(user._id);
     }
   }, []);
+ 
   useEffect(() => {
+   console.log('UserContext useEffect ran, userId: in effect', userId);
     if (!user?._id) {
       if (socket) {
-      
+        
         socket.disconnect();
         setSocket(null);
         setActiveUsers([]);
       }
+      console.log('No user ID found, skipping socket connection');
       return;
     }
+
     const socketConnection = io(process.env.REACT_APP_API_URL, {
       query: { id: user._id },
     });
+     console.log('UserContext userId: ran without Id', userId, socketConnection);
     
     setSocket(socketConnection);
     socketConnection.on('connect', () => {
@@ -111,7 +118,7 @@ export const UserProvider = ({ children }) => {
       // socketConnection.off('incomingOffer')
       socketConnection.disconnect();
     };
-  }, [user?.userId]);
+  }, [userId]);
   // Listen for incoming ICE candidates from the callee
   // Listen for incoming ICE candidates from the callee
   return (
@@ -128,6 +135,8 @@ export const UserProvider = ({ children }) => {
         incomingCall,
         setIncomingCall,
         user,
+        setUser,
+        setUserId,
         setMember,
         member,
         myStream,

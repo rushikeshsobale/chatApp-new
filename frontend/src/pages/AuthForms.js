@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react"; // 1. Added useContext here
+import { UserContext } from "../contexts/UserContext";
 import { useDispatch } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import {
@@ -28,8 +29,11 @@ import "../css/AuthForms.css";
 import { SET_USER } from "../store/action";
 import { fetchUserKeys, uploadUserKeys } from "../services/keyse2e";
 import CryptoUtils from "../utils/CryptoUtils";
+import { setUser } from "../store/action";
 const AuthPage = () => {
   const dispatch = useDispatch();
+  const {setUser, setUserId } = useContext(UserContext);
+
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
@@ -97,6 +101,8 @@ const AuthPage = () => {
         localStorage.setItem("token", token);
         const decodedData = jwtDecode(token);
         dispatch({ type: SET_USER, payload: { user: decodedData } });
+        setUser(decodedData);                                     // Injects user profile throughout the React tree
+        setUserId(decodedData._id);
         localStorage.setItem("user", JSON.stringify(decodedData));
 
         // 2. Handle Encryption Keys
@@ -121,8 +127,8 @@ const AuthPage = () => {
           // Export the public key to send to DB
           const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
           // Upload to server
-          console.log(keyPair, 'keypair');
-          await uploadUserKeys( {
+
+          await uploadUserKeys({
             publicKey: new Uint8Array(publicKey),
             encryptedPrivateKey: new Uint8Array(encrypted),
             salt: new Uint8Array(salt),
@@ -142,9 +148,9 @@ const AuthPage = () => {
             const dbKeys = await fetchUserKeys();
             console.log(dbKeys, 'dbkey')
             const unlockedKey = await CryptoUtils.getPrivateKeyFromBackup(dbKeys, formData.password);
-              await CryptoUtils.saveKeyLocally(unlockedKey);
-              console.log("Keys restored to this device.");
-            
+            await CryptoUtils.saveKeyLocally(unlockedKey);
+            console.log("Keys restored to this device.");
+
           } else {
 
           }
@@ -179,7 +185,7 @@ const AuthPage = () => {
         ...errors,
         form: error.message || "Authentication failed",
       });
-    } finally { 
+    } finally {
       setLoading(false);
     }
   };
