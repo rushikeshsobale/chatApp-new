@@ -989,7 +989,7 @@
 /* Input Area */
 .input-area {
   position: sticky;
-  bottom: -15px;
+  bottom: -0px;
   padding: 12px 16px;
   background: rgb(0, 0, 0);
   border-top: 1px solid #e5e5e5;
