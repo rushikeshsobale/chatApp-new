@@ -749,9 +749,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
           ))
         )}
         <div ref={messagesEndRef} />
-      </div>
-      {/* Input Area */}
-      <div className="input-area">
+         <div className="input-area">
         {/* Attachment Popup */}
         {showAttachmentPopup && (
           <div className="attachment-popup">
@@ -827,6 +825,9 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
           </div>
         )}
       </div>
+      </div>
+      {/* Input Area */}
+     
       {showOutgoingCall &&
         <OutGoingCall
           show={showOutgoingCall}

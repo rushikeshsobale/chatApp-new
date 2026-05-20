@@ -87,7 +87,7 @@ const ProfilePage = () => {
     setFollowing(res1);
   }
   useEffect(() => {
-    
+
     if (userId) {
       loadData()
     }
@@ -103,7 +103,7 @@ const ProfilePage = () => {
     setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
-    
+
     } else {
 
     }
@@ -138,7 +138,7 @@ const ProfilePage = () => {
       const data = await getUserData();
       localStorage.setItem('user', JSON.stringify(data));
       setUserData(data);
-          setUser(data);
+      setUser(data);
       setUserId(data._id);
       setFriends(data.friends);
     } catch (error) {
@@ -159,7 +159,7 @@ const ProfilePage = () => {
   const fetchPosts = async () => {
     setLoadingPosts(true);
     console.log(userId, 'userId from profile page new code')
-    try { 
+    try {
       const data = await getUserPosts(userId);
       setPosts(data.posts);
     } catch (error) {
@@ -198,7 +198,7 @@ const ProfilePage = () => {
   const fetchNotifications = async () => {
     setLoadingNotifications(true);
     try {
-      const notifications = await getProfileNotifications(user.userId);
+      const notifications = await getProfileNotifications(user._id);
       setNotifications(notifications || []);
       setUnreadCount(notifications?.filter(notification => !notification.read).length || 0);
     } catch (error) {
