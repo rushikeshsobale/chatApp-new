@@ -103,7 +103,7 @@ const ProfilePage = () => {
     setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
-      fetchMe()
+    
     } else {
 
     }

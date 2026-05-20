@@ -25,7 +25,7 @@ export const getUserProfilePage = async (userId) => {
 
 // Get user posts
 export const getUserPosts = async (userId) => {
-     console.log(userId, 'userId from servicesggf')
+    
     try {
         const response = await api.get(`/post/getPosts/${userId}`);
         return response.data;
