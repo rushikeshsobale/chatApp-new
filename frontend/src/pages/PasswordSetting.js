@@ -9,7 +9,7 @@ import { useDispatch } from 'react-redux';
 import { SET_USER } from "../store/action";
 import { fetchUserKeys, uploadUserKeys } from "../services/keyse2e";
 import CryptoUtils from "../utils/CryptoUtils";
-import { getMe } from '../services/authService';
+
 const SetPasswordcomponent = () => {
   const dispatch = useDispatch();
   const [password, setPasswordValue] = useState('');
@@ -94,7 +94,7 @@ const SetPasswordcomponent = () => {
    const fetchMe = () => {
       getMe().then(data => {
         localStorage.setItem('user', JSON.stringify(data));
-        setUserData(data);
+        
         navigate("/profile");
       }).catch(err => console.error("Error fetching user data:", err));
     }
