@@ -17,6 +17,7 @@ const IncomingCall = () => {
 
     useEffect(() => {
         if (incomingCall) {
+            console.log('Incoming call from:', incomingCall);
             setShow(true);
             setConnecting(false);
         } else {

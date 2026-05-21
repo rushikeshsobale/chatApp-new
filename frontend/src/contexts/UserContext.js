@@ -91,7 +91,9 @@ export const UserProvider = ({ children }) => {
     const handleUserLeft = ({ userId: leftUserId }) => {
       setActiveUsers((prevUsers) => prevUsers.filter(id => id !== leftUserId));
     };
-    const handleIncomingCall = ({ offer, from , fromName}) => {
+    const handleIncomingCall = (data) => {
+      console.log('Received incoming call data:', data);
+      const { offer, from, fromName } = data;
       setCallData(offer)
       setShowIncoming(true);
       setIncomingCall({ from, fromName, offer });

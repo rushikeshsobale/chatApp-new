@@ -5,7 +5,7 @@ let userFriendsMap = new Map();
 module.exports = (io) => {
     io.on("connection", (socket) => {
         socket.on("joinRoom", (data) => {
-            const {userId, friends} = data;
+            const { userId, friends } = data;
             onlineUsers.set(userId, socket.id);
             socket.join(userId);
             try {
@@ -23,7 +23,7 @@ module.exports = (io) => {
             }
             io.to(data.to).emit("incoming-call", {
                 offer: data.offer,
-                from: data.from.userId, // Sender's user ID
+                from: data.from._id, // Sender's user ID
                 fromName: data.from.userName || 'Unknown User', // Added fromName for better context in incomingCall.js
             });
             console.log(`Call offered: ${socket.id} -> ${data.to}`);
@@ -35,6 +35,7 @@ module.exports = (io) => {
         // EMITS: Sends the Answer back to the original caller.
         socket.on("answer", (data) => {
             if (!data || !data.to) return console.warn('Answer received but missing recipient.');
+            console.log(`Answer received from ${socket.id} for ${data.to}`);
             io.to(data.to).emit("call-answered", {
                 answer: data.answer,
             });
@@ -47,25 +48,25 @@ module.exports = (io) => {
         // LISTENS: Both peers use 'send-signal' to transmit candidates.
         // EMITS: 'receive-signal' is sent to the target, containing the sender's ID and the candidate payload.
         // 1. Fixed 'send-signal' listener
-socket.on('send-signal', (data) => {
-    if (!data || !data.to || data.type !== 'ice-candidate') {
-        return console.warn("Invalid signal data received:", data);
-    }
+        socket.on('send-signal', (data) => {
+            if (!data || !data.to || data.type !== 'ice-candidate') {
+                return console.warn("Invalid signal data received:", data);
+            }
 
-    io.to(data.to).emit('receive-signal', {
-        from: socket.id,
-        type: data.type, 
-        candidate: data.candidate,
-    });
-}); // <--- Make sure this is closed properly
+            io.to(data.to).emit('receive-signal', {
+                from: socket.id,
+                type: data.type,
+                candidate: data.candidate,
+            });
+        }); // <--- Make sure this is closed properly
 
-// 2. Separate 'cancel-call' listener
-socket.on("cancel-call", (data) => {
-    if (data && data.to) {
-        io.to(data.to).emit("call-canceled", { from: socket.id });
-    }
-    console.log(`Call canceled by ${socket.id}`);
-});
+        // 2. Separate 'cancel-call' listener
+        socket.on("cancel-call", (data) => {
+            if (data && data.to) {
+                io.to(data.to).emit("call-canceled", { from: socket.id });
+            }
+            console.log(`Call canceled by ${socket.id}`);
+        });
         socket.on("end-call", (data) => {
             if (data && data.to) {
                 io.to(data.to).emit("call-ended", { from: socket.id });
@@ -74,7 +75,7 @@ socket.on("cancel-call", (data) => {
         });
         socket.on('sendMessage', (data) => {
 
-            const {receiverId} = data;
+            const { receiverId } = data;
             try {
                 io.to(receiverId).emit('recievedMessage', data);
                 io.to(receiverId).emit('checkit')
@@ -150,25 +151,25 @@ socket.on("cancel-call", (data) => {
                 console.log(`User with ID ${userId} is not currently connected`);
             }
         });
-      socket.on('emit_notification', (data) => {
-    const { recipient } = data;
+        socket.on('emit_notification', (data) => {
+            const { recipient } = data;
 
-    // 1. If a recipient is specified, try to send it privately
-    if (recipient) {
-        const recipientSocketId = onlineUsers.get(recipient);
-        
-        if (recipientSocketId) {
-            io.to(recipientSocketId).emit('got_a_notification', data);
-        } else {
-            console.log(`Recipient ${recipient} is not online. Notification not sent.`);
-        }
-    } 
-    // 2. If no recipient is provided in the data, broadcast to everyone
-    else {
-        io.emit('got_a_notification', data);
-        console.log("No recipient specified. Broadcasting to all users.");
-    }
-});
+            // 1. If a recipient is specified, try to send it privately
+            if (recipient) {
+                const recipientSocketId = onlineUsers.get(recipient);
+
+                if (recipientSocketId) {
+                    io.to(recipientSocketId).emit('got_a_notification', data);
+                } else {
+                    console.log(`Recipient ${recipient} is not online. Notification not sent.`);
+                }
+            }
+            // 2. If no recipient is provided in the data, broadcast to everyone
+            else {
+                io.emit('got_a_notification', data);
+                console.log("No recipient specified. Broadcasting to all users.");
+            }
+        });
         socket.on("disconnect", () => {
             const userId = socket.handshake.query.id;
             if (userId) {
