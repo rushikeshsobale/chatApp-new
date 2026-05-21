@@ -18,6 +18,7 @@ app.use(cors({
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
+app.set("trust proxy", 1);
 app.use(express.json());
 
 // so Google strategy is loaded

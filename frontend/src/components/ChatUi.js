@@ -252,7 +252,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
   const callFetchMessages = async (page = 1, limit = 20) => {
     if (!conversation) return;
     try {
-  
+
       const data = await fetchMessage(conversation._id, page, limit)
       if (!data || data.length === 0) return;
       if (limit === 1) {
@@ -378,7 +378,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
         receiverCryptoKey,
         senderPublicKey
       );
-  
+
       const formData = new FormData();
       formData.append('senderId', userId);
       formData.append('receiverId', member._id);
@@ -393,7 +393,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
 
       const data = await response.json();
       const message = data.message;
-     setSelectedConversation(data.conversation);
+      setSelectedConversation(data.conversation);
       const normalizedMessage = {
         ...message,
         content: JSON.parse(message.content), // 🔥 IMPORTANT
@@ -402,7 +402,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
         return [...prev, normalizedMessage];
       });
 
-   
+
       if (!response.ok) throw new Error('Failed to send message');
       if (response.ok) {
         const notificationData = {
@@ -566,278 +566,278 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
 
   return (
     <>
-     
-    <div className="chat-ui-container">
-      {/* Chat Header */}
-     
-     <div className="chat-header d-flex align-items-center justify-content-between p-1 border-bottom bg-light">
-        <button className="back-button" onClick={onBack}>
-          <FaArrowLeft />
-        </button>
-        <div className="user-info d-flex flex-row">
-          <div className="user-avatar">
-            <img
-              style={{ width: "48px", height: "48px", objectFit: "cover" }}
-              src={member?.profilePicture}
-              alt={"user"}
-            />
-            {typingUser && typingUser !== userId && typingUser == member._id && (
-              <div className="typing-indicator">
-                <div className="dot"></div>
-                <div className="dot"></div>
-                <div className="dot"></div>
-              </div>
-            )}
-          </div>
-          <div className="user-details">
-            <h3 className="text-truncate" style={{ width: '100px' }}>
-              {member?.userName}
-            </h3>
-            <p>
-              {typingUser && typingUser !== userId && typingUser == member._id ? "typing..." : "online"}
-            </p>
-          </div>
-        </div>
-        {/* Floating Call Button */}
-        <button
-          onClick={() => setOutgoingCall(true)}
-          style={{
-            padding: "0.4rem 1.0rem",
-            fontSize: "1rem",
-            borderRadius: "8px",
-            border: "none",
-            cursor: "pointer",
-            background: "none",
-            color: "black",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-          }}
-        >
-          <FaVideo />
-        </button>
-        <div className="mx-3">
-          <div className="dropdown">
-            <button className="action-button">
-              <FontAwesomeIcon icon={faEllipsisV} />
-            </button>
-            <div className="dropdown-menu">
-              <button onClick={() => deleteMessages(userId, member.id)} >
-                <FontAwesomeIcon icon={faTrashAlt} /> clear chat
-              </button>
 
+      <div className="chat-ui-container">
+        {/* Chat Header */}
+
+        <div className="chat-header d-flex align-items-center justify-content-between p-1 border-bottom bg-light">
+          <button className="back-button" onClick={onBack}>
+            <FaArrowLeft />
+          </button>
+          <div className="user-info d-flex flex-row">
+            <div className="user-avatar">
+              <img
+                style={{ width: "48px", height: "48px", objectFit: "cover" }}
+                src={member?.profilePicture}
+                alt={"user"}
+              />
+              {typingUser && typingUser !== userId && typingUser == member._id && (
+                <div className="typing-indicator">
+                  <div className="dot"></div>
+                  <div className="dot"></div>
+                  <div className="dot"></div>
+                </div>
+              )}
+            </div>
+            <div className="user-details">
+              <h3 className="text-truncate" style={{ width: '100px' }}>
+                {member?.userName}
+              </h3>
+              <p>
+                {typingUser && typingUser !== userId && typingUser == member._id ? "typing..." : "online"}
+              </p>
             </div>
           </div>
-        </div>
+          {/* Floating Call Button */}
+          <button
+            onClick={() => setOutgoingCall(true)}
+            style={{
+              padding: "0.4rem 1.0rem",
+              fontSize: "1rem",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              background: "none",
+              color: "black",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+            }}
+          >
+            <FaVideo />
+          </button>
+          <div className="mx-3">
+            <div className="dropdown">
+              <button className="action-button">
+                <FontAwesomeIcon icon={faEllipsisV} />
+              </button>
+              <div className="dropdown-menu">
+                <button onClick={() => deleteMessages(userId, member.id)} >
+                  <FontAwesomeIcon icon={faTrashAlt} /> clear chat
+                </button>
 
-      </div>
-      {/* Messages Area */}
-      <div className="messages-area" style={{ background: "rgb(177 177 177)" }}>
-        {messages?.length === 0 ? (
-          <div className="empty-state">
-            <p>Start a conversation with {member?.userName} !</p>
+              </div>
+            </div>
           </div>
-        ) : (
-          messages?.map((message, index) => (
 
-            <div
-              key={message._id || index}
-              className={`message-container ${message.receiverId === userId ? 'received ' : 'sent text-light'}`}
-            >
-              <div className="message-bubble">
-                {/* {console.log(decryptedMessages[message._id], 'decrypted message')} */}
-                {decryptedMessages[message._id] ? (
-                  <div className="message-text">
-                    {decryptedMessages[message._id]}
-                  </div>
-                ) : (
-                  <div className="message-text loading">
-                    …
-                  </div>
-                )}
+        </div>
+        {/* Messages Area */}
+        <div className="messages-area" style={{ background: "rgb(177 177 177)" }}>
+          {messages?.length === 0 ? (
+            <div className="empty-state">
+              <p>Start a conversation with {member?.userName} !</p>
+            </div>
+          ) : (
+            messages?.map((message, index) => (
 
-                {/* Attachment */}
-                {message?.attachment && (
-                  <div className="message-attachment">
-                    {message.attachment.type === 'image' && (
-                      <img
-                        src={message.attachment.name}
-                        alt={message.attachment.name || 'Attachment'}
-                        className="media-image"
-                      />
-                    )}
-
-                    {message.attachment.type === 'video' && (
-                      <video controls className="media-video">
-                        <source src={message.attachment.name} type="video/mp4" />
-                        Your browser does not support the video tag.
-                      </video>
-                    )}
-
-                    {(!message.attachment.type || message.attachment.type === 'file') && (
-                      <a
-                        href={message.attachment.name}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="media-file"
-                      >
-                        <FontAwesomeIcon icon={faFileAlt} />{' '}
-                        <span>{message.attachment.name || 'Download File'}</span>
-                      </a>
-                    )}
-                  </div>
-                )}
-
-
-                {/* Message Meta */}
-                <div className="message-meta">
-                  <span className="timestamp">
-                    {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-
-                  {message?.receiverId !== userId && (
-                    <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
-                      {message?.status === 'read' ? (
-                        <FontAwesomeIcon icon={faCheckDouble} />
-                      ) : (
-                        <FontAwesomeIcon icon={faCheck} />
-                      )}
-                    </span>
+              <div
+                key={message._id || index}
+                className={`message-container ${message.receiverId === userId ? 'received ' : 'sent text-light'}`}
+              >
+                <div className="message-bubble">
+                  {/* {console.log(decryptedMessages[message._id], 'decrypted message')} */}
+                  {decryptedMessages[message._id] ? (
+                    <div className="message-text">
+                      {decryptedMessages[message._id]}
+                    </div>
+                  ) : (
+                    <div className="message-text loading">
+                      …
+                    </div>
                   )}
-                </div>
 
-                {/* Message Actions */}
-                <div className="message-actions">
-                  <div className="dropdown">
-                    <button className="action-button">
-                      <FontAwesomeIcon icon={faEllipsisV} />
-                    </button>
-                    <div className="dropdown-menu">
-                      <button onClick={() => deleteMessage(message?._id)}>
-                        <FontAwesomeIcon icon={faTrashAlt} /> Delete
+                  {/* Attachment */}
+                  {message?.attachment && (
+                    <div className="message-attachment">
+                      {message.attachment.type === 'image' && (
+                        <img
+                          src={message.attachment.name}
+                          alt={message.attachment.name || 'Attachment'}
+                          className="media-image"
+                        />
+                      )}
+
+                      {message.attachment.type === 'video' && (
+                        <video controls className="media-video">
+                          <source src={message.attachment.name} type="video/mp4" />
+                          Your browser does not support the video tag.
+                        </video>
+                      )}
+
+                      {(!message.attachment.type || message.attachment.type === 'file') && (
+                        <a
+                          href={message.attachment.name}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="media-file"
+                        >
+                          <FontAwesomeIcon icon={faFileAlt} />{' '}
+                          <span>{message.attachment.name || 'Download File'}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+
+                  {/* Message Meta */}
+                  <div className="message-meta">
+                    <span className="timestamp">
+                      {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+
+                    {message?.receiverId !== userId && (
+                      <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
+                        {message?.status === 'read' ? (
+                          <FontAwesomeIcon icon={faCheckDouble} />
+                        ) : (
+                          <FontAwesomeIcon icon={faCheck} />
+                        )}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Message Actions */}
+                  <div className="message-actions">
+                    <div className="dropdown">
+                      <button className="action-button">
+                        <FontAwesomeIcon icon={faEllipsisV} />
                       </button>
-                      <button onClick={() => toggleReactions(message?._id)}>
-                        <FontAwesomeIcon icon={faSmile} /> React
-                      </button>
-                      <button onClick={() => forwardMessage(message?._id)}>
-                        <FontAwesomeIcon icon={faShare} /> Forward
-                      </button>
+                      <div className="dropdown-menu">
+                        <button onClick={() => deleteMessage(message?._id)}>
+                          <FontAwesomeIcon icon={faTrashAlt} /> Delete
+                        </button>
+                        <button onClick={() => toggleReactions(message?._id)}>
+                          <FontAwesomeIcon icon={faSmile} /> React
+                        </button>
+                        <button onClick={() => forwardMessage(message?._id)}>
+                          <FontAwesomeIcon icon={faShare} /> Forward
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Reactions */}
-                {message?.showReactions && (
-                  <div className="reactions-picker">
-                    {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => (
-                      <span
-                        key={emoji}
-                        onClick={() => addReaction(message?._id, emoji)}
-                      >
-                        {emoji}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {message?.reactions?.length > 0 && (
-                  <div className="message-reactions">
-                    {message.reactions.map((reaction, i) => (
-                      <span key={i}>{reaction.emoji}</span>
-                    ))}
-                  </div>
+                  {/* Reactions */}
+                  {message?.showReactions && (
+                    <div className="reactions-picker">
+                      {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => (
+                        <span
+                          key={emoji}
+                          onClick={() => addReaction(message?._id, emoji)}
+                        >
+                          {emoji}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {message?.reactions?.length > 0 && (
+                    <div className="message-reactions">
+                      {message.reactions.map((reaction, i) => (
+                        <span key={i}>{reaction.emoji}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+          
+        </div>
+        {/* Input Area */}
+        <div className="input-area">
+            {/* Attachment Popup */}
+            {showAttachmentPopup && (
+              <div className="attachment-popup">
+                <div className="attachment-options">
+                  <button onClick={() => handleFileSelect("image")}>
+                    <FontAwesomeIcon icon={faImage} />
+                    <span>Photo</span>
+                  </button>
+                  <button onClick={() => handleFileSelect("video")}>
+                    <FontAwesomeIcon icon={faVideo} />
+                    <span>Video</span>
+                  </button>
+                  <button onClick={() => handleFileSelect("document")}>
+                    <FontAwesomeIcon icon={faFileAlt} />
+                    <span>Document</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Emoji Picker */}
+            {showEmojiPicker && (
+              <div className="emoji-picker-container">
+                <EmojiPicker onEmojiClick={handleEmojiClick} width="100%" height={300} />
+              </div>
+            )}
+            {/* Input Controls */}
+            <div className="input-controls">
+              <button
+                className="attachment-button"
+                onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}
+              >
+                <FontAwesomeIcon icon={faPaperclip} />
+              </button>
+              <input
+                type="text"
+                ref={inputRef}
+                className="message-input"
+                placeholder="Type a message..."
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onFocus={handleTyping}
+                onBlur={handleBlur}
+              />
+              <button
+                className="emoji-button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              >
+                <FontAwesomeIcon icon={faSmile} />
+              </button>
+              <button
+                className="send-button"
+                onClick={() => sendMessage(selectedFile)}
+                disabled={!messageInput.trim() && !selectedFile}
+              >
+                <FontAwesomeIcon icon={faPaperPlane} />
+              </button>
+            </div>
+
+            {/* File Preview */}
+            {selectedFile && (
+              <div className="file-preview">
+                {selectedFile.type.startsWith("image/") ? (
+                  <>
+                    <img src={URL.createObjectURL(selectedFile)} alt="Preview" />
+                    <button onClick={() => setSelectedFile(null)}>×</button>
+                  </>
+                ) : (
+                  <>
+                    <span>{selectedFile.name}</span>
+                    <button onClick={() => setSelectedFile(null)}>×</button>
+                  </>
                 )}
               </div>
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-         <div className="input-area">
-        {/* Attachment Popup */}
-        {showAttachmentPopup && (
-          <div className="attachment-popup">
-            <div className="attachment-options">
-              <button onClick={() => handleFileSelect("image")}>
-                <FontAwesomeIcon icon={faImage} />
-                <span>Photo</span>
-              </button>
-              <button onClick={() => handleFileSelect("video")}>
-                <FontAwesomeIcon icon={faVideo} />
-                <span>Video</span>
-              </button>
-              <button onClick={() => handleFileSelect("document")}>
-                <FontAwesomeIcon icon={faFileAlt} />
-                <span>Document</span>
-              </button>
-            </div>
-          </div>
-        )}
-        {/* Emoji Picker */}
-        {showEmojiPicker && (
-          <div className="emoji-picker-container">
-            <EmojiPicker onEmojiClick={handleEmojiClick} width="100%" height={300} />
-          </div>
-        )}
-        {/* Input Controls */}
-        <div className="input-controls">
-          <button
-            className="attachment-button"
-            onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}
-          >
-            <FontAwesomeIcon icon={faPaperclip} />
-          </button>
-          <input
-            type="text"
-            ref={inputRef}
-            className="message-input"
-            placeholder="Type a message..."
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onFocus={handleTyping}
-            onBlur={handleBlur}
-          />
-          <button
-            className="emoji-button"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          >
-            <FontAwesomeIcon icon={faSmile} />
-          </button>
-          <button
-            className="send-button"
-            onClick={() => sendMessage(selectedFile)}
-            disabled={!messageInput.trim() && !selectedFile}
-          >
-            <FontAwesomeIcon icon={faPaperPlane} />
-          </button>
-        </div>
-
-        {/* File Preview */}
-        {selectedFile && (
-          <div className="file-preview">
-            {selectedFile.type.startsWith("image/") ? (
-              <>
-                <img src={URL.createObjectURL(selectedFile)} alt="Preview" />
-                <button onClick={() => setSelectedFile(null)}>×</button>
-              </>
-            ) : (
-              <>
-                <span>{selectedFile.name}</span>
-                <button onClick={() => setSelectedFile(null)}>×</button>
-              </>
             )}
           </div>
-        )}
+        {showOutgoingCall &&
+          <OutGoingCall
+            show={showOutgoingCall}
+            member={member}
+            onCancel={() => setOutgoingCall(false)}
+          />
+        }
+
       </div>
-      </div>
-      {/* Input Area */}
-     
-      {showOutgoingCall &&
-        <OutGoingCall
-          show={showOutgoingCall}
-          member={member}
-          onCancel={() => setOutgoingCall(false)}
-        />
-      }
-    
-    </div>
-     
+
     </>
   );
 };
