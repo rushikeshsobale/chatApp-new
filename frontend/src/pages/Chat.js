@@ -98,7 +98,7 @@ const ChatComponent = () => {
     };
 
     loadConversations();
-  }, [selectedFriend, unseenMessages]);
+  }, [selectedFriend]);
   // Swipe Handlers
   const handleTouchStart = (e) => {
     if (isMobileView && !selectedFriend && !selectedGroup) {
