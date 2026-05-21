@@ -578,6 +578,7 @@ const ChatComponent = () => {
         }
 
         .main-chat-genz {
+          width:100%;
           flex: 1;
           position:fixed;
           height: stretch;
