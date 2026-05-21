@@ -352,19 +352,7 @@ const ChatComponent = () => {
                   handleBackToFriendList={handleBackToFriendList}
                 />
               </div>
-              <div className="slide-content group-slide d-flex flex-column" style={{ height: '100%' }}>
-                <div className="flex-grow-1 overflow-auto">
-                </div>
-                <div className="p-3 border-top d-flex justify-content-center">
-                  <button
-                    className="create-group-btn-genz text-dark  btn-sm"
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    <FaPlusCircle className="me-2 text-dark" />
-                    New Group
-                  </button>
-                </div>
-              </div>
+
             </div>
           </div>
         )}
@@ -479,10 +467,8 @@ const ChatComponent = () => {
           overflow: hidden;
         }
         .sidebar-glass {
-         
+          width:100%;
           border-right: 1px solid rgba(255, 255, 255, 0.1);
-          width: 350px;
-         
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -555,7 +541,7 @@ const ChatComponent = () => {
         }
 
         .slide-content {
-          width: 50%;
+          width:100%;
           height: 100%;
           overflow-y: auto;
         }
@@ -594,6 +580,7 @@ const ChatComponent = () => {
         .main-chat-genz {
           flex: 1;
           position:fixed;
+          height: stretch;
         }
 
         .main-chat-genz.hidden-mobile {

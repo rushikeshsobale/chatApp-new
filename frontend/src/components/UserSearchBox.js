@@ -29,14 +29,14 @@ const UserSearchBox = ({ onUserSelect }) => {
     }, [query]);
 
     return (
-        <div className="search-container p-0">
+        <div className="search-container p-1">
             <div className="input-wrapper p-1  mx-3">
                 <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                 </svg>
                 <input
                     type="text"
-                    className="modern-input small"
+                    className="modern-input"
                     placeholder="Search people..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -175,7 +175,7 @@ const UserSearchBox = ({ onUserSelect }) => {
                     background: #1a1a1a;
                     border: 1px solid #333;
                     border-radius: 10px;
-                    padding: 2px 2px 2px 40px;
+                    padding: 8px 12px 8px 36px; /* Left padding accounts for icon */
                     color: #efefef;
                     font-size: 14px;
                     transition: all 0.2s ease;
