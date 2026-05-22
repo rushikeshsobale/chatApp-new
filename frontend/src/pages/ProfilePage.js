@@ -155,7 +155,7 @@ const ProfilePage = () => {
     const response = await getPostById(postId);
     const currentPost = response.post;
     setPosts(prevPosts =>
-      prevPosts.map(post => {
+      prevPosts?.map(post => {
         if (post._id !== currentPost._id) return post; // unchanged posts
         if (dataType === "comment") {
           const latestComment =
@@ -288,7 +288,7 @@ const ProfilePage = () => {
       } else {
         await likePost(postId);
       }
-      const updatedPosts = setPosts(prevPosts => prevPosts.map((post, i) =>
+      const updatedPosts = setPosts(prevPosts => prevPosts?.map((post, i) =>
         i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== userData?._id) : [...post.likes, { userId: { _id: userData?._id } }] } : post
       ));
       // // const notificationData = {
@@ -327,7 +327,7 @@ const ProfilePage = () => {
 
       // Update only the matching post's comments
       setPosts(prevPosts =>
-        prevPosts.map(post =>
+        prevPosts?.map(post =>
           post._id === postId
             ? { ...post, comments: [...post.comments, newComment] }
             : post
@@ -423,7 +423,7 @@ const ProfilePage = () => {
     try {
       await updateNotification(notificationId, true);
       setNotifications(prevNotifications =>
-        prevNotifications.map(notification =>
+        prevNotifications?.map(notification =>
           notification._id === notificationId
             ? { ...notification, read: true }
             : notification
@@ -659,7 +659,7 @@ const ProfilePage = () => {
               </div>
               <div className="p-3" style={{ maxHeight: '350px', overflowY: 'auto' }}>
                 {notifications.length > 0 ? (
-                  notifications.map(notification => (
+                  notifications?.map(notification => (
                     <div
                       key={notification._id}
                       className="d-flex align-items-center mb-2 p-2 rounded custom-notification-item"
@@ -778,7 +778,7 @@ const ProfilePage = () => {
           <div className={`card border mb-4 ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#121212' : '#ffffff' }}>
             <div className="card-body p-0">
               <div className="d-flex justify-content-around">
-                {tabs.map((tab) => (
+                {tabs?.map((tab) => (
                   <button
                     key={tab.id}
                     className={`py-3 flex-grow-1 border-0 bg-transparent text-center position-relative ${activeTab === tab.id ? "text-info fw-bold" : "text-muted"}`}
@@ -822,7 +822,7 @@ const ProfilePage = () => {
 
             {activeTab === "slideshow" && (
               <div className="row justify-content-center">
-                {loadingPosts ? <Loader text="Loading posts..." /> : posts.reverse().map((post, index) => (
+                {loadingPosts ? <Loader text="Loading posts..." /> : posts?.reverse().map((post, index) => (
                   <div key={post._id} className="col-12 mb-4">
                     <div className={`card border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#121212' : '#ffffff' }}>
                       {/* Post Header */}
@@ -884,12 +884,12 @@ const ProfilePage = () => {
                           {post.text}
                         </p>
 
-                        {post.comments?.length > 0 && (
+                        {post?.comments?.length > 0 && (
                           <div className={`mt-2 border-top pt-2 ${isDark ? 'border-secondary-subtle' : 'border-light-subtle'}`}>
                             <p className="text-muted small mb-2 cursor-pointer" onClick={() => handlePostClick(post._id)}>
-                              View all {post.comments.length} comments
+                              View all {post?.comments.length} comments
                             </p>
-                            {post.comments.slice(-2).map((comment, idx) => (
+                            {post?.comments.slice(-2).map((comment, idx) => (
                               <div key={comment._id || idx} className="d-flex align-items-start mb-1 justify-content-between">
                                 <p className={`small mb-0 ${isDark ? 'text-light' : 'text-dark'}`}>
                                   <span className="fw-bold me-2">{comment.userId?.firstName}:</span>
