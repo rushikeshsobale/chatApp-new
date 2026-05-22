@@ -799,7 +799,7 @@ const ProfilePage = () => {
           <div className="mb-4 rounded">
             {activeTab === "grid" && (
               <div className="row g-3">
-                {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts.reverse().map((post) => (
+                {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts?.reverse().map((post) => (
                   <div key={post._id} className="col-4">
                     <div
                       className={`card overflow-hidden position-relative post-grid-card border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
