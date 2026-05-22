@@ -32,6 +32,7 @@ import PageNotFound from './components/PageNotFound';
 
 // Redux Slices / Action hooks
 import { updateNotifications } from './store/notificationSlice';
+import ErrorPage from './pages/ErrorPage.js';
 // From your original App.js logic
 
 function App() {
@@ -143,7 +144,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth-success" element={<AuthSuccess />} />
           <Route path="/set_password" element={<SetPasswordcomponent />} />
-          
+          <Route path='/errorPage' element ={<ErrorPage/>}/>
           {/* Universal 404 Fallback Catch */}
           <Route path="*" element={<PageNotFound />} />
         </Routes>
