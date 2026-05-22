@@ -34,6 +34,7 @@ import { getFollowers, getFollowing, } from '../services/relationships'
 import ResponsiveStoryCarousel from "../components/ResponsiveStoryCarousel";
 import { getMe } from "../services/authService";
 
+
 const ProfilePage = () => {
   const [isVisible, setIsVisible] = useState(true);
   const { isDark } = useContext(ThemeContext);
@@ -796,7 +797,19 @@ const ProfilePage = () => {
           </div>
 
           {/* Tab Views Content */}
+
+        
           <div className="mb-4 rounded">
+{!posts && (
+  <div className="text-center py-5 bounce-in">
+    <img src="/no-posts.png" alt="No posts" style={{ width: "120px", marginBottom: "20px" }} />
+    <h3 className={`fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>It's awfully quiet in here...</h3>
+    <p className="text-muted mb-4">Be the hero this feed needs. Share your very first post!</p>
+    <button className="btn btn-primary btn-lg rounded-pill px-4 shadow">
+      ✨ Create First Post
+    </button>
+  </div>
+)}
             {activeTab === "grid" && (
               <div className="row g-3">
                 {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts?.reverse().map((post) => (
