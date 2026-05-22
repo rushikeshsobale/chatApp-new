@@ -1,22 +1,21 @@
-import React, { useState, useContext } from "react"; // 1. Added useContext here
+import React, { useState, useContext } from "react";
 import { UserContext } from "../contexts/UserContext";
+import { ThemeContext } from "../contexts/ThemeContext"; // New Import
 import { useDispatch } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
+import { Link, useNavigate } from "react-router-dom";
 import {
-  FaUser,
   FaLock,
   FaEnvelope,
-  FaPhone,
   FaBirthdayCake,
   FaTransgender,
   FaGoogle,
-  FaFacebook,
-  FaTwitter,
-  FaApple,
   FaEye,
   FaEyeSlash,
+  FaSun,
+  FaMoon,
 } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+
 import api from "../api";
 import {
   register,
@@ -24,17 +23,26 @@ import {
   verifyEmail,
   sendVerification,
 } from "../services/authService";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "../css/AuthForms.css";
 import { SET_USER } from "../store/action";
 import { fetchUserKeys, uploadUserKeys } from "../services/keyse2e";
 import CryptoUtils from "../utils/CryptoUtils";
-import { setUser } from "../store/action";
+
+import "bootstrap/dist/css/bootstrap.min.css";
+import "../css/AuthForms.css";
+
 const AuthPage = () => {
   const dispatch = useDispatch();
-  const {setUser, setUserId } = useContext(UserContext);
+  const { setUser, setUserId } = useContext(UserContext);
+  const { isDark, toggleTheme } = useContext(ThemeContext); // Use Theme Context
+  const navigate = useNavigate();
 
   const [isLogin, setIsLogin] = useState(true);
+  const [authStep, setAuthStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [errors, setErrors] = useState({});
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -44,17 +52,13 @@ const AuthPage = () => {
     birthDate: "",
     gender: "other",
   });
-  const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [authStep, setAuthStep] = useState(1);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [isVerified, setIsVerified] = useState(false);
-  const navigate = useNavigate();
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    if (errors[name]) setErrors({ ...errors, [name]: "" });
   };
+
   const validate = () => {
     const newErrors = {};
     if (!formData.email) {
@@ -62,37 +66,20 @@ const AuthPage = () => {
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email is invalid";
     }
-    // if (!formData.password && isLogin) {
-    //   newErrors.password = "Password is required";
-    // } else if (formData.password.length < 8) {
-    //   newErrors.password = "Password must be at least 8 characters";
-    // }
-    if (!isLogin) {
-      // if (!formData.username) {
-      //   newErrors.username = "Username is required";
-      // }
-
-      // if (!formData.fullName) {
-      //   newErrors.fullName = 'Full name is required';
-      // }
-
-      // if (!formData.birthDate) {
-      //   newErrors.birthDate = 'Birth date is required';
-      // }
+    if (isLogin && !formData.password) {
+      newErrors.password = "Password is required";
     }
     setErrors(newErrors);
-    console.log(Object.keys(newErrors), "seeing");
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validate() === false) return;
+    if (!validate()) return;
     setLoading(true);
 
     try {
       if (isLogin) {
-        // 1. Authenticate with Server
         const { token, hasKeys } = await login({
           email: formData.email,
           password: formData.password,
@@ -100,33 +87,20 @@ const AuthPage = () => {
 
         localStorage.setItem("token", token);
         const decodedData = jwtDecode(token);
+        
         dispatch({ type: SET_USER, payload: { user: decodedData } });
-        setUser(decodedData);                                     // Injects user profile throughout the React tree
+        setUser(decodedData);
         setUserId(decodedData._id);
         localStorage.setItem("user", JSON.stringify(decodedData));
 
-        // 2. Handle Encryption Keys
         if (!hasKeys) {
-          /** * CASE A: FIRST TIME KEY SETUP 
-           * User has no keys in DB. Create, Encrypt, and Upload.
-           */
           const keyPair = await crypto.subtle.generateKey(
-            {
-              name: "RSA-OAEP",
-              modulusLength: 2048,
-              publicExponent: new Uint8Array([1, 0, 1]),
-              hash: "SHA-256",
-            },
+            { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
             true,
             ["encrypt", "decrypt"]
           );
-          const { encrypted, salt, iv } = await CryptoUtils.encryptPrivateKey(
-            keyPair.privateKey,
-            formData.password
-          );
-          // Export the public key to send to DB
+          const { encrypted, salt, iv } = await CryptoUtils.encryptPrivateKey(keyPair.privateKey, formData.password);
           const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-          // Upload to server
 
           await uploadUserKeys({
             publicKey: new Uint8Array(publicKey),
@@ -134,109 +108,111 @@ const AuthPage = () => {
             salt: new Uint8Array(salt),
             iv: new Uint8Array(iv),
           });
-          // Save the raw private key locally so we don't need to decrypt it again this session
           await CryptoUtils.saveKeyLocally(keyPair.privateKey);
-          console.log("Keys generated and saved locally.");
-
         } else {
-          /** * CASE B: RESTORE KEYS 
-           * User has keys in DB. Check if they exist on this browser.
-           */
-          let localKey = await CryptoUtils.loadKeyLocally()
+          let localKey = await CryptoUtils.loadKeyLocally();
           if (!localKey) {
-            console.log("Device not recognized. Syncing keys...");
             const dbKeys = await fetchUserKeys();
-            console.log(dbKeys, 'dbkey')
             const unlockedKey = await CryptoUtils.getPrivateKeyFromBackup(dbKeys, formData.password);
             await CryptoUtils.saveKeyLocally(unlockedKey);
-            console.log("Keys restored to this device.");
-
-          } else {
-
           }
         }
         navigate("/profile");
       } else {
-        // --- REGISTRATION FLOW ---
         if (authStep === 1) {
           await sendVerification(formData.email);
           setAuthStep(2);
         } else if (authStep === 2) {
-          const verified = await verifyEmail({
-            email: formData.email,
-            code: verificationCode,
-          });
-          if (verified) {
-            setIsVerified(true);
-            setAuthStep(3);
-          }
+          const verified = await verifyEmail({ email: formData.email, code: verificationCode });
+          if (verified) setAuthStep(3);
         } else {
-          const response = await register({
-            ...formData,
-            verificationCode,
-          });
+          const response = await register({ ...formData, verificationCode });
           localStorage.setItem('userId', response.userId);
           navigate("/onboarding");
         }
       }
     } catch (error) {
-      console.error("Authentication/Crypto error:", error);
-      setErrors({
-        ...errors,
-        form: error.message || "Authentication failed",
-      });
+      console.error("Authentication system failure:", error);
+      setErrors({ ...errors, form: error.message || "Authentication process failed." });
     } finally {
       setLoading(false);
     }
   };
+
   const handleSocialLogin = (provider) => {
     window.location.href = `${process.env.REACT_APP_API_URL}/auth/${provider}`;
   };
-  return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h2>
-            {isLogin
-              ? "Welcome Back"
-              : authStep === 1
-                ? "Create Account Here"
-                : authStep === 2
-                  ? "Verify Email"
-                  : "Complete Profile"}
-          </h2>
 
+  return (
+    // Changed bg-light to bg-body-tertiary to naturally fall back on dark backgrounds
+    <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary py-5 position-relative">
+      
+      {/* Floating Theme Toggle Switch Button */}
+      <button
+        onClick={toggleTheme}
+        className={`btn position-absolute top-0 end-0 m-4 shadow-sm border rounded-circle d-flex align-items-center justify-content-center ${isDark ? 'btn-dark border-secondary' : 'btn-white border-muted'}`}
+        style={{ width: "42px", height: "42px", transition: "all 0.25s ease" }}
+        aria-label="Toggle structural interface theme"
+      >
+        {isDark ? <FaSun className="text-warning animate-spin" size={16} /> : <FaMoon className="text-secondary" size={16} />}
+      </button>
+
+      {/* Surface Card: shadow adapts contextually to dark layouts */}
+      <div className={`card border-0 p-4 p-sm-5 ${isDark ? 'shadow-lg bg-dark' : 'shadow-sm bg-white'}`} style={{ maxWidth: "460px", width: "100%", borderRadius: "20px" }}>
+        
+        {/* Step-by-Step Context Tracker Header */}
+        <div className="text-center mb-4">
+          <span 
+            className="badge mb-2 text-uppercase tracking-wider fw-bold px-3 py-15" 
+            style={{ 
+              fontSize: '0.75rem', 
+              backgroundColor: isDark ? 'rgba(13, 202, 240, 0.18)' : 'rgba(13, 202, 240, 0.1)' ,
+              color: '#0dcaf0'
+            }}
+          >
+            {isLogin ? "Secure Entry" : `Step ${authStep} of 3`}
+          </span>
+          <h2 className="fw-bold h3 mt-1">
+            {isLogin ? "Welcome Back" : authStep === 1 ? "Create Account" : authStep === 2 ? "Verify Email" : "Complete Profile"}
+          </h2>
+          <p className="text-muted small">
+            {isLogin ? "Please sign in to continue your session." : authStep === 3 ? "Just a few more details to customize your dashboard." : "Get started with your security credentials."}
+          </p>
         </div>
-        {errors.form && <div className="alert alert-danger">{errors.form}</div>}
-        <form onSubmit={handleSubmit} style={{ background: 'black', padding: '20px', borderRadius: '8px' }}>
+
+        {errors.form && <div className="alert alert-danger py-2.5 px-3 small border-0 rounded-3 text-center mb-3">{errors.form}</div>}
+
+        <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
+          
+          {/* STEP 1: Core Credentials */}
           {authStep === 1 && (
             <>
-              <div className="form-group text-white">
-                <label>Email</label>
-                <div className="input-group input-group-sm">
-                  <span className="input-group-text">
-                    <FaEnvelope />
+              <div>
+                <label className="form-label small fw-semibold text-secondary mb-1">Email Address</label>
+                <div className="input-group">
+                  {/* Changed standard bg-light/text-muted classes to adaptive theme semantics */}
+                  <span className="input-group-text bg-body border-end-0 text-secondary">
+                    <FaEnvelope size={14} />
                   </span>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="your@email.com"
-                    className={`form-control ${errors.email ? "is-invalid" : ""
-                      }`}
+                    placeholder="username@domain.com"
+                    className={`form-control bg-body border-start-0 py-2 ${errors.email ? "is-invalid" : ""}`}
+                    style={{ fontSize: "0.9rem" }}
                   />
-                  {errors.email && (
-                    <div className="invalid-feedback">{errors.email}</div>
-                  )}
+                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                 </div>
               </div>
+
               {isLogin && (
-                <div className="form-group">
-                  <label>Password</label>
-                  <div className="input-group input-group-sm">
-                    <span className="input-group-text">
-                      <FaLock />
+                <div>
+                  <label className="form-label small fw-semibold text-secondary mb-1">Password</label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-body border-end-0 text-secondary">
+                      <FaLock size={14} />
                     </span>
                     <input
                       type={showPassword ? "text" : "password"}
@@ -244,247 +220,203 @@ const AuthPage = () => {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className={`form-control ${errors.password ? "is-invalid" : ""
-                        }`}
+                      className={`form-control bg-body border-start-0 border-end-0 py-2 ${errors.password ? "is-invalid" : ""}`}
+                      style={{ fontSize: "0.9rem" }}
                     />
                     <button
                       type="button"
-                      className="input-group-text"
+                      className="input-group-text bg-body border-start-0 text-secondary px-3"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
                     </button>
-                    {errors.password && (
-                      <div className="invalid-feedback">{errors.password}</div>
-                    )}
+                    {errors.password && <div className="invalid-feedback">{errors.password}</div>}
                   </div>
                 </div>
               )}
             </>
           )}
 
+          {/* STEP 2: One-Time Password Verification Block */}
           {authStep === 2 && (
-            <div className="form-group">
-              <label>Verification Code</label>
-              <p className="text-muted">
-                We sent a 6-digit code to {formData.email}
+            <div className="text-center py-2">
+              <p className="text-muted small mb-3">
+                A verification code was sent to <strong className="text-body d-block">{formData.email}</strong>
               </p>
-              <div className="input-group">
-                <input
-                  type="text"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  placeholder="123456"
-                  className="form-control"
-                  maxLength="6"
-                />
-              </div>
-              <div className="mt-2">
-                <button
-                  type="button"
-                  className="btn btn-link p-0"
-                  onClick={() => setAuthStep(1)}
-                >
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                placeholder="000000"
+                className="form-control form-control-lg text-center tracking-widest fw-bold bg-body border-0 py-2.5 mb-2"
+                maxLength="6"
+                style={{ fontSize: "1.5rem", letterSpacing: "6px" }}
+              />
+              <div className="d-flex justify-content-between px-1 mt-3">
+                <button type="button" className="btn btn-link p-0 text-info text-decoration-none small fw-medium" onClick={() => setAuthStep(1)}>
                   Change Email
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-link p-0 ms-3"
-                  onClick={() => console.log("Resend code")}
-                >
+                <button type="button" className="btn btn-link p-0 text-muted text-decoration-none small fw-medium" onClick={() => console.log("Resend code integration trigger")}>
                   Resend Code
                 </button>
               </div>
             </div>
           )}
 
+          {/* STEP 3: Extensive Profile Setup Details */}
           {authStep === 3 && (
-            <>
-              <div className="form-group">
-                <label>Username</label>
+            <div className="d-flex flex-column gap-3">
+              <div>
+                <label className="form-label small fw-semibold text-secondary mb-1">Username</label>
                 <div className="input-group">
-                  <span className="input-group-text">@</span>
+                  <span className="input-group-text bg-body border-end-0 text-secondary fw-bold">@</span>
                   <input
                     type="text"
                     name="username"
                     value={formData.username}
                     onChange={handleChange}
-                    placeholder="username"
-                    className={`form-control ${errors.username ? "is-invalid" : ""
-                      }`}
+                    placeholder="unique_handle"
+                    className={`form-control bg-body border-start-0 py-2 ${errors.username ? "is-invalid" : ""}`}
+                    style={{ fontSize: "0.9rem" }}
                   />
-                  {errors.username && (
-                    <div className="invalid-feedback">{errors.username}</div>
-                  )}
+                  {errors.username && <div className="invalid-feedback">{errors.username}</div>}
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Phone Number</label>
+              <div>
+                <label className="form-label small fw-semibold text-secondary mb-1">Birth Date</label>
                 <div className="input-group">
-                  <span className="input-group-text">
-                    <FaPhone />
-                  </span>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="+1 (123) 456-7890"
-                    className="form-control"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Birth Date</label>
-                <div className="input-group">
-                  <span className="input-group-text">
-                    <FaBirthdayCake />
+                  <span className="input-group-text bg-body border-end-0 text-secondary">
+                    <FaBirthdayCake size={14} />
                   </span>
                   <input
                     type="date"
                     name="birthDate"
                     value={formData.birthDate}
                     onChange={handleChange}
-                    className="form-control"
+                    className="form-control bg-body border-start-0 py-2"
+                    style={{ fontSize: "0.9rem" }}
                   />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Gender</label>
+              <div>
+                <label className="form-label small fw-semibold text-secondary mb-1">Gender Identification</label>
                 <div className="input-group">
-                  <span className="input-group-text">
-                    <FaTransgender />
+                  <span className="input-group-text bg-body border-end-0 text-secondary">
+                    <FaTransgender size={14} />
                   </span>
                   <select
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
-                    className="form-select"
+                    className="form-select bg-body border-start-0 py-2"
+                    style={{ fontSize: "0.9rem" }}
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="other">Other</option>
+                    <option value="other">Other Identity</option>
                     <option value="prefer-not-to-say">Prefer not to say</option>
                   </select>
                 </div>
               </div>
-              <div className="form-group">
-                <label>Password</label>
+
+              <div>
+                <label className="form-label small fw-semibold text-secondary mb-1">Password</label>
                 <div className="input-group">
-                  <span className="input-group-text"><FaLock /></span>
+                  <span className="input-group-text bg-body border-end-0 text-secondary"><FaLock size={14} /></span>
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="••••••••"
-                    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                    placeholder="Configure secure password"
+                    className={`form-control bg-body border-start-0 border-end-0 py-2 ${errors.password ? 'is-invalid' : ''}`}
+                    style={{ fontSize: "0.9rem" }}
                   />
                   <button
                     type="button"
-                    className="input-group-text"
+                    className="input-group-text bg-body border-start-0 text-secondary"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
                   </button>
                   {errors.password && <div className="invalid-feedback">{errors.password}</div>}
                 </div>
               </div>
-            </>
+            </div>
           )}
 
-          <div className="form-group mt-4">
-            <button
-              type="submit"
-              className="btn btn-primary btn-sm w-100"
-              disabled={loading}
-            >
-              {loading ? (
-                <span
-                  className="spinner-border spinner-border-sm"
-                  role="status"
-                  aria-hidden="true"
-                ></span>
-              ) : isLogin ? (
-                "Log In"
-              ) : authStep === 1 ? (
-                "Continue"
-              ) : authStep === 2 ? (
-                "Verify"
-              ) : (
-                "Complete Registration"
-              )}
-            </button>
-          </div>
-          <p className="small text-center text-light">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <span
-              className="auth-toggle"
+          <button
+            type="submit"
+            className="btn btn-info text-white fw-bold w-100 py-2.5 mt-2 transition-all shadow-sm"
+            disabled={loading}
+            style={{ borderRadius: '8px', letterSpacing: '0.3px', background: 'linear-gradient(135deg, #0dcaf0, #0aa2c0)', border: 'none' }}
+          >
+            {loading ? (
+              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            ) : isLogin ? (
+              "Access System Account"
+            ) : authStep === 1 ? (
+              "Continue Processing"
+            ) : authStep === 2 ? (
+              "Confirm Validation Code"
+            ) : (
+              "Finalize & Enter Onboarding"
+            )}
+          </button>
+
+          <p className="small text-center text-secondary mt-2 mb-0">
+            {isLogin ? "New to our ecosystem? " : "Already verified? "}
+            <span 
+              className="text-info fw-bold" 
+              style={{ cursor: 'pointer', textDecoration: 'underline' }}
               onClick={() => {
                 setIsLogin(!isLogin);
                 setAuthStep(1);
+                setErrors({});
               }}
             >
               {isLogin ? "Sign Up" : "Log In"}
             </span>
           </p>
+
           {isLogin && (
-            <div className="text-center small mt-3">
-              <Link to="/forgot-password" className="text-decoration-none">
+            <div className="text-center">
+              <Link to="/forgot-password" className="text-secondary text-decoration-none extra-small text-muted" style={{ fontSize: '0.8rem' }}>
                 Forgot Password?
               </Link>
             </div>
           )}
         </form>
 
-        <div className="auth-divider">
-          <span>OR</span>
+        {/* Modular Native Divider Component */}
+        <div className="d-flex align-items-center my-4">
+          <div className="flex-grow-1" style={{ height: '1px', backgroundColor: 'var(--bs-border-color)' }}></div>
+          <span className="mx-3 text-muted extra-small fw-bold text-uppercase tracking-widest" style={{ fontSize: '0.7rem' }}>Third-Party Provider</span>
+          <div className="flex-grow-1" style={{ height: '1px', backgroundColor: 'var(--bs-border-color)' }}></div>
         </div>
 
-        <div className="social-auth">
+        {/* Integrated Social Federation Action Row */}
+        <div className="d-grid">
           <button
-            className="btn small btn-social btn-google py-1 px-0"
+            className={`btn d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold ${isDark ? 'btn-outline-secondary text-white' : 'btn-outline-muted border text-dark bg-white'}`}
             onClick={() => handleSocialLogin("google")}
+            style={{ fontSize: "0.85rem", borderRadius: "8px" }}
           >
-            <FaGoogle /> Continue with Google
+            <FaGoogle className="text-danger" /> Connect Google Account
           </button>
-          {/* <button
-            className="btn btn-social btn-facebook py-1 px-0"
-            onClick={() => handleSocialLogin("facebook")}
-          >
-            <FaFacebook /> Continue with Facebook
-          </button> */}
-          {/* <button
-            className="btn btn-social btn-twitter py-1 px-0"
-            onClick={() => handleSocialLogin("twitter")}
-          >
-            <FaTwitter /> Continue with Twitter
-          </button>
-          <button
-            className="btn btn-social btn-apple py-1 px-0"
-            onClick={() => handleSocialLogin("apple")}
-          >
-            <FaApple /> Continue with Apple
-          </button> */}
         </div>
 
-        <div className="auth-footer">
-          <p className="text-muted">
-            By {isLogin ? "logging in" : "registering"}, you agree to our
-            <Link to="/terms" className="text-decoration-none">
-              {" "}
-              Terms
-            </Link>{" "}
-            and
-            <Link to="/privacy" className="text-decoration-none">
-              {" "}
-              Privacy Policy
-            </Link>
+        {/* Absolute Legal Footer Context */}
+        <div className="text-center mt-4 pt-1">
+          <p className="text-muted mb-0" style={{ fontSize: '0.75rem', lineHeight: '1.5' }}>
+            By continuing your authentication query, you endorse our{" "}
+            <Link to="/terms" className="text-body fw-semibold text-decoration-none">Terms of Service</Link> &{" "}
+            <Link to="/privacy" className="text-body fw-semibold text-decoration-none">Privacy Schema</Link>.
           </p>
         </div>
+
       </div>
     </div>
   );

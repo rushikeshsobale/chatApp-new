@@ -1,0 +1,32 @@
+/* Add to your ./css/index.css */
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+/* Ensure the wrapper respects full screen background shifts */
+.container-fluid {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+/* Core Theme Variable Definitions */
+:root {
+  --bg-color: #ffffff;
+  --text-color: #212529; /* Dark gray for light theme */
+}
+
+body.dark-theme {
+  --bg-color: #121212;  /* Dark background */
+  --text-color: #f8f9fa; /* Off-white for readability */
+}
+
+/* Base Body Binding */
+
+
+/* Global typography inherited selectors */
+h1, h2, h3, h4, h5, h6, p, span, label, li {
+  color: inherit; /* Forces text elements to inherit --text-color from body */
+  transition: color 0.3s ease;
+}

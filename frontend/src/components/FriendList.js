@@ -1,30 +1,43 @@
-import React from "react";
-import { current } from "@reduxjs/toolkit";
-import { useState, useEffect } from "react";
-import CryptoUtils from '../utils/CryptoUtils';
+import React, { useState, useEffect, useContext } from "react";
+import { ThemeContext } from "../contexts/ThemeContext"; // 🌓 Adjust this path to match your project structure
+import CryptoUtils from "../utils/CryptoUtils";
 import { FaCheck, FaCheckDouble } from "react-icons/fa";
 import { decryptGroupMessage } from "../utils/CryptoUtils";
+
 const FriendList = ({
   conversations,
   activeUsers,
   selectedConversation,
   handleConversationSelect,
 }) => {
+  // 1. Consume your existing theme context values directly here
+  // Note: If your context returns an object like { theme: 'dark' } instead of a boolean,
+  // change this to: const { theme } = useContext(ThemeContext); const isDark = theme === 'dark';
+  const { isDark } = useContext(ThemeContext); 
+
   const [decryptedMessages, setDecryptedMessages] = useState({});
   const [privateKey, setUserPrivateKey] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
   const user = JSON.parse(localStorage.getItem("user"));
   const currentUserId = user?._id;
+
+  // 2. Dynamic style switching synchronized with your theme context map
+  const themeBg = isDark ? "bg-dark" : "bg-white";
+  const themeBorder = isDark ? "border-secondary" : "border-light-subtle";
+  const nameColorDefault = isDark ? "text-light-emphasis" : "text-dark-emphasis";
+  const nameColorUnread = isDark ? "text-white" : "text-dark";
+  const previewColorDefault = isDark ? "text-secondary" : "text-muted";
+  const previewColorUnread = isDark ? "text-light" : "text-dark fw-medium";
+  
+  const selectedBgColor = isDark ? "#161616" : "#e9ecef";
+  const hoverBgColor = isDark ? "#0a0a0a" : "#f8f9fa";
+
   useEffect(() => {
     const initializeKey = async () => {
       try {
         const key = await CryptoUtils.loadKeyLocally();
-        if (key) {
-          setUserPrivateKey(key);
-        } else {
-          console.warn("No Private Key found in local storage.");
-          // Trigger the 'Restore Keys' flow here if needed
-        }
+        if (key) setUserPrivateKey(key);
       } catch (err) {
         console.error("Error accessing IndexedDB:", err);
       } finally {
@@ -33,6 +46,7 @@ const FriendList = ({
     };
     initializeKey();
   }, []);
+
   useEffect(() => {
     const decryptAll = async () => {
       if (!conversations?.length) return;
@@ -40,28 +54,17 @@ const FriendList = ({
       for (const conv of conversations) {
         if (!conv.lastMessage) continue;
         try {
-          // 🔐 GROUP CHAT
           if (conv.isGroup && conv.groupKey) {
             const decryptedText = await decryptGroupMessage(
               JSON.parse(conv.lastMessage.content),
               conv.groupKey
             );
-            if (conv.isGroup) {
-              const sender = conv.participants.find(
-                p => p._id === conv.lastMessage.senderId
-              );
-              results[conv._id] = `${sender?.userName}: ${decryptedText}`;
-            }
-          }
-          else {
-            const text = await CryptoUtils.decryptMessage(
-              conv.lastMessage,
-              privateKey,
-              currentUserId
-            );
+            const sender = conv.participants.find((p) => p._id === conv.lastMessage.senderId);
+            results[conv._id] = `${sender?.userName || "Unknown"}: ${decryptedText}`;
+          } else {
+            const text = await CryptoUtils.decryptMessage(conv.lastMessage, privateKey, currentUserId);
             results[conv._id] = text;
           }
-
         } catch (err) {
           console.error("Decrypt error:", err);
           results[conv._id] = "[Unable to decrypt]";
@@ -80,234 +83,99 @@ const FriendList = ({
 
     if (diffInHours < 1) return "Just now";
     if (diffInHours < 24)
-      return date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit"
-      });
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric"
-    });
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
+
   return (
-    <div className="prof-chat-list">
-      <div className="prof-scroll-container">
+    <div className={`h-100 d-flex flex-column ${themeBg}`}>
+      <div className="flex-grow-1 overflow-auto" style={{ scrollbarWidth: "none" }}>
         {conversations?.map((conversation) => {
           const isGroup = conversation?.isGroup;
-          const friend = !isGroup
-            ? conversation?.participants.find(p => p._id !== currentUserId)
-            : null;
-          const groupMembers = isGroup
-            ? conversation?.participants.filter(p => p._id !== currentUserId)
-            : [];
-          const displayName = isGroup
-            ? conversation.groupName
-            : friend?.userName;
+          const friend = !isGroup ? conversation?.participants.find((p) => p._id !== currentUserId) : null;
+          
+          const displayName = isGroup ? conversation.groupName : friend?.userName;
           const avatar = isGroup
             ? conversation.groupAvatar || "https://via.placeholder.com/40"
             : friend?.profilePicture || "https://via.placeholder.com/40";
+
           const isActive = !isGroup && activeUsers.includes(friend?._id);
           const unreadCount = conversation?.unreadCount?.[currentUserId] || 0;
           const hasUnread = unreadCount > 0;
           const isSelected = selectedConversation?._id === conversation?._id;
+
           return (
             <div
               key={conversation._id}
-              onClick={() => {
-             
-                handleConversationSelect(conversation)
-              }
-              }
-              className={`prof-chat-row ${isSelected ? "selected" : ""} ${hasUnread ? "unread" : ""}`}
+              onClick={() => handleConversationSelect(conversation)}
+              className={`d-flex align-items-center px-3 py-2 border-bottom ${themeBorder} gap-3 w-100`}
+              style={{
+                cursor: "pointer",
+                transition: "background 0.2s ease",
+                backgroundColor: isSelected ? selectedBgColor : "transparent",
+              }}
+              onMouseEnter={(e) => {
+                if (!isSelected) e.currentTarget.style.backgroundColor = hoverBgColor;
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
+              }}
             >
-              {/* Avatar */}
-              <div className="prof-avatar-wrapper">
-                <img
-                  src={avatar}
-                  alt=""
-                  className="prof-avatar-img"
-                />
-                {!isGroup && isActive && <div className="prof-online-dot" />}
+              {/* Profile Avatar Wrapper */}
+              <div className="position-relative flex-shrink-0">
+                <img src={avatar} alt="" className="rounded-circle object-fit-cover bg-secondary" style={{ width: "44px", height: "44px" }} />
+                {!isGroup && isActive && (
+                  <div 
+                    className={`position-absolute bg-success rounded-circle border ${isDark ? "border-dark" : "border-white"}`}
+                    style={{ width: "10px", height: "10px", bottom: "2px", right: "2px" }}
+                  />
+                )}
               </div>
 
-              {/* Info */}
-              <div className="prof-chat-info">
-                <div className="prof-chat-top">
-
-                  <span className="prof-user-name">
+              {/* Conversational Text Data Node */}
+              <div className="flex-grow-1 min-w-0">
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <span className={`text-truncate small ${hasUnread ? `${nameColorUnread} fw-bold` : `${nameColorDefault} fw-medium`}`}>
                     {displayName}
                   </span>
-
-                  <span className="prof-timestamp">
+                  <span className="text-secondary tracking-tight" style={{ fontSize: "0.7rem" }}>
                     {formatTime(conversation?.updatedAt)}
                   </span>
-
                 </div>
 
-                <div className="prof-chat-bottom">
-
-                  <span className="prof-preview-text">
-
-                    {/* message ticks only for private */}
+                <div className="d-flex justify-content-between align-items-center">
+                  <span className={`text-truncate small d-flex align-items-center gap-1 ${hasUnread ? previewColorUnread : previewColorDefault}`} style={{ fontSize: "0.75rem" }}>
                     {!isGroup && conversation?.lastMessage?.senderId === currentUserId && (
-                      <>
+                      <span className="d-inline-flex align-items-center">
                         {conversation?.lastMessage?.status === "read" ? (
-                          <span className="double-tick mx-1">
-                            <FaCheckDouble size={6} color="#28fa5c" />
-                          </span>
+                          <FaCheckDouble size={8} color="#28fa5c" />
                         ) : (
-                          <span className="single-tick mx-1">
-                            <FaCheck size={6} />
-                          </span>
+                          <FaCheck size={8} className="text-secondary" />
                         )}
-                      </>
+                      </span>
                     )}
-
-
-                    {decryptedMessages[conversation?._id]}
-
+                    <span className="text-truncate">
+                      {decryptedMessages[conversation?._id]}
+                    </span>
                   </span>
 
-                  {/* unread indicator */}
+                  {/* Context Unread Alert Badges */}
                   {conversation?.lastMessage?.senderId !== currentUserId &&
                     conversation?.lastMessage?.status === "sent" && (
-                      <span className="prof-unread-count">
+                      <span 
+                        className="badge rounded-pill bg-success text-white d-flex align-items-center justify-content-center px-2 py-1 fw-semibold"
+                        style={{ fontSize: "0.65rem", minWidth: "18px", height: "18px" }}
+                      >
                         {isGroup ? unreadCount : "New"}
                       </span>
                     )}
-
                 </div>
-
-                {/* Optional group member preview */}
-                {/* {isGroup && (
-              <div className="prof-group-members">
-                {groupMembers.slice(0, 3).map(m => m.userName).join(", ")}
-                {groupMembers.length > 3 && ` +${groupMembers.length - 3}`}
-              </div>
-            )} */}
-
               </div>
             </div>
           );
         })}
       </div>
-      <style jsx>{`
-        .prof-chat-list {
-          height: 100%;
-          background: #000;
-          display: flex;
-          flex-direction: column;
-        }
-        .prof-scroll-container {
-          flex: 1;
-          overflow-y: auto;
-          scrollbar-width: none;
-        }
-        .prof-chat-row {
-          display: flex;
-          align-items: center;
-          padding: 12px 16px;
-          cursor: pointer;
-          transition: background 0.2s ease;
-          gap: 12px;
-          border-bottom: 1px solid #111;
-        }
-
-        .prof-chat-row:hover {
-          background: #0a0a0a;
-        }
-
-        .prof-chat-row.selected {
-          background: #161616;
-        }
-
-        .prof-avatar-wrapper {
-          position: relative;
-          flex-shrink: 0;
-        }
-
-        .prof-avatar-img {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          object-fit: cover;
-          background: #222;
-        }
-
-        .prof-online-dot {
-          position: absolute;
-          bottom: 2px;
-          right: 2px;
-          width: 10px;
-          height: 10px;
-          background: #22c55e;
-          border: 2px solid #000;
-          border-radius: 50%;
-        }
-
-        .prof-chat-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .prof-chat-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 4px;
-        }
-
-        .prof-user-name {
-          color: #efefef;
-          font-size: 0.85rem;
-          font-weight: 400;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .prof-timestamp {
-          color: #666;
-          font-size: 0.7rem;
-        }
-
-        .prof-chat-bottom {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .prof-preview-text {
-          color: #888;
-          font-size: 0.75rem;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .prof-unread-count {
-          background: #4ff88a;
-          color: #f1f1f1;
-          font-size: 0.65rem;
-          min-width: 16px;
-          height: 16px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0 4px;
-          font-weight: 600;
-        }
-
-        .prof-chat-row.unread .prof-user-name {
-          color: #fff;
-        }
-
-        .prof-chat-row.unread .prof-preview-text {
-          color: #ccc;
-        }
-      `}</style>
     </div>
   );
 };

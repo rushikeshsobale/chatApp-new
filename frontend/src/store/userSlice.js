@@ -1,20 +1,22 @@
-import { SET_USER } from './action';
+import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   user: {},
- 
 };
 
-const authReducer = (state= initialState, action) => {
-  
-  switch (action.type) {
-    case SET_USER:
-      return {
-        ...state,
-        user: action.payload.user,    
-      }
-    default:
-      return state;
+const userSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    setUser: (state, action) => {
+      // Expecting action.payload to be the user data object directly
+      state.user = action.payload;
+    },
+    clearUser: (state) => {
+      state.user = {};
+    }
   }
-};
-export default authReducer;
+});
+
+export const { setUser, clearUser } = userSlice.actions;
+export default userSlice.reducer;

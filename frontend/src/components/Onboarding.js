@@ -1,683 +1,276 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaCamera,
-  FaCheck,
   FaArrowRight,
   FaArrowLeft,
-  FaTimes,
   FaSmile,
+  FaHeart,
+  FaCheckCircle
 } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import "../css/OnboardingStyles.css";
 import { completeProfile } from "../services/authService";
-import { useSelector } from "react-redux";
-const Onboarding = () => {
-  const [step, setStep] = useState(1);
+
+// UI Style Theme Variables
+const CONFIG_THEME = {
+  bgApp: "#09090b",
+  bgCard: "#141416",
+  bgInput: "#1d1d21",
+  border: "#2a2a30",
+  textMain: "#f4f4f5",
+  textMuted: "#a1a1aa",
+  accent: "#8b5cf6",
+};
+
+const FOOD_CUISINES = [
+  "Italian", "Indian", "Chinese", "Mexican", "Japanese", 
+  "Thai", "French", "Mediterranean", "American", "Other"
+];
+
+export default function Onboarding() {
+  const navigate = useNavigate();
+  const userId = localStorage.getItem("userId");
+
+  // Flow & Operation State
+  const [currentStep, setCurrentStep] = useState(1); // 1 = Identity, 2 = Preferences
   const [profilePic, setProfilePic] = useState(null);
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
-  const [skipAll, setSkipAll] = useState(false);
-  const navigate = useNavigate();
-  const userId = (localStorage.getItem("userId"));
 
-  // User data state
+  // Form Field Allocation Data Model
   const [userData, setUserData] = useState({
-    basicInfo: {
-      firstName: "",
-      lastName: "",
-      gender: "",
-      birthDate: "",
-      location: "",
-    },
-    interests: {
-      music: [],
-      sports: [],
-      movies: [],
-      books: [],
-      hobbies: [],
-    },
-    favorites: {
-      singer: "",
-      sportsperson: "",
-      movie: "",
-      book: "",
-      food: "",
-      cuisine: "",
-    },
-    professional: {
-      profession: "",
-      education: "",
-      skills: [],
-      workExperience: "",
-    },
-    social: {
-      website: "",
-      twitter: "",
-      instagram: "",
-      linkedin: "",
-    },
+    favorites: { singer: "", sportsperson: "", movie: "", book: "", food: "", cuisine: "" }
   });
 
-  // Options for various selections
-  const genderOptions = [
-    "Male",
-    "Female",
-    "Non-binary",
-    "Other",
-    "Prefer not to say",
-  ];
-  const musicGenres = [
-    "Pop",
-    "Rock",
-    "Hip Hop",
-    "R&B",
-    "Electronic",
-    "Jazz",
-    "Classical",
-    "Country",
-    "Metal",
-    "Indie",
-  ];
-  const sports = [
-    "Football",
-    "Basketball",
-    "Tennis",
-    "Cricket",
-    "Swimming",
-    "Running",
-    "Cycling",
-    "Yoga",
-    "Golf",
-    "MMA",
-  ];
-  const movieGenres = [
-    "Action",
-    "Comedy",
-    "Drama",
-    "Horror",
-    "Sci-Fi",
-    "Romance",
-    "Thriller",
-    "Documentary",
-    "Animation",
-    "Fantasy",
-  ];
-  const bookGenres = [
-    "Fiction",
-    "Non-fiction",
-    "Mystery",
-    "Science",
-    "Biography",
-    "History",
-    "Self-help",
-    "Fantasy",
-    "Romance",
-    "Poetry",
-  ];
-  const hobbyOptions = [
-    "Photography",
-    "Cooking",
-    "Gardening",
-    "Painting",
-    "Traveling",
-    "Gaming",
-    "Reading",
-    "Writing",
-    "Fishing",
-    "DIY",
-  ];
-  const professionOptions = [
-    "Student",
-    "Software Engineer",
-    "Doctor",
-    "Teacher",
-    "Artist",
-    "Entrepreneur",
-    "Designer",
-    "Engineer",
-    "Writer",
-    "Other",
-  ];
-  const cuisineOptions = [
-    "Italian",
-    "Indian",
-    "Chinese",
-    "Mexican",
-    "Japanese",
-    "Thai",
-    "French",
-    "Mediterranean",
-    "American",
-    "Other",
-  ];
-
-  const handleChange = (e, category, field) => {
-    const { value } = e.target;
+  // State update handler
+  const handleInputChange = (field, value) => {
     setUserData((prev) => ({
       ...prev,
-      [category]: {
-        ...prev[category],
-        [field]: value,
-      },
+      favorites: { ...prev.favorites, [field]: value }
     }));
   };
 
-  const handleMultiSelect = (category, field, value) => {
-    setUserData((prev) => {
-      const currentValues = prev[category][field];
-      const newValues = currentValues.includes(value)
-        ? currentValues.filter((item) => item !== value)
-        : [...currentValues, value];
-
-      return {
-        ...prev,
-        [category]: {
-          ...prev[category],
-          [field]: newValues,
-        },
-      };
-    });
-  };
-
-  const handleProfilePicChange = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePic(reader.result);
-      };
+      reader.onloadend = () => setProfilePic(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async () => {
+  const handleFormSubmission = async () => {
     setLoading(true);
     try {
-      const completeData = {
-        profilePic,
-        bio,
-        ...userData,
-      };
-
-      const response = await completeProfile(userId, completeData);
-      
+      const payload = { profilePic, bio, ...userData };
+      const response = await completeProfile(userId, payload);
       if (response.success) {
-        // Update local storage with user data
-        localStorage.setItem('userData', JSON.stringify(response.user));
-        navigate('/');
-      } else {
-        console.error('Profile completion failed:', response.error);
-        // You might want to show an error message to the user here
+        localStorage.setItem("userData", JSON.stringify(response.user));
+        navigate("/");
       }
-    } catch (error) {
-      console.error('Error completing profile:', error);
-      // You might want to show an error message to the user here
+    } catch (err) {
+      console.error("Submission failed:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const skipStep = () => {
-    if (step < 2) {
-      setStep(step + 1);
-    } else {
-      setSkipAll(true);
-      handleSubmit();
-    }
-  };
-
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return (
-          <div className="onboarding-step">
-            <h4 className="text-center mb-4">Add a Profile Picture</h4>
-            <div className="d-flex justify-content-center mb-4">
-              <label htmlFor="profile-upload" className="profile-pic-upload">
-                {profilePic ? (
-                  <img
-                    src={profilePic}
-                    alt="Profile"
-                    className="profile-pic-preview"
-                  />
-                ) : (
-                  <div className="profile-pic-placeholder">
-                    <FaCamera size={32} />
-                    <span>Upload Photo</span>
-                  </div>
-                )}
-                <input
-                  id="profile-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleProfilePicChange}
-                  className="d-none"
-                />
-              </label>
-            </div>
-            <p className="text-center text-muted mb-4">
-              Upload a photo so friends can recognize you
-            </p>
-          </div>
-        );
-      
-      // case 2:
-      //   return (
-      //     <div className="onboarding-step">
-      //       <h4 className="text-center mb-4">Your Interests</h4>
-      //       <p className="text-center mb-4">
-      //         Select what you're interested in (optional)
-      //       </p>
-
-      //       <div className="mb-4">
-      //         <h5>Music Genres</h5>
-      //         <div className="interests-grid">
-      //           {musicGenres.map((genre) => (
-      //             <button
-      //               key={genre}
-      //               type="button"
-      //               className={`interest-btn ${
-      //                 userData.interests.music.includes(genre) ? "selected" : ""
-      //               }`}
-      //               onClick={() =>
-      //                 handleMultiSelect("interests", "music", genre)
-      //               }
-      //             >
-      //               {genre}
-      //               {userData.interests.music.includes(genre) && (
-      //                 <FaCheck className="ms-2" />
-      //               )}
-      //             </button>
-      //           ))}
-      //         </div>
-      //       </div>
-
-      //       <div className="mb-4">
-      //         <h5>Sports</h5>
-      //         <div className="interests-grid">
-      //           {sports.map((sport) => (
-      //             <button
-      //               key={sport}
-      //               type="button"
-      //               className={`interest-btn ${
-      //                 userData.interests.sports.includes(sport)
-      //                   ? "selected"
-      //                   : ""
-      //               }`}
-      //               onClick={() =>
-      //                 handleMultiSelect("interests", "sports", sport)
-      //               }
-      //             >
-      //               {sport}
-      //               {userData.interests.sports.includes(sport) && (
-      //                 <FaCheck className="ms-2" />
-      //               )}
-      //             </button>
-      //           ))}
-      //         </div>
-      //       </div>
-
-      //       <div className="mb-4">
-      //         <h5>Movie Genres</h5>
-      //         <div className="interests-grid">
-      //           {movieGenres.map((genre) => (
-      //             <button
-      //               key={genre}
-      //               type="button"
-      //               className={`interest-btn ${
-      //                 userData.interests.movies.includes(genre)
-      //                   ? "selected"
-      //                   : ""
-      //               }`}
-      //               onClick={() =>
-      //                 handleMultiSelect("interests", "movies", genre)
-      //               }
-      //             >
-      //               {genre}
-      //               {userData.interests.movies.includes(genre) && (
-      //                 <FaCheck className="ms-2" />
-      //               )}
-      //             </button>
-      //           ))}
-      //         </div>
-      //       </div>
-
-      //       <div className="mb-4">
-      //         <h5>Book Genres</h5>
-      //         <div className="interests-grid">
-      //           {bookGenres.map((genre) => (
-      //             <button
-      //               key={genre}
-      //               type="button"
-      //               className={`interest-btn ${
-      //                 userData.interests.books.includes(genre) ? "selected" : ""
-      //               }`}
-      //               onClick={() =>
-      //                 handleMultiSelect("interests", "books", genre)
-      //               }
-      //             >
-      //               {genre}
-      //               {userData.interests.books.includes(genre) && (
-      //                 <FaCheck className="ms-2" />
-      //               )}
-      //             </button>
-      //           ))}
-      //         </div>
-      //       </div>
-
-      //       <div className="mb-4">
-      //         <h5>Hobbies</h5>
-      //         <div className="interests-grid">
-      //           {hobbyOptions.map((hobby) => (
-      //             <button
-      //               key={hobby}
-      //               type="button"
-      //               className={`interest-btn ${
-      //                 userData.interests.hobbies.includes(hobby)
-      //                   ? "selected"
-      //                   : ""
-      //               }`}
-      //               onClick={() =>
-      //                 handleMultiSelect("interests", "hobbies", hobby)
-      //               }
-      //             >
-      //               {hobby}
-      //               {userData.interests.hobbies.includes(hobby) && (
-      //                 <FaCheck className="ms-2" />
-      //               )}
-      //             </button>
-      //           ))}
-      //         </div>
-      //       </div>
-      //     </div>
-      //   );
-      case 2:
-        return (
-          <div className="onboarding-step">
-            <h4 className="text-center mb-4">Your Favorites</h4>
-            <p className="text-center mb-4">
-              Tell us about your favorites (optional)
-            </p>
-
-            <div className="mb-3">
-              <label>Favorite Singer/Band</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.favorites.singer}
-                onChange={(e) => handleChange(e, "favorites", "singer")}
-                placeholder="Taylor Swift, BTS, etc."
-              />
-            </div>
-
-            <div className="mb-3">
-              <label>Favorite Sportsperson</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.favorites.sportsperson}
-                onChange={(e) => handleChange(e, "favorites", "sportsperson")}
-                placeholder="LeBron James, Serena Williams, etc."
-              />
-            </div>
-
-            <div className="mb-3">
-              <label>Favorite Movie</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.favorites.movie}
-                onChange={(e) => handleChange(e, "favorites", "movie")}
-                placeholder="The Shawshank Redemption, etc."
-              />
-            </div>
-
-            <div className="mb-3">
-              <label>Favorite Book</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.favorites.book}
-                onChange={(e) => handleChange(e, "favorites", "book")}
-                placeholder="To Kill a Mockingbird, etc."
-              />
-            </div>
-
-            <div className="mb-3">
-              <label>Favorite Food</label>
-              <input
-                type="text"
-                className="form-control"
-                value={userData.favorites.food}
-                onChange={(e) => handleChange(e, "favorites", "food")}
-                placeholder="Pizza, Sushi, etc."
-              />
-            </div>
-
-            <div className="mb-3">
-              <label>Favorite Cuisine</label>
-              <select
-                className="form-select"
-                value={userData.favorites.cuisine}
-                onChange={(e) => handleChange(e, "favorites", "cuisine")}
-              >
-                <option value="">Select cuisine</option>
-                {cuisineOptions.map((cuisine) => (
-                  <option key={cuisine} value={cuisine}>
-                    {cuisine}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        );
-      // case 5:
-      //   return (
-      //     <div className="onboarding-step">
-      //       <h4 className="text-center mb-4">Professional Information</h4>
-      //       <p className="text-center mb-4">
-      //         Tell us about your work (optional)
-      //       </p>
-
-      //       <div className="mb-3">
-      //         <label>Profession</label>
-      //         <select
-      //           className="form-select"
-      //           value={userData.professional.profession}
-      //           onChange={(e) => handleChange(e, "professional", "profession")}
-      //         >
-      //           <option value="">Select profession</option>
-      //           {professionOptions.map((profession) => (
-      //             <option key={profession} value={profession}>
-      //               {profession}
-      //             </option>
-      //           ))}
-      //         </select>
-      //       </div>
-
-      //       <div className="mb-3">
-      //         <label>Education</label>
-      //         <input
-      //           type="text"
-      //           className="form-control"
-      //           value={userData.professional.education}
-      //           onChange={(e) => handleChange(e, "professional", "education")}
-      //           placeholder="Degree, University, etc."
-      //         />
-      //       </div>
-
-      //       <div className="mb-3">
-      //         <label>Skills (comma separated)</label>
-      //         <input
-      //           type="text"
-      //           className="form-control"
-      //           value={
-      //             Array.isArray(userData?.professional?.skills)
-      //               ? userData.professional.skills.join(", ")
-      //               : ""
-      //           }
-      //           onChange={(e) =>
-      //             handleChange(
-      //               e,
-      //               "professional",
-      //               "skills",
-      //               e.target.value.split(",").map((s) => s.trim())
-      //             )
-      //           }
-      //           placeholder="JavaScript, Design, Marketing, etc."
-      //         />
-      //       </div>
-
-      //       <div className="mb-3">
-      //         <label>Work Experience</label>
-      //         <textarea
-      //           className="form-control"
-      //           rows="3"
-      //           value={userData.professional.workExperience}
-      //           onChange={(e) =>
-      //             handleChange(e, "professional", "workExperience")
-      //           }
-      //           placeholder="Briefly describe your work experience..."
-      //         ></textarea>
-      //       </div>
-      //     </div>
-      //   );
-      // case 6:
-      //   return (
-      //     <div className="onboarding-step">
-      //       <h4 className="text-center mb-4">Social & Bio</h4>
-
-      //       <div className="mb-4">
-      //         <label>Bio</label>
-      //         <textarea
-      //           className="form-control"
-      //           rows="4"
-      //           placeholder="Tell others about yourself..."
-      //           value={bio}
-      //           onChange={(e) => setBio(e.target.value)}
-      //           maxLength="300"
-      //         ></textarea>
-      //         <small className="text-muted">{bio.length}/300 characters</small>
-      //       </div>
-
-      //       <div className="mb-3">
-      //         <label>Website</label>
-      //         <input
-      //           type="url"
-      //           className="form-control"
-      //           value={userData.social.website}
-      //           onChange={(e) => handleChange(e, "social", "website")}
-      //           placeholder="https://yourwebsite.com"
-      //         />
-      //       </div>
-
-      //       <div className="mb-3">
-      //         <label>Twitter</label>
-      //         <input
-      //           type="text"
-      //           className="form-control"
-      //           value={userData.social.twitter}
-      //           onChange={(e) => handleChange(e, "social", "twitter")}
-      //           placeholder="@username"
-      //         />
-      //       </div>
-
-      //       <div className="mb-3">
-      //         <label>Instagram</label>
-      //         <input
-      //           type="text"
-      //           className="form-control"
-      //           value={userData.social.instagram}
-      //           onChange={(e) => handleChange(e, "social", "instagram")}
-      //           placeholder="@username"
-      //         />
-      //       </div>
-
-      //       <div className="mb-3">
-      //         <label>LinkedIn</label>
-      //         <input
-      //           type="url"
-      //           className="form-control"
-      //           value={userData.social.linkedin}
-      //           onChange={(e) => handleChange(e, "social", "linkedin")}
-      //           placeholder="https://linkedin.com/in/username"
-      //         />
-      //       </div>
-      //     </div>
-      //   );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="onboarding-container" >
-      <div className="onboarding-card mb-5" style={{height:'800px', overflow:'auto'}}>
-        <div className="progress-container">
-          <div className="progress" style={{ height: "6px" }}>
-            <div
-              className="progress-bar"
-              role="progressbar"
-              style={{ width: `${(step / 2) * 100}%` }}
-            ></div>
+    <div 
+      className="p-3 d-flex flex-column justify-content-center align-items-center"
+      style={{
+        backgroundColor: CONFIG_THEME.bgApp,
+        color: CONFIG_THEME.textMain,
+        minHeight: "100vh",
+        width: "100vw",
+        overflowX: "hidden"
+      }}
+    >
+      <div className="w-100" style={{ maxWidth: "600px" }}>
+        
+        {/* ==================== 1. FIXED HEADER ELEMENT ==================== */}
+        <header className="text-center mb-4">
+          {/* Progress Bar Track */}
+          <div className="d-flex justify-content-center gap-2 mb-3">
+            <div style={{ width: "24px", height: "6px", borderRadius: "3px", backgroundColor: currentStep === 1 ? CONFIG_THEME.accent : CONFIG_THEME.border, transition: "background-color 0.3s" }} />
+            <div style={{ width: "24px", height: "6px", borderRadius: "3px", backgroundColor: currentStep === 2 ? CONFIG_THEME.accent : CONFIG_THEME.border, transition: "background-color 0.3s" }} />
           </div>
-          <div className="step-indicator">Step {step} of 2</div>
-        </div>
 
-        {renderStep()}
+          <h2 className="fw-bold text-white mb-1 d-flex align-items-center justify-content-center gap-2">
+            {currentStep === 1 ? (
+              <>Create Identity <FaSmile style={{ color: CONFIG_THEME.accent }} size={24} /></>
+            ) : (
+              <>Personal Preferences <FaHeart style={{ color: CONFIG_THEME.accent }} size={20} /></>
+            )}
+          </h2>
+          <p className="small mb-0" style={{ color: CONFIG_THEME.textMuted }}>
+            {currentStep === 1 ? "Set an avatar image and write a custom bio statement." : "Tell us a bit about your favorite pastimes below."}
+          </p>
+        </header>
 
-        <div className="onboarding-actions">
-          <div className="d-flex justify-content-between">
-            {step > 1 ? (
+        {/* ==================== MAIN PROFILE CONTAINER CARD ==================== */}
+        <div 
+          className="p-4 p-md-5"
+          style={{
+            backgroundColor: CONFIG_THEME.bgCard,
+            border: `1px solid ${CONFIG_THEME.border}`,
+            borderRadius: "24px",
+            boxShadow: "0 25px 50px -12px rgba(0,0,0,0.6)",
+            overflow: "hidden" // Keeps sliding panels inside container boundaries
+          }}
+        >
+          
+          {/* ==================== 2. SLIDER VIEWPORT WINDOW ==================== */}
+          <main style={{ overflow: "hidden", position: "relative" }}>
+            <div 
+              style={{
+                display: "flex",
+                width: "200%",
+                transform: currentStep === 1 ? "translateX(0%)" : "translateX(-50%)",
+                transition: "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)" // Butter-smooth slide layout
+              }}
+            >
+              
+              {/* --- PANEL A: IDENTITY SLIDE (Left) --- */}
+              <section style={{ width: "50%", paddingRight: "12px" }}>
+                {/* Photo Uploader */}
+                <div className="text-center mb-4">
+                  <label htmlFor="avatar-file-input" className="d-inline-block" style={{ cursor: "pointer" }}>
+                    <div 
+                      className="rounded-circle d-flex flex-column align-items-center justify-content-center overflow-hidden mx-auto"
+                      style={{ 
+                        width: "140px", 
+                        height: "140px", 
+                        backgroundColor: CONFIG_THEME.bgInput, 
+                        border: `2px dashed ${CONFIG_THEME.accent}`,
+                      }}
+                    >
+                      {profilePic ? (
+                        <img src={profilePic} alt="Uploaded profile" className="w-100 h-100 object-fit-cover" />
+                      ) : (
+                        <div className="d-flex flex-column align-items-center gap-2" style={{ color: CONFIG_THEME.textMuted }}>
+                          <FaCamera size={22} style={{ color: CONFIG_THEME.accent }} />
+                          <span style={{ fontSize: "11px", fontWeight: "600" }}>Upload Photo</span>
+                        </div>
+                      )}
+                    </div>
+                    <input id="avatar-file-input" type="file" accept="image/*" className="d-none" onChange={handleFileChange} />
+                  </label>
+                </div>
+
+                {/* Bio Field Input */}
+                <div className="text-start mb-1">
+                  <label className="form-label small fw-semibold text-uppercase tracking-wider" style={{ color: CONFIG_THEME.textMuted, fontSize: "11px" }}>About Me</label>
+                  <textarea
+                    className="form-control shadow-none border-0 p-3"
+                    rows="4"
+                    maxLength="300"
+                    placeholder="Tell your story or summary here..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    style={{ backgroundColor: CONFIG_THEME.bgInput, color: CONFIG_THEME.textMain, fontSize: "14px", borderRadius: "12px", resize: "none" }}
+                  />
+                  <div className="text-end mt-1 small" style={{ color: CONFIG_THEME.textMuted, fontSize: "11px" }}>{bio.length}/300</div>
+                </div>
+              </section>
+
+              {/* --- PANEL B: PREFERENCES SLIDE (Right) --- */}
+              <section style={{ width: "50%", paddingLeft: "12px" }}>
+                <div className="row g-3">
+                  {[
+                    { key: "singer", name: "Favorite Singer / Band", hint: "e.g., Daft Punk, Queen" },
+                    { key: "sportsperson", name: "Favorite Athlete", hint: "e.g., Serena Williams" },
+                    { key: "movie", name: "Favorite Movie", hint: "e.g., Inception" },
+                    { key: "book", name: "Favorite Novel / Book", hint: "e.g., Dune" },
+                    { key: "food", name: "Favorite Dish", hint: "e.g., Tacos, Sushi" }
+                  ].map((fieldItem) => (
+                    <div className="col-12 col-sm-6" key={fieldItem.key}>
+                      <label className="form-label mb-1 small" style={{ color: CONFIG_THEME.textMuted, fontSize: "12px" }}>{fieldItem.name}</label>
+                      <input
+                        type="text"
+                        className="form-control shadow-none border-0"
+                        placeholder={fieldItem.hint}
+                        value={userData.favorites[fieldItem.key]}
+                        onChange={(e) => handleInputChange(fieldItem.key, e.target.value)}
+                        style={{ backgroundColor: CONFIG_THEME.bgInput, color: CONFIG_THEME.textMain, fontSize: "14px", padding: "0.6rem 0.8rem", borderRadius: "8px" }}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Cuisine Dropdown Select Selection */}
+                  <div className="col-12 col-sm-6">
+                    <label className="form-label mb-1 small" style={{ color: CONFIG_THEME.textMuted, fontSize: "12px" }}>Favorite Cuisine</label>
+                    <select
+                      className="form-select shadow-none border-0"
+                      value={userData.favorites.cuisine}
+                      onChange={(e) => handleInputChange("cuisine", e.target.value)}
+                      style={{ backgroundColor: CONFIG_THEME.bgInput, color: CONFIG_THEME.textMain, fontSize: "14px", padding: "0.6rem 0.8rem", borderRadius: "8px" }}
+                    >
+                      <option value="">Select choice...</option>
+                      {FOOD_CUISINES.map((cuisineOption) => (
+                        <option key={cuisineOption} value={cuisineOption} style={{ backgroundColor: CONFIG_THEME.bgCard }}>
+                          {cuisineOption}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+            </div>
+          </main>
+
+          {/* ==================== 3. ANCHORED ACTION FOOTER ==================== */}
+          <footer className="d-flex justify-content-between align-items-center mt-5 pt-3" style={{ borderTop: `1px solid ${CONFIG_THEME.border}` }}>
+            {/* Left Button Routing */}
+            {currentStep === 1 ? (
               <button
-                className="btn btn-outline-primary"
-                onClick={() => setStep(step - 1)}
+                type="button"
+                className="btn btn-link text-decoration-none p-0 small shadow-none"
+                onClick={() => navigate("/")}
+                style={{ color: CONFIG_THEME.textMuted, fontSize: "13px" }}
               >
-                <FaArrowLeft className="me-2" /> Back
+                Skip configuration
               </button>
             ) : (
-              <div></div>
+              <button
+                type="button"
+                className="btn btn-link text-decoration-none p-0 small d-flex align-items-center gap-1 shadow-none"
+                onClick={() => setCurrentStep(1)}
+                style={{ color: CONFIG_THEME.textMuted, fontSize: "13px" }}
+              >
+                <FaArrowLeft size={10} /> Slide Back
+              </button>
             )}
 
-            <div>
+            {/* Right Action Button Routing */}
+            {currentStep === 1 ? (
               <button
-                className="btn btn-link text-muted me-3"
-                onClick={skipStep}
+                type="button"
+                className="btn text-white px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-none"
+                onClick={() => setCurrentStep(2)}
+                style={{ backgroundColor: CONFIG_THEME.accent, border: "none", borderRadius: "8px", fontSize: "14px" }}
               >
-                {step < 2 ? "Skip" : "Skip All"}
+                Continue <FaArrowRight size={11} />
               </button>
+            ) : (
+              <button
+                type="button"
+                className="btn text-white px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-none"
+                onClick={handleFormSubmission}
+                disabled={loading}
+                style={{ backgroundColor: CONFIG_THEME.accent, border: "none", borderRadius: "8px", fontSize: "14px" }}
+              >
+                {loading ? (
+                  <span className="spinner-border spinner-border-sm" role="status"></span>
+                ) : (
+                  <>Complete Profile <FaCheckCircle size={12} /></>
+                )}
+              </button>
+            )}
+          </footer>
 
-              {step < 2 ? (
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setStep(step + 1)}
-                >
-                  Continue <FaArrowRight className="ms-2" />
-                </button>
-              ) : (
-                <button
-                  className="btn btn-success"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span
-                      className="spinner-border spinner-border-sm"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                  ) : (
-                    "Finish Setup"
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default Onboarding;
+}

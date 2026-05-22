@@ -4,7 +4,9 @@ import '../css/Chat.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { createNotification } from '../services/notificationService'
 import { deleteMessages } from '../services/messageService';
+import { ThemeContext } from "../contexts/ThemeContext";
 import {
+ 
   faCheckDouble,
   faEllipsisV,
   faTrashAlt,
@@ -17,14 +19,14 @@ import {
   faVideo,
   faFileAlt
 } from '@fortawesome/free-solid-svg-icons';
-import { FaArrowLeft, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaVideo as FaVideoIcon } from 'react-icons/fa';
 import { UserContext } from '../contexts/UserContext';
 import OutGoingCall from './videoCall/OutGoingCall';
 import { fetchUserKeys, recieverpublickey } from '../services/keyse2e';
 import CryptoUtils from '../utils/CryptoUtils';
 import { createOrGetConversation } from '../services/conversations';
 import { fetchMessage } from '../services/messageService';
-const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation }) => {
+const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation}) => {
   const { socket, loadUnseenMessages } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -563,112 +565,126 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
     }
   }, [messages]);
 
-
+   const {isDark} = useContext(ThemeContext);
+const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
+  const headerFooterBg = isDark ? "bg-secondary text-white border-secondary" : "bg-light text-dark border-light";
+  const messagesAreaBg = isDark ? "#121212" : "#f0f2f5";
+  const sentBubbleBg = isDark ? "#005c4b" : "#d9fdd3";
+  const receivedBubbleBg = isDark ? "#202c33" : "#ffffff";
+  const bubbleTextColor = isDark ? "text-white" : "text-dark";
   return (
     <>
 
-      <div className="chat-ui-container">
-        {/* Chat Header */}
-
-        <div className="chat-header d-flex align-items-center justify-content-between p-1 border-bottom bg-light">
-          <button className="back-button" onClick={onBack}>
-            <FaArrowLeft />
+      <div 
+      className={`d-flex flex-column w-100 ${themeBg}`} 
+      style={{ 
+        height: "100vh", 
+        maxHeight: "-webkit-fill-available", // Fixes mobile Safari address bar issues
+        overflow: "hidden" 
+      }}
+    >
+      {/* Chat Header */}
+      <div className={`d-flex align-items-center justify-content-between p-2 border-bottom ${headerFooterBg}`}>
+        <div className="d-flex align-items-center gap-2">
+          <button className="btn p-1 text-inherit" onClick={onBack}>
+            <FaArrowLeft size={18} />
           </button>
-          <div className="user-info d-flex flex-row">
-            <div className="user-avatar">
+          
+          <div className="d-flex align-items-center gap-2">
+            <div className="position-relative" style={{ width: "40px", height: "40px" }}>
               <img
-                style={{ width: "48px", height: "48px", objectFit: "cover" }}
+                className="rounded-circle"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 src={member?.profilePicture}
-                alt={"user"}
+                alt="user"
               />
-              {typingUser && typingUser !== userId && typingUser == member._id && (
-                <div className="typing-indicator">
-                  <div className="dot"></div>
-                  <div className="dot"></div>
-                  <div className="dot"></div>
-                </div>
+              {typingUser && typingUser !== userId && typingUser === member._id && (
+                <div className="position-absolute bottom-0 end-0 bg-success rounded-circle" style={{ width: "10px", height: "10px" }} />
               )}
             </div>
-            <div className="user-details">
-              <h3 className="text-truncate" style={{ width: '100px' }}>
+            
+            <div className="d-flex flex-column justify-content-center" style={{ lineHeight: "1.2" }}>
+              <h6 className="m-0 text-truncate" style={{ maxWidth: "120px" }}>
                 {member?.userName}
-              </h3>
-              <p>
-                {typingUser && typingUser !== userId && typingUser == member._id ? "typing..." : "online"}
-              </p>
+              </h6>
+              <small className={isDark ? "text-light-50" : "text-muted"} style={{ fontSize: "0.75rem" }}>
+                {typingUser && typingUser !== userId && typingUser === member._id ? "typing..." : "online"}
+              </small>
             </div>
           </div>
-          {/* Floating Call Button */}
-          <button
-            onClick={() => setOutgoingCall(true)}
-            style={{
-              padding: "0.4rem 1.0rem",
-              fontSize: "1rem",
-              borderRadius: "8px",
-              border: "none",
-              cursor: "pointer",
-              background: "none",
-              color: "black",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-            }}
-          >
-            <FaVideo />
-          </button>
-          <div className="mx-3">
-            <div className="dropdown">
-              <button className="action-button">
-                <FontAwesomeIcon icon={faEllipsisV} />
-              </button>
-              <div className="dropdown-menu">
-                <button onClick={() => deleteMessages(userId, member.id)} >
-                  <FontAwesomeIcon icon={faTrashAlt} /> clear chat
-                </button>
-
-              </div>
-            </div>
-          </div>
-
         </div>
-        {/* Messages Area */}
-        <div className="messages-area" style={{ background: "rgb(177 177 177)" }}>
-          {messages?.length === 0 ? (
-            <div className="empty-state">
-              <p>Start a conversation with {member?.userName} !</p>
-            </div>
-          ) : (
-            messages?.map((message, index) => (
 
+        {/* Header Actions */}
+        <div className="d-flex align-items-center gap-1">
+          <button
+            className={`btn border-0 rounded-circle d-flex align-items-center justify-content-center ${isDark ? 'text-white' : 'text-dark'}`}
+            onClick={() => setOutgoingCall(true)}
+            style={{ width: "38px", height: "38px", background: "rgba(120,120,120,0.1)" }}
+          >
+            <FaVideoIcon size={16} />
+          </button>
+          
+          <div className="dropdown">
+            <button className={`btn border-0 ${isDark ? 'text-white' : 'text-dark'}`} data-bs-toggle="dropdown" type="button">
+              <FontAwesomeIcon icon={faEllipsisV} />
+            </button>
+            <div className={`dropdown-menu dropdown-menu-end ${isDark ? 'dropdown-menu-dark' : ''}`}>
+              <button className="dropdown-item text-danger" onClick={() => deleteMessages(userId, member.id)}>
+                <FontAwesomeIcon icon={faTrashAlt} className="me-2" /> clear chat
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div 
+        className="flex-grow-1 p-3 overflow-y-auto" 
+        style={{ 
+          background: messagesAreaBg,
+          scrollbarWidth: "thin"
+        }}
+      >
+        {messages?.length === 0 ? (
+          <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+            <p>Start a conversation with {member?.userName} !</p>
+          </div>
+        ) : (
+          messages?.map((message, index) => {
+            const isReceived = message.receiverId === userId;
+            return (
               <div
                 key={message._id || index}
-                className={`message-container ${message.receiverId === userId ? 'received ' : 'sent text-light'}`}
+                className={`d-flex mb-2 ${isReceived ? 'justify-content-start' : 'justify-content-end'}`}
               >
-                <div className="message-bubble">
-                  {/* {console.log(decryptedMessages[message._id], 'decrypted message')} */}
-                  {decryptedMessages[message._id] ? (
-                    <div className="message-text">
-                      {decryptedMessages[message._id]}
-                    </div>
-                  ) : (
-                    <div className="message-text loading">
-                      …
-                    </div>
-                  )}
+                <div 
+                  className={`p-2 rounded-3 shadow-sm position-relative ${bubbleTextColor}`}
+                  style={{ 
+                    backgroundColor: isReceived ? receivedBubbleBg : sentBubbleBg,
+                    maxWidth: "75%",
+                    minWidth: "60px"
+                  }}
+                >
+                  {/* Decrypted Text content */}
+                  <div className="small text-break mb-1">
+                    {decryptedMessages[message._id] ? decryptedMessages[message._id] : "…"}
+                  </div>
 
-                  {/* Attachment */}
+                  {/* Attachment Management */}
                   {message?.attachment && (
-                    <div className="message-attachment">
+                    <div className="mt-1 mb-1 rounded overflow-hidden">
                       {message.attachment.type === 'image' && (
                         <img
                           src={message.attachment.name}
-                          alt={message.attachment.name || 'Attachment'}
-                          className="media-image"
+                          alt="Attachment"
+                          className="img-fluid w-100"
+                          style={{ maxHeight: "200px", objectFit: "cover" }}
                         />
                       )}
 
                       {message.attachment.type === 'video' && (
-                        <video controls className="media-video">
+                        <video controls className="w-100" style={{ maxHeight: "200px" }}>
                           <source src={message.attachment.name} type="video/mp4" />
-                          Your browser does not support the video tag.
                         </video>
                       )}
 
@@ -677,166 +693,110 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
                           href={message.attachment.name}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="media-file"
+                          className="d-flex align-items-center gap-2 p-2 border rounded text-decoration-none small text-truncate"
                         >
-                          <FontAwesomeIcon icon={faFileAlt} />{' '}
+                          <FontAwesomeIcon icon={faFileAlt} />
                           <span>{message.attachment.name || 'Download File'}</span>
                         </a>
                       )}
                     </div>
                   )}
 
-
-                  {/* Message Meta */}
-                  <div className="message-meta">
-                    <span className="timestamp">
+                  {/* Message Meta Data */}
+                  <div className="d-flex align-items-center justify-content-end gap-1" style={{ fontSize: "0.65rem", opacity: 0.7 }}>
+                    <span>
                       {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-
-                    {message?.receiverId !== userId && (
-                      <span className={`status ${message?.status === 'read' ? 'read' : ''}`}>
-                        {message?.status === 'read' ? (
-                          <FontAwesomeIcon icon={faCheckDouble} />
-                        ) : (
-                          <FontAwesomeIcon icon={faCheck} />
-                        )}
+                    {!isReceived && (
+                      <span className={message?.status === 'read' ? 'text-info' : ''}>
+                        <FontAwesomeIcon icon={message?.status === 'read' ? faCheckDouble : faCheck} />
                       </span>
                     )}
                   </div>
-
-                  {/* Message Actions */}
-                  <div className="message-actions">
-                    <div className="dropdown">
-                      <button className="action-button">
-                        <FontAwesomeIcon icon={faEllipsisV} />
-                      </button>
-                      <div className="dropdown-menu">
-                        <button onClick={() => deleteMessage(message?._id)}>
-                          <FontAwesomeIcon icon={faTrashAlt} /> Delete
-                        </button>
-                        <button onClick={() => toggleReactions(message?._id)}>
-                          <FontAwesomeIcon icon={faSmile} /> React
-                        </button>
-                        <button onClick={() => forwardMessage(message?._id)}>
-                          <FontAwesomeIcon icon={faShare} /> Forward
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Reactions */}
-                  {message?.showReactions && (
-                    <div className="reactions-picker">
-                      {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => (
-                        <span
-                          key={emoji}
-                          onClick={() => addReaction(message?._id, emoji)}
-                        >
-                          {emoji}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {message?.reactions?.length > 0 && (
-                    <div className="message-reactions">
-                      {message.reactions.map((reaction, i) => (
-                        <span key={i}>{reaction.emoji}</span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-          
-        </div>
-        {/* Input Area */}
-        <div className="input-area">
-            {/* Attachment Popup */}
-            {showAttachmentPopup && (
-              <div className="attachment-popup">
-                <div className="attachment-options">
-                  <button onClick={() => handleFileSelect("image")}>
-                    <FontAwesomeIcon icon={faImage} />
-                    <span>Photo</span>
-                  </button>
-                  <button onClick={() => handleFileSelect("video")}>
-                    <FontAwesomeIcon icon={faVideo} />
-                    <span>Video</span>
-                  </button>
-                  <button onClick={() => handleFileSelect("document")}>
-                    <FontAwesomeIcon icon={faFileAlt} />
-                    <span>Document</span>
-                  </button>
-                </div>
-              </div>
-            )}
-            {/* Emoji Picker */}
-            {showEmojiPicker && (
-              <div className="emoji-picker-container">
-                <EmojiPicker onEmojiClick={handleEmojiClick} width="100%" height={300} />
-              </div>
-            )}
-            {/* Input Controls */}
-            <div className="input-controls">
-              <button
-                className="attachment-button"
-                onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}
-              >
-                <FontAwesomeIcon icon={faPaperclip} />
+            );
+          })
+        )}
+      </div>
+
+      {/* Input / Controls Area */}
+      <div className={`p-2 border-top position-relative ${headerFooterBg}`}>
+        
+        {/* Attachment Popup menu alternative overlay */}
+        {showAttachmentPopup && (
+          <div className={`position-absolute bottom-100 start-0 m-2 p-2 rounded shadow ${isDark ? 'bg-secondary' : 'bg-white'}`} style={{ zIndex: 1050 }}>
+            <div className="d-flex flex-column gap-1">
+              <button className="btn btn-sm text-start" onClick={() => handleFileSelect("image")}>
+                <FontAwesomeIcon icon={faImage} className="me-2" /> Photo
               </button>
-              <input
-                type="text"
-                ref={inputRef}
-                className="message-input"
-                placeholder="Type a message..."
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onFocus={handleTyping}
-                onBlur={handleBlur}
-              />
-              <button
-                className="emoji-button"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              >
-                <FontAwesomeIcon icon={faSmile} />
+              <button className="btn btn-sm text-start" onClick={() => handleFileSelect("video")}>
+                <FontAwesomeIcon icon={faVideo} className="me-2" /> Video
               </button>
-              <button
-                className="send-button"
-                onClick={() => sendMessage(selectedFile)}
-                disabled={!messageInput.trim() && !selectedFile}
-              >
-                <FontAwesomeIcon icon={faPaperPlane} />
+              <button className="btn btn-sm text-start" onClick={() => handleFileSelect("document")}>
+                <FontAwesomeIcon icon={faFileAlt} className="me-2" /> Document
               </button>
             </div>
-
-            {/* File Preview */}
-            {selectedFile && (
-              <div className="file-preview">
-                {selectedFile.type.startsWith("image/") ? (
-                  <>
-                    <img src={URL.createObjectURL(selectedFile)} alt="Preview" />
-                    <button onClick={() => setSelectedFile(null)}>×</button>
-                  </>
-                ) : (
-                  <>
-                    <span>{selectedFile.name}</span>
-                    <button onClick={() => setSelectedFile(null)}>×</button>
-                  </>
-                )}
-              </div>
-            )}
           </div>
-        {showOutgoingCall &&
-          <OutGoingCall
-            show={showOutgoingCall}
-            member={member}
-            onCancel={() => setOutgoingCall(false)}
-          />
-        }
+        )}
 
+        {/* Emoji Selector Overlay */}
+        {showEmojiPicker && (
+          <div className="position-absolute bottom-100 end-0 m-2 shadow" style={{ zIndex: 1050 }}>
+            <EmojiPicker onEmojiClick={handleEmojiClick} width={280} height={320} theme={isDark ? "dark" : "light"} />
+          </div>
+        )}
+
+        {/* Core Input controls */}
+        <div className="d-flex align-items-center gap-1">
+          <button className={`btn border-0 p-2 ${isDark ? 'text-white' : 'text-dark'}`} onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}>
+            <FontAwesomeIcon icon={faPaperclip} />
+          </button>
+          
+          <input
+            type="text"
+            ref={inputRef}
+            className={`form-control form-control-sm border-0 ${isDark ? 'bg-dark text-white' : 'bg-white text-dark'}`}
+            placeholder="Type a message..."
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onFocus={handleTyping}
+            onBlur={handleBlur}
+            style={{ borderRadius: "20px" }}
+          />
+
+          <button className={`btn border-0 p-2 ${isDark ? 'text-white' : 'text-dark'}`} onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+            <FontAwesomeIcon icon={faSmile} />
+          </button>
+          
+          <button 
+            className="btn btn-success rounded-circle d-flex align-items-center justify-content-center p-2" 
+            onClick={() => sendMessage(selectedFile)}
+            disabled={!messageInput.trim() && !selectedFile}
+            style={{ width: "36px", height: "36px" }}
+          >
+            <FontAwesomeIcon icon={faPaperPlane} size="sm" className="text-white" />
+          </button>
+        </div>
+
+        {/* Attached File Preview Bar */}
+        {selectedFile && (
+          <div className="d-flex align-items-center justify-content-between p-1 mt-2 border rounded bg-opacity-10 bg-black small">
+            <span className="text-truncate px-1">{selectedFile.name}</span>
+            <button className="btn btn-sm py-0 text-danger" onClick={() => setSelectedFile(null)}>×</button>
+          </div>
+        )}
       </div>
+
+      {/* Outgoing Call handling structure logic */}
+      {showOutgoingCall && OutGoingCall && (
+        <OutGoingCall
+          show={showOutgoingCall}
+          member={member}
+          onCancel={() => setOutgoingCall(false)}
+        />
+      )}
+    </div>
 
     </>
   );

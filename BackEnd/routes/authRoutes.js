@@ -92,7 +92,7 @@ router.get("/me", verifyToken, async (req, res) => {
 // Register route 
 router.post("/register", upload.single("profilePicture"), async (req, res) => {
   try {
-    const { email, password, username, birthdate, phone } = req.body;
+    const { email, password, username, birthdate } = req.body;
     if (!email || !password || !username) {
       return res.status(400).json({
         success: false,
@@ -111,7 +111,6 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
       userName: username,
       password,
       birthdate,
-      phone,
       onboardingComplete: false,
     });
     const savedUser = await newUser.save();
@@ -168,7 +167,7 @@ router.put("/complete-profile/:userId", upload.single("profilePicture"), async (
   const userId = req.params.userId;
 
   // Set a longer timeout for this route
-  req.setTimeout(60000); // 60 seconds timeout
+  // 60 seconds timeout
 
   try {
     // Validate user exists
