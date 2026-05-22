@@ -76,7 +76,7 @@ router.get("/getPosts/:userId",verifyToken, async (req, res) => {
       .populate("likes.userId", "userName profilePicture");
 
     if (posts.length === 0) {
-      return res.status(404).json({
+      return res.status(201).json({
         success: false,
         message: "No posts found for this user",
       });
