@@ -141,8 +141,8 @@ const ProfilePage = () => {
   }
 
   const fetchPosts = async () => {
-    
-    console.log(userId, 'userId from profile page new code')
+     if(!userId) return;
+    console.log(userId, 'userId from profile page new code');
     try {
       const data = await getUserPosts(userId);
       setPosts(data.posts);
@@ -180,6 +180,8 @@ const ProfilePage = () => {
   };
 
   const fetchNotifications = async () => {
+
+    if(!user) return;
     setLoadingNotifications(true);
     try {
       const notifications = await getProfileNotifications(user._id);
