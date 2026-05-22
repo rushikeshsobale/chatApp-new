@@ -584,7 +584,7 @@ const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
       }}
     >
       {/* Chat Header */}
-      <div className={`d-flex align-items-center justify-content-between p-2 border-bottom ${headerFooterBg}`}>
+      <div className={`d-flex align-items-center justify-content-between p-2 border-bottom ${headerFooterBg}`} style={{position:'fixed', top:'0', left:'0', width:'100%', height:'60px'}}>
         <div className="d-flex align-items-center gap-2">
           <button className="btn p-1 text-inherit" onClick={onBack}>
             <FaArrowLeft size={18} />
@@ -636,7 +636,9 @@ const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
           </div>
         </div>
       </div>
+      <div style={{ height: "60px" }}> 
 
+      </div>
       {/* Messages Area */}
       <div 
         className="flex-grow-1 p-3 overflow-y-auto" 
