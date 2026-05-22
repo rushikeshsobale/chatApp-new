@@ -71,11 +71,11 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const { socket, setFlag, unseenMessages, setUser, setUserId } = useContext(UserContext);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingStories, setLoadingStories] = useState(false);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
-  const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [commentInputs, setCommentInputs] = useState({});
   const [showCommentInputs, setShowCommentInputs] = useState({});
   const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
@@ -104,37 +104,20 @@ const ProfilePage = () => {
     setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchUserData();
-
     } else {
-
     }
-    getSuggestions();
-    // fetchStories();
     fetchPosts()
-    // fetchTrendingTopics();
-    // fetchEvents();
-
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (followers.length > 0 || following.length > 0) {
-      fetchStories(followers, following);
-    }
-  }, [following]);
-
+  
   useEffect(() => {
     if (user !== null) {
       fetchNotifications(user);
     }
   }, [])
-  const getSuggestions = async () => {
-    setLoadingSuggestions(true);
-    const suggestions = await fetchSuggestions(); // Wait for the data
-    setSuggestions(suggestions); // Update state
-    setLoadingSuggestions(false);
-  };
+
   const fetchUserData = async () => {
-    setLoadingUser(true);
+  
     try {
       const data = await getUserData();
       localStorage.setItem('user', JSON.stringify(data));
@@ -145,7 +128,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error("Error:", error);
     }
-    setLoadingUser(false);
+   
   };
 
   const fetchMe = () => {
@@ -158,7 +141,7 @@ const ProfilePage = () => {
   }
 
   const fetchPosts = async () => {
-    setLoadingPosts(true);
+    
     console.log(userId, 'userId from profile page new code')
     try {
       const data = await getUserPosts(userId);
@@ -166,7 +149,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error("Error fetching posts:", error);
     }
-    setLoadingPosts(false);
+    
   };
   const fetchPostById = async (postId, dataType) => {
     const response = await getPostById(postId);
@@ -209,22 +192,7 @@ const ProfilePage = () => {
   };
   const [storyGroups, setStoryGroups] = useState([]); // Initialize as empty array
 
-  const fetchStories = async (followers, following) => {
-    setLoadingStories(true);
-    try {
-      const response = await getStories(following);
-
-      // Ensure you are accessing 'stories' from the response object
-      if (response.success && response.stories) {
-        setStoryGroups(response.stories);
-
-      }
-    } catch (error) {
-      console.error("Error fetching stories:", error);
-    } finally {
-      setLoadingStories(false);
-    }
-  };
+ 
   const fetchTrendingTopics = async () => {
     try {
       const data = await getTrendingTopics();
@@ -244,13 +212,7 @@ const ProfilePage = () => {
       else if (data.type == 'like') {
         fetchPostById(data.postId, data.type)
       }
-      else if (data.type == 'follow') {
-        loadData()
-        getSuggestions();
-      }
-      else if (data.type == 'story') {
-        fetchStories();
-      }
+    
     });
     // Optional: Cleanup listener on unmount
     return () => {
@@ -756,7 +718,7 @@ const ProfilePage = () => {
               className={`profile-header rounded-4 p-4 mb-4 border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} 
               style={{ background: isDark ? 'linear-gradient(135deg, #121212 0%, #1f2833 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f3f5 100%)' }}
             >
-              <div className="d-flex flex-column flex-sm-row align-items-center gap-4">
+              <div className="d-flex  flex-sm-row align-items-center gap-4">
                 <div className="position-relative">
                   {userData?.profilePicture ? (
                     <img
@@ -982,11 +944,11 @@ const ProfilePage = () => {
             <div className={`p-1 rounded border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#1f2833' : '#ffffff' }}>
               <BirthdaysCard userId={userId} theme={isDark ? 'dark' : 'light'} />
             </div>
-            {loadingSuggestions ? <Loader text="Loading suggestions..." /> : suggestions &&
+            {/* {loadingSuggestions ? <Loader text="Loading suggestions..." /> : suggestions &&
               <div className={`p-1 rounded border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#1f2833' : '#ffffff' }}>
                 <FriendSuggestion suggestions={suggestions} loadData={loadData} onFollow={handleFollowUser} theme={isDark ? 'dark' : 'light'} />
               </div>
-            }
+            } */}
           </div>
         </div>
       </div>
