@@ -11,6 +11,7 @@ export const createNotification = async (notificationData) => {
 };
 
 export const getNotifications = async (id) => {
+    if (!id) throw new Error("User ID is required to fetch notifications");
     try {
         const response = await api.get(`/notifications/fetch/${id}`);
         return response.data;
