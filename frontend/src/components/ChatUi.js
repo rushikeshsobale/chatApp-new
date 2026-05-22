@@ -636,13 +636,13 @@ const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
           </div>
         </div>
       </div>
-      <div style={{ height: "60px" }}> 
-
-      </div>
+    
       {/* Messages Area */}
       <div 
         className="flex-grow-1 p-3 overflow-y-auto" 
         style={{ 
+          position:'relative',
+          top:'60px',
           background: messagesAreaBg,
           scrollbarWidth: "thin"
         }}

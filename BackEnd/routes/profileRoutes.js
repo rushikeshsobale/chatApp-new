@@ -13,7 +13,7 @@ router.get("/getUser", verifyToken, async (req, res) => {
   try {
     const user = await Muser.findById(req.decoded.userId)
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(201).json({ message: "User not found" });
     }
     res.json(user);
   } catch (error) {
