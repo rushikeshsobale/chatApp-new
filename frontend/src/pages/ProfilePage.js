@@ -258,7 +258,8 @@ const ProfilePage = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setPosts((prevPosts) => [...prevPosts, data.post]);
+        console.log(posts, 'posts before adding new one');
+        setPosts((prevPosts) => [...(prevPosts || []), data.post]);
         setNewPost("");
         setMedia(null);
         setShowModal(false);
@@ -811,7 +812,7 @@ const ProfilePage = () => {
   </div>
 )}
             {activeTab === "grid" && (
-              <div className="row g-3">
+              <div className="row g-3"> 
                 {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts?.reverse().map((post) => (
                   <div key={post._id} className="col-4">
                     <div

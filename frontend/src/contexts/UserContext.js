@@ -54,7 +54,7 @@ export const UserProvider = ({ children }) => {
     const socketConnection = io(process.env.REACT_APP_API_URL, {
       query: { id: user._id },
     });
-     console.log('UserContext userId: ran without Id', userId, socketConnection);
+ 
     
     setSocket(socketConnection);
     socketConnection.on('connect', () => {

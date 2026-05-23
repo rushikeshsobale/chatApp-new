@@ -1,7 +1,7 @@
 import api from '../api';
 
 export const createNotification = async (notificationData) => {
-    console.log(notificationData, 'notificationData')
+  
     try {
         const response = await api.post('/notifications/create', notificationData);
         return response.data;
@@ -11,7 +11,9 @@ export const createNotification = async (notificationData) => {
 };
 
 export const getNotifications = async (id) => {
-    if (!id) throw new Error("User ID is required to fetch notifications");
+   console.log('Fetching notifications for user ID:', id);
+   if(!id) return [];
+  
     try {
         const response = await api.get(`/notifications/fetch/${id}`);
         return response.data;

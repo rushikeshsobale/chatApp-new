@@ -43,6 +43,7 @@ export const getPostById =async(postId)=>{
 }
 // Get notifications
 export const getNotifications = async (id) => {
+    if(!id) return [];
     try {
         const response = await api.get(`/notifications/fetch/${id}`);
         return response.data;
