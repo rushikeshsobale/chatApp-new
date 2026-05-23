@@ -52,7 +52,7 @@ const ProfilePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState("grid");
+  const [activeTab, setActiveTab] = useState("slideshow");
   const [stories, setStories] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [trendingTopics, setTrendingTopics] = useState([]);
@@ -143,7 +143,7 @@ const ProfilePage = () => {
 
   const fetchPosts = async () => {
      if(!userId) return;
-    console.log(userId, 'userId from profile page new code');
+  
     try {
       const data = await getUserPosts(userId);
       setPosts(data.posts);
@@ -482,8 +482,8 @@ const ProfilePage = () => {
       friend.friendId.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const tabs = [
+     { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={16} /> },
     { id: "grid", label: "Grid", icon: <IoGridSharp size={16} /> },
-    { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={16} /> },
     { id: "saved", label: "Saved", icon: <GiSouthAfricaFlag size={16} /> },
   ];
   const handlePostClick = (postId) => {
@@ -530,27 +530,29 @@ const ProfilePage = () => {
     }
     lastScrollY.current = currentScrollY;
   };
+
+  
   return (
   <div 
-    className={`profile-page min-vh-100 ${isDark ? 'text-light' : 'text-dark'}`} 
+    className={`profile-page min-vh-100 ${isDark ? ' bg-dark text-light' : 'text-dark'}`} 
     style={{ 
       fontFamily: "'Poppins', sans-serif", 
-      background: isDark ? '#0b0c10' : '#f4f6f9',
+      background: isDark ? '#000000' : '#f4f6f9',
       transition: 'background 0.3s ease, color 0.3s ease' 
     }}
   >
     {/* Navigation Bar */}
     <nav 
       className={`navbar navbar-expand-lg shadow-sm sticky-top border-bottom p-0 ${isDark ? 'navbar-dark border-secondary' : 'navbar-light border-light-subtle'}`} 
-      style={{ background: isDark ? '#121212' : '#ffffff', zIndex: 1050, transition: 'background 0.3s ease' }}
+      style={{ background: isDark ? '#000000' : '#ffffff', zIndex: 1050, transition: 'background 0.3s ease' }}
     >
       <div className="container-fluid d-flex justify-content-between align-items-center px-3 py-2">
-        <a className="navbar-brand fw-bold text-gradient" href="/" style={{ fontSize: "1.8rem", letterSpacing: "1px" }}>
+        <a className="navbar-brand fw-bold text-gradient" href="/" >
           HiBUDDY
         </a>
 
         <div className="d-flex align-items-center gap-3">
-          <div className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} onClick={() => console.log('Home')}>
+          <div className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} onClick={() => navigate('./home')}>
             <FaHome size={26} />
           </div>
           
@@ -709,7 +711,7 @@ const ProfilePage = () => {
 
         {/* Main Content Area */}
         <div className="col-lg-6 col-12"
-          onScroll={handleScroll}
+       onScroll={handleScroll}
           style={{
             height: "calc(100vh - 90px)",
             overflowY: "auto",
@@ -720,7 +722,7 @@ const ProfilePage = () => {
           {loadingStories ? <Loader text="Loading stories..." /> : userData && (
             <div 
               className={`profile-header rounded-4 p-4 mb-4 border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} 
-              style={{ background: isDark ? 'linear-gradient(135deg, #121212 0%, #1f2833 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f3f5 100%)' }}
+              style={{ background: isDark ? 'linear-gradient(135deg, #000000 0%, #050505 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f3f5 100%)' }}
             >
               <div className="d-flex  flex-sm-row align-items-center gap-4">
                 <div className="position-relative">

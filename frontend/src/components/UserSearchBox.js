@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "../api";
 
-const UserSearchBox = ({ onUserSelect }) => {
+const UserSearchBox = ({ onUserSelect, isDark = true }) => {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
+    
+    // Using a ref to prevent dropdown from closing prematurely when clicking items
+    const containerRef = useRef(null);
 
     useEffect(() => {
         if (!query.trim()) {
@@ -28,166 +31,144 @@ const UserSearchBox = ({ onUserSelect }) => {
         return () => clearTimeout(delay);
     }, [query]);
 
+    // Close dropdown safely when clicking completely outside the component
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                setShowResults(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    // Theme values mapped cleanly
+    const theme = {
+        bg: isDark ? "bg-dark text-light" : "bg-white text-dark",
+        inputBg: isDark ? "#1a1a1a" : "#f8f9fa",
+        inputBorder: isDark ? "border-secondary" : "border-light-subtle",
+        dropdownBg: isDark ? "#121212" : "#ffffff",
+        dropdownBorder: isDark ? "#282828" : "#dee2e6",
+        hoverBg: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
+        subtext: isDark ? "text-muted" : "text-secondary"
+    };
+
     return (
-        <div className="search-container p-1">
-            <div className="input-wrapper p-1  mx-3">
-                <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+        <div 
+            ref={containerRef} 
+            className="w-100 p-1 position-relative" 
+            style={{ maxWidth: "400px" }}
+        >
+            {/* Input Container Wrapper */}
+            <div className="d-flex align-items-center position-relative w-100">
+                {/* Search Glass Icon */}
+                <svg 
+                    className="position-absolute" 
+                    style={{ left: "12px", width: "18px", height: "18px", color: isDark ? "#666" : "#999", zIndex: 2 }} 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2"
+                >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
                 </svg>
+
+                {/* Form Control */}
                 <input
                     type="text"
-                    className="modern-input"
+                    className={`form-control border shadow-sm w-100 ${theme.bg}`}
                     placeholder="Search people..."
                     value={query}
+                    style={{
+                        paddingLeft: "38px",
+                        paddingRight: "36px",
+                        backgroundColor: theme.inputBg,
+                        borderRadius: "10px",
+                        fontSize: "14px",
+                    }}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => query && setShowResults(true)}
-                    onBlur={() => setTimeout(() => setShowResults(false), 200)} // Delay to allow click
                 />
-                {loading && <div className="spinner-sm" />}
+
+                {/* Inline Loading Spinner */}
+                {loading && (
+                    <div 
+                        className="spinner-border spinner-border-sm position-absolute text-secondary" 
+                        role="status"
+                        style={{ right: "14px", width: "1rem", height: "1rem" }}
+                    >
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                )}
             </div>
 
+            {/* Results Floating Dropdown Menu */}
             {showResults && (
-                <div className="search-dropdown">
+                <div 
+                    className="position-absolute left-0 shadow-lg rounded-3 p-1 overflow-hidden"
+                    style={{
+                        top: "100%",
+                        width: "calc(100% - 8px)", // accounts for container padding
+                        marginLeft: "4px",
+                        backgroundColor: theme.dropdownBg,
+                        border: `1px solid ${theme.dropdownBorder}`,
+                        zIndex: 1050,
+                    }}
+                >
                     {results.length === 0 && !loading ? (
-                        <div className="status-message">No users found</div>
+                        <div className="p-3 text-center small text-muted">
+                            No users found
+                        </div>
                     ) : (
-                        results.map((user) => (
-                            <div key={user._id} className="search-item" onClick={() => onUserSelect(user)}>
-                                <img
-                                    src={user.profilePicture || "/avatar.png"}
-                                    alt=""
-                                    className="search-avatar"
-                                />
-                                <div className="user-meta">
-                                    <span className="username">{user.userName}</span>
-                                    <span className="user-subtext">@username</span>
+                        <div 
+                            className="overflow-auto" 
+                            style={{ maxHeight: "240px", scrollbarWidth: "thin" }}
+                        >
+                            {results.map((user) => (
+                                <div 
+                                    key={user._id} 
+                                    className="d-flex align-items-center p-2 rounded-2 my-1" 
+                                    style={{ 
+                                        cursor: "pointer", 
+                                        transition: "background 0.15s ease",
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.hoverBg}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                                    onClick={() => {
+                                        onUserSelect(user);
+                                        setShowResults(false);
+                                    }}
+                                >
+                                    {/* User Photo */}
+                                    <img
+                                        src={user.profilePicture || "/avatar.png"}
+                                        alt=""
+                                        className="rounded-circle me-2 flex-shrink-0"
+                                        style={{ width: "32px", height: "32px", objectFit: "cover" }}
+                                    />
+                                    
+                                    {/* Meta Information Container */}
+                                    <div className="d-flex flex-column lh-sm overflow-hidden">
+                                        <span 
+                                            className={`fw-medium text-truncate ${isDark ? 'text-light' : 'text-dark'}`} 
+                                            style={{ fontSize: "13px" }}
+                                        >
+                                            {user.userName}
+                                        </span>
+                                        <span 
+                                            className={`small text-truncate ${theme.subtext}`} 
+                                            style={{ fontSize: "11px" }}
+                                        >
+                                            @{user.userName?.toLowerCase()}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
                 </div>
             )}
-
-            <style jsx>{`
-
-            .search-container {
-                    position: relative;
-                    width: 100%;
-                    max-width: 400px;
-                    font-family: 'Inter', -apple-system, sans-serif;
-                }
-
-                .input-wrapper {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                    width: 100%;
-                    
-                }
-  .search-dropdown {
-    position: absolute;
-    top: calc(100% + 4px); /* Tighter gap to input */
-    width: 100%;
-    background: #121212; /* Deeper dark */
-    border: 1px solid #282828;
-    border-radius: 8px;
-    z-index: 1000;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-    padding: 4px; /* Minimal padding around the list */
-    overflow: hidden; /* Prevents children from breaking corners */
-  }
-
-  .results-list {
-    max-height: 240px; /* Precise height for ~5.5 items */
-    overflow-y: auto;
-    /* Custom thin scrollbar */
-    scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
-  }
-
-  .results-list::-webkit-scrollbar {
-    width: 4px;
-  }
-  .results-list::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 10px;
-  }
-
-  .search-item {
-    display: flex;
-    align-items: center;
-    padding: 6px 10px; /* Reduced padding for precision */
-    margin-bottom: 2px; /* Tiny gap between items */
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .search-item:last-child {
-    margin-bottom: 0;
-  }
-
-  .search-item:hover {
-    background: #1e1e1e;
-  }
-
-  .search-avatar {
-    width: 28px; /* Slightly smaller for minimalism */
-    height: 28px;
-    border-radius: 50%;
-    margin-right: 10px;
-    object-fit: cover;
-    flex-shrink: 0; /* Prevents image squishing */
-  }
-
-  .user-meta {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.2; /* Tightens vertical gap between text lines */
-  }
-
-  .username {
-    color: #e0e0e0;
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .user-subtext {
-    color: #666;
-    font-size: 11px;
-  }
-
-  .status-message {
-    padding: 12px;
-    color: #555;
-    font-size: 12px;
-    text-align: center;
-  }
-    .search-icon {
-                    position: absolute;
-                    left: 12px;
-                    width: 18px;
-                    height: 18px;
-                    color: #666;
-                }
-                    .modern-input {
-                    width: 100%;
-                    background: #1a1a1a;
-                    border: 1px solid #333;
-                    border-radius: 10px;
-                    padding: 8px 12px 8px 36px; /* Left padding accounts for icon */
-                    color: #efefef;
-                    font-size: 14px;
-                    transition: all 0.2s ease;
-                    outline: none;
-                }
-
-                .modern-input:focus {
-                    border-color: #555;
-                    background: #222;
-                    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
-                }
-`}</style>
         </div>
     );
 };

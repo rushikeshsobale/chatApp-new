@@ -17,7 +17,7 @@ import AuthForms from './pages/AuthForms.js';
 import Users from './pages/Users.js';
 import ChatComponent from './pages/Chat.js';
 import ProfilePage from './pages/ProfilePage.js';
-import PostFeed from './pages/PostFeed.js';
+import PostFeed from './pages/Home.js';
 import PostDetail from './components/PostDetail.js';
 import ExplorePage from './pages/ExplorePage.js';
 import ForgotPassword from './components/ForgotPassword.js';
@@ -33,27 +33,28 @@ import PageNotFound from './components/PageNotFound';
 // Redux Slices / Action hooks
 import { updateNotifications } from './store/notificationSlice';
 import ErrorPage from './pages/ErrorPage.js';
+import HomePage from './pages/Home.js';
 // From your original App.js logic
 
 function App() {
   const dispatch = useDispatch();
-  const { isLoggedIn } = useSelector((state) => state.chat); 
+  const { isLoggedIn } = useSelector((state) => state.chat);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  const { 
-    socket, 
-    loadUnseenMessages, 
-    incomingCall, 
-    setIncomingCall, 
-    showIncoming, 
-    setShowIncoming 
+
+  const {
+    socket,
+    loadUnseenMessages,
+    incomingCall,
+    setIncomingCall,
+    showIncoming,
+    setShowIncoming
   } = useContext(UserContext);
 
   // 1. Token Verification Lifecycle
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      setIsAuthenticated(true); 
+      setIsAuthenticated(true);
     } else {
       setIsAuthenticated(false);
     }
@@ -124,14 +125,14 @@ function App() {
       <BrowserRouter>
         {/* Dynamic Global Application Header Navigation */}
         {isAuthenticated && <Navbar />}
-        
+
         <Routes>
           {/* Default Dynamic Root Destination Mapping */}
           <Route path="/" element={isAuthenticated ? <ProfilePage /> : <AuthForms />} />
-          
+
           {/* Standard Explicit Endpoints */}
           <Route path="/login" element={<AuthForms />} />
-          <Route path="/home" element={<PostFeed />} />
+          <Route path="/home" element={<HomePage/>} />
           <Route path="/chats" element={<ChatComponent />} />
           <Route path="/ProfilePage/:userId" element={<ProfilePage />} />
           <Route path="/Profile" element={<ProfilePage />} />
@@ -144,8 +145,17 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth-success" element={<AuthSuccess />} />
           <Route path="/set_password" element={<SetPasswordcomponent />} />
-          <Route path='/errorPage' element ={<ErrorPage/>}/>
-          {/* Universal 404 Fallback Catch */}
+          <Route
+            path="/error"
+            element={
+              <ErrorPage
+                errorCode="500"
+                errorMessage="Our servers are having a bit of trouble reaching the dashboard database. Please try again shortly."
+              />
+            }
+          />
+          <Route path="/not-found" element={<PageNotFound />} />
+          {/* Universal 404 Fallback Catch (For invalid typed-out client URLs) */}
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </BrowserRouter>
