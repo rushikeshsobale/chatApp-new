@@ -29,6 +29,7 @@ import StoryViewer from '../components/StoryViewer';
 import CreateStory from '../components/CreateStory';
 import { ThemeContext } from '../contexts/ThemeContext';
 import FriendSuggestion from '../components/FriendSuggestion';
+import { UserContext } from '../contexts/UserContext';
 const HomePage = ({  socket }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null); // ADDED: Reference for quick story image upload
@@ -54,10 +55,10 @@ const HomePage = ({  socket }) => {
   const [uploadingStory, setUploadingStory] = useState(false); // ADDED: Loading spinner for story upload
   const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
   // Local User Setup
-  const currentUser = JSON.parse(localStorage.getItem('user'));
-  const userId = currentUser?._id || currentUser?.userId;
-
+  const {user} = useContext(UserContext);
+  const userId = user._id;
   // --- 1. Initial Data Pipeline Aggregation ---
+  console.log(user, 'user')
   useEffect(() => {
     if (!userId) return;
     
@@ -172,7 +173,7 @@ const HomePage = ({  socket }) => {
     const notificationData = {
       sender: userId,
       type: 'story',
-      message: `${currentUser?.userName || 'Someone'} has added a story`,
+      message: `${user?.userName || 'Someone'} has added a story`,
       createdAt: new Date().toISOString(),
       read: false
     };
@@ -292,7 +293,7 @@ const HomePage = ({  socket }) => {
               </div>
               <hr className={theme.border} />
               <div className="px-3 py-1">
-                <small className={theme.subtext}>Logged in as <b className="text-inherit">{currentUser?.userName}</b></small>
+                <small className={theme.subtext}>Logged in as <b className="text-inherit">{user?.userName}</b></small>
               </div>
             </div>
           </div>
@@ -315,7 +316,7 @@ const HomePage = ({  socket }) => {
                     ) : (
                       <>
                         <img 
-                          src={currentUser?.profilePicture || "https://via.placeholder.com/50"} 
+                          src={user?.profilePicture || "https://via.placeholder.com/50"} 
                           className="rounded-circle object-fit-cover w-100 h-100 opacity-50" 
                           alt="Your profile thumb" 
                         />
@@ -332,7 +333,7 @@ const HomePage = ({  socket }) => {
                 {/* Main looping block rendering remote circles */}
                 {storyGroups?.map((group) => (
                   <div key={group.user?._id} className="flex-shrink-0">
-                    <StoryCircle group={group} currentUserId={userId} onClick={handleStoryClick} />
+                    <StoryCircle group={group} userId={userId} onClick={handleStoryClick} />
                   </div>
                 ))}
               </div>

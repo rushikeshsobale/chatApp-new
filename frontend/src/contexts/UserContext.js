@@ -7,7 +7,6 @@ export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const [userId, setUserId] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [unseenMessages, setUnseenMessages] = useState([]);
   const [flag, setFlag] = useState(false);
@@ -34,13 +33,7 @@ export const UserProvider = ({ children }) => {
   });
 
   // 2. Automatically sync raw string userId when the state object settles
-  useEffect(() => {
-    if (user?._id) {
-      setUserId(user._id);
-    } else {
-      setUserId(null);
-    }
-  }, [user]);
+ 
 
   // 3. API Fallback wrapped safely to prevent recreation loops
   const fetchUser = useCallback(async () => {
@@ -184,7 +177,7 @@ export const UserProvider = ({ children }) => {
     <UserContext.Provider
       value={{
         socket,
-        userId,
+      
         activeUsers,
         unseenMessages,
         setUnseenMessages,
@@ -194,8 +187,6 @@ export const UserProvider = ({ children }) => {
         incomingCall,
         setIncomingCall,
         user,
-        setUser,
-        setUserId,
         setMember,
         member,
         myStream,

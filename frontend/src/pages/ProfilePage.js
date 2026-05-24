@@ -79,8 +79,8 @@ const ProfilePage = () => {
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const[ showProfileModal,setShowProfileModal]=useState(false);
-  const user = JSON.parse(localStorage.getItem('user'));
-  const userId = user?._id;
+  const {user} = useContext(UserContext)
+  const userId = user._id;
   const loadData = async () => {
 
     const res = await getFollowers(userId);
