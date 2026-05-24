@@ -80,7 +80,7 @@ const ProfilePage = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const[ showProfileModal,setShowProfileModal]=useState(false);
   const {user} = useContext(UserContext)
-  const userId = user._id;
+  const userId = user?._id;
   const loadData = async () => {
 
     const res = await getFollowers(userId);
@@ -165,7 +165,7 @@ const ProfilePage = () => {
     if(!user) return;
     setLoadingNotifications(true);
     try {
-      const notifications = await getProfileNotifications(user._id);
+      const notifications = await getProfileNotifications(user?._id);
       setNotifications(notifications || []);
       setUnreadCount(notifications?.filter(notification => !notification.read).length || 0);
     } catch (error) {
@@ -223,7 +223,7 @@ const ProfilePage = () => {
   const handleAddPost = async (text, media) => {
     try {
       // This API is not in profileService, so keep as is or move if needed
-      const userId = user._id;
+      const userId = user?._id;
       const formData = new FormData();
       formData.append("userId", userId)
       if (text) {
@@ -466,9 +466,9 @@ const ProfilePage = () => {
       setStories(prev => [data.story, ...prev]);
       setShowCreateStory(false)
       const notificationData = {
-        sender: user._id,
+        sender: user?._id,
         type: 'story',
-        message: `${user.userName} has added story`,
+        message: `${user?.userName} has added story`,
         createdAt: new Date().toISOString(),
         read: false
       };
@@ -500,7 +500,7 @@ const ProfilePage = () => {
 
    const handleSave = async (profileData) => {
         try {
-          const userId = user._id;
+          const userId = user?._id;
           const updatedUser = await updateUserProfile(userId, profileData);
           localStorage.setItem('user', JSON.stringify(updatedUser));
           setShowEditProfile(false);
@@ -605,7 +605,7 @@ const ProfilePage = () => {
                 <div className=" col-4 justify-content-center position-relative">
                   {user?.profilePicture ? (
                     <img
-                      src={user.profilePicture}
+                      src={user?.profilePicture}
                       alt="Profile"
                       className={`rounded-circle img-thumbnail bg-transparent ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
                       style={{
@@ -626,7 +626,7 @@ const ProfilePage = () => {
                         background: isDark ? '#2c3540' : '#e9ecef'
                       }}
                     >
-                      {user.userName?.charAt(0).toUpperCase()}
+                      {user?.userName?.charAt(0).toUpperCase()}
                     </div>
                   )}
                    <h5 className={` fs-sm my-1 ${isDark ? 'text-white' : 'text-dark'}`}>{user?.userName}</h5>

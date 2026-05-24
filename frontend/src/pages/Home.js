@@ -56,7 +56,7 @@ const HomePage = ({  socket }) => {
   const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
   // Local User Setup
   const {user} = useContext(UserContext);
-  const userId = user._id;
+  const userId = user?._id;
   // --- 1. Initial Data Pipeline Aggregation ---
   console.log(user, 'user')
   useEffect(() => {
