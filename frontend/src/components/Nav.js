@@ -1,106 +1,135 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { FaHome, FaPlusCircle, FaUserCircle } from 'react-icons/fa';
-import { PiChats, PiCompass } from 'react-icons/pi';
-import { motion, AnimatePresence } from 'framer-motion';
-import '../css/Nav.css';
+import React, { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaHome, FaBell } from 'react-icons/fa';
+import { RiMessengerLine } from 'react-icons/ri';
+import NotificationModal from '../components/Notification'; // Adjust the import path if necessary
+import { UserContext } from '../contexts/UserContext';
+import { updateNotification, deleteNotification } from '../services/notificationService';
+import { ThemeContext } from '../contexts/ThemeContext';
+import moment from "moment";
+import { IoMdNotifications } from "react-icons/io";
+import EditProfile from './EditProfile';
+import { updateUserProfile } from '../services/profileService';
 
-const BottomNav = () => {
-  const location = useLocation();
-  const [activeLink, setActiveLink] = useState(location.pathname);
-  const [isVisible, setIsVisible] = useState(true);
-  const [isHovering, setIsHovering] = useState(null);
-
-  // Auto-hide on scroll
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    const handleScroll = () => {
-      if (window.scrollY > lastScrollY && window.scrollY > 100) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
+const Navbar = ({
+}) => {
+  const navigate = useNavigate();
+ const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const { socket, unseenMessages, setUser, user } = useContext(UserContext);
+  const { isDark } = useContext(ThemeContext);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const handleMarkNotificationAsRead = async (notificationId) => {
+    try {
+      await updateNotification(notificationId, true);
+      setNotifications(prevNotifications =>
+        prevNotifications?.map(notification =>
+          notification._id === notificationId
+            ? { ...notification, read: true }
+            : notification
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+  const handleSave = async (profileData) => {
+      try {
+        const userId = user._id;
+        const updatedUser = await updateUserProfile(userId, profileData);
+        setUser(updatedUser?.user);
+        setShowEditProfile(false);
+      } catch (error) {
+        console.error("Error updating user:", error);
       }
-      lastScrollY = window.scrollY;
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+     const logOut = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
 
-  // Update active link on route change
-  useEffect(() => {
-    setActiveLink(location.pathname);
-  }, [location]);
-
-  const navItems = [
-    { path: "/home", icon: <FaHome size={22} />, label: "Home" },
-    { path: "/chats", icon: <PiChats size={22} />, label: "Chats" },
-    { path: "/explore", icon: <PiCompass size={22} />, label: "Explore" },
-    { path: "/profile", icon: <FaUserCircle size={22} />, label: "Profile" }
-  ];
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      const response = await deleteNotification(notificationId);
+      if (response.ok) {
+        setNotifications(prevNotifications =>
+          prevNotifications.filter(notification => notification._id !== notificationId)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
+  };
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div 
-          className="bottom-nav-container d-none"
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ type: 'spring', damping: 25 }}
-        >
-          <nav className="glass-nav">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-item ${activeLink === item.path ? 'active' : ''}`}
-                onMouseEnter={() => setIsHovering(item.path)}
-                onMouseLeave={() => setIsHovering(null)}
-              >
-                <motion.div
-                  className="nav-icon"
-                  animate={{
-                    y: activeLink === item.path ? -5 : 0,
-                    scale: isHovering === item.path ? 1.15 : 1
-                  }}
-                  transition={{ type: 'spring', stiffness: 500 }}
-                >
-                  {item.icon}
-                </motion.div>
-                <motion.span
-                  className="nav-label"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ 
-                    opacity: activeLink === item.path ? 1 : 0.7,
-                    y: activeLink === item.path ? 0 : 5
-                  }}
-                >
-                  {item.label}
-                </motion.span>
-                
-                {activeLink === item.path && (
-                  <motion.div 
-                    className="active-indicator"
-                    layoutId="activeIndicator"
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  />
-                )}
-              </Link>
-            ))}
-            
-            {/* Floating Action Button */}
-            <motion.div 
-              className="fab"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaPlusCircle size={24} />
-            </motion.div>
-          </nav>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <nav
+      className={`navbar navbar-expand-lg shadow-sm sticky-top border-bottom p-0 ${isDark ? 'navbar-dark border-secondary' : 'navbar-light border-light-subtle'}`}
+      style={{ background: isDark ? '#000000' : '#ffffff', zIndex: 1050, transition: 'background 0.3s ease' }}
+    >
+      <div className="container-fluid d-flex justify-content-between align-items-center px-3 py-2">
+        <a className="navbar-brand fw-bold text-gradient" href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
+          HiBUDDY
+        </a>
+
+        <div className="d-flex align-items-center gap-3">
+          {/* Home Icon */}
+          <div
+            className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}
+            onClick={() => navigate('/home')}
+          >
+            <FaHome size={26} />
+          </div>
+
+          {/* Messages Icon with Badge */}
+          <button
+            className={`btn p-0 position-relative ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}
+            onClick={() => navigate('/chats')}
+          >
+            <RiMessengerLine size={26} />
+            {unseenMessages.length > 0 && (
+              <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.65rem' }}>
+                {unseenMessages.length}
+              </span>
+            )}
+          </button>
+
+          {/* Profile Picture Trigger */}
+          <img
+            src={user?.profilePicture || '/default-avatar.png'}
+            alt="Profile"
+            className={`rounded-circle border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
+            style={{ width: "35px", height: "35px", objectFit: "cover", cursor: 'pointer' }}
+            onClick={() => setShowProfileModal(true)}
+          />
+
+          {/* Notifications Trigger */}
+          <span className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}>
+            <FaBell size={22} onClick={() => setShowNotifications(true)} />
+          </span>
+
+          {/* Connected Notification Window Context */}
+          <NotificationModal
+            notifications={notifications}
+            unreadCount={unreadCount}
+            show={showNotifications}
+            onToggle={() => setShowNotifications(!showNotifications)}
+            onMarkRead={handleMarkNotificationAsRead}
+            onDelete={handleDeleteNotification}
+            theme={isDark ? 'dark' : 'light'}
+          />
+        </div>
+      </div>
+         
+         {showProfileModal && user && (
+      <EditProfile show={showProfileModal} onHide={() => setShowProfileModal(false)} user={user} onSave={handleSave} onSettings={() => { navigate('/settings'); setShowProfileModal(false); }} onLogout={logOut} theme={isDark ? 'dark' : 'light'} />
+    )}
+    </nav>
   );
 };
 
-export default BottomNav;
+export default Navbar;

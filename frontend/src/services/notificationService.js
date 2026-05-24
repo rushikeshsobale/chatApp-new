@@ -31,3 +31,11 @@ export const updateNotification = async (notificationId, read) => {
     }
 };
 
+export const deleteNotification = async (notificationId) => {
+    try {
+        const response = await api.delete(`/notifications/${notificationId}`);  
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to delete notification");
+    }   
+};

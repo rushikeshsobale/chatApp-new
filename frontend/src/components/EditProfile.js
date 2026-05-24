@@ -22,10 +22,10 @@ import {
 // --- Modals for Step Completion ---
 
 // 1. Basic Info Modal
-const BasicInfoModal = ({ setShow, show, onHide, userData, onSaveBasicInfo }) => {
-  const [firstName, setFirstName] = useState(userData?.firstName || '');
-  const [lastName, setLastName] = useState(userData?.lastName || '');
-  const [bio, setBio] = useState(userData?.bio || '');
+const BasicInfoModal = ({ setShow, show, onHide, user, onSaveBasicInfo }) => {
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [bio, setBio] = useState(user?.bio || '');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -548,8 +548,8 @@ const ChangePasswordModal = ({ show, onHide, onChangePassword }) => {
 };
 
 
-const EditProfile = ({ show, onHide, userData, onSave, onLogout, onChangePassword, onTogglePrivateProfile }) => {
-  const [previewUrl, setPreviewUrl] = useState(userData?.profilePicture || null);
+const EditProfile = ({ show, onHide, user, onSave, onLogout, onChangePassword, onTogglePrivateProfile }) => {
+  const [previewUrl, setPreviewUrl] = useState(user?.profilePicture || null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBasicInfoModal, setShowBasicInfoModal] = useState(false);
   const [showInterestsModal, setShowInterestsModal] = useState(false);
@@ -565,8 +565,8 @@ const EditProfile = ({ show, onHide, userData, onSave, onLogout, onChangePasswor
   };
   // Define steps for 2026 Minimalist UI
   const steps = [
-    { id: 'basic', label: 'Basic Info', isCompleted: userData?.bio !== "undefined", onAction: () => setShowBasicInfoModal(true) },
-    { id: 'interests', label: 'Interests', isCompleted: userData?.onboardingComplete, onAction: () => setShowInterestsModal(true) }
+    { id: 'basic', label: 'Basic Info', isCompleted: user?.bio !== "undefined", onAction: () => setShowBasicInfoModal(true) },
+    { id: 'interests', label: 'Interests', isCompleted: user?.onboardingComplete, onAction: () => setShowInterestsModal(true) }
   ];
 
   return (
@@ -588,8 +588,8 @@ const EditProfile = ({ show, onHide, userData, onSave, onLogout, onChangePasswor
               </div>
               <input id="img-input" type="file" hidden onChange={(e) => handleImageChange(e)} />
             </div>
-            <div className="prof-user-name">{userData?.userName || 'User'}</div>
-            <div className="prof-user-email">{userData?.email}</div>
+            <div className="prof-user-name">{user?.userName || 'User'}</div>
+            <div className="prof-user-email">{user?.email}</div>
           </div>
 
           {/* New Modern Stepper Section */}
@@ -616,14 +616,14 @@ const EditProfile = ({ show, onHide, userData, onSave, onLogout, onChangePasswor
           <div className="px-4 pb-4">
             <div className="prof-section-label">Current Bio</div>
             <div className="prof-bio-box">
-              {userData?.bio && userData.bio !== "undefined" ? userData.bio : "Add a bio to complete your professional profile."}
+              {user?.bio && user.bio !== "undefined" ? user.bio : "Add a bio to complete your professional profile."}
             </div>
           </div>
 
           <BasicInfoModal
             show={showBasicInfoModal}
             onHide={() => setShowBasicInfoModal(false)}
-            userData={userData}
+            user={user}
             onSaveBasicInfo={onSave}
           />
           <InterestsModal

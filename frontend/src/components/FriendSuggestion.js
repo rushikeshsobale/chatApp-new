@@ -4,8 +4,9 @@ import { createNotification } from "../services/notificationService";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../contexts/UserContext";
 import { sendFollowRequest, getRelationshipStatus } from "../services/relationships";
-
-const FriendSuggestion = ({ suggestions, loadData }) => {
+import { fetchSuggestions } from "../services/profileService";
+const FriendSuggestion = ({  loadData }) => {
+  const [suggestions, setSuggestions] = useState([]);
   const [followStatus, setFollowStatus] = useState({});
   const [showAll, setShowAll] = useState(false);
   const { socket } = useContext(UserContext);
@@ -14,7 +15,13 @@ const FriendSuggestion = ({ suggestions, loadData }) => {
   const userId = currentUser?._id || currentUser?.userId;
   const [isDesktop, setIsDesktop] = useState(true);
   /* ---------------- Screen size logic ---------------- */
+
+ let getSuggestions = async()=>{
+   const response = await fetchSuggestions();
+   setSuggestions(response);
+  }
   useEffect(() => {
+    getSuggestions();
     const checkScreenSize = () => {
       const desktopView = window.innerWidth >= 992;
       setIsDesktop(desktopView);
@@ -84,12 +91,12 @@ const FriendSuggestion = ({ suggestions, loadData }) => {
   /* ---------------- UI ---------------- */
   return (
     <div
-      className="card border-0 shadow-sm mb-3"
+      className="card border-0 shadow-sm "
       style={{ maxHeight: "90vh", overflow: "auto", background: "none" }}
     >
       <div
-        className="card-header d-flex justify-content-between align-items-center"
-        style={{ background: "black", padding: "5px 0px" }}
+        className=" p-1 d-flex justify-content-between align-items-center"
+        style={{ padding: "5px 0px" }}
       >
         <h6 className="mb-0 text-light" style={{ fontSize: "10px" }}>
           Suggestions For You
@@ -103,12 +110,12 @@ const FriendSuggestion = ({ suggestions, loadData }) => {
           </button>
         )}
       </div>
-      <div className="card-body p-0" style={{ background: "black" }}>
+      <div className="card-body p-0" >
         <ul
           className="list-unstyled mb-0 d-lg-block d-flex flex-row gap-2 "
           style={{ overflowX: "auto", whiteSpace: "nowrap" }}
         >
-          {suggestions.reverse()?.map((user) => {
+          {suggestions?.reverse()?.map((user) => {
             const profilePic = user.profilePicture;
             const firstLetter = user.userName?.charAt(0).toUpperCase() || "?";
             const colors = [

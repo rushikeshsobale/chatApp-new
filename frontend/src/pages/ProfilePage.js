@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
-import moment from "moment";
+
 
 import StoryViewer from "../components/StoryViewer";
 import FriendSuggestion from "../components/FriendSuggestion";
@@ -26,15 +26,15 @@ import CreateStory from "../components/CreateStory";
 import { createNotification, getNotifications, updateNotification } from "../services/notificationService";
 import { UserContext } from "../contexts/UserContext";
 import BirthdaysCard from "../components/BirthdaysCard";
-import { getUserData, getProfileUserData, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment, } from "../services/profileService";
+import { getuser, getProfileuser, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment, } from "../services/profileService";
 import Loader from '../components/Loader';
 import NotificationModal from '../components/Notification';
 import SavedPosts from "./SavedPosts";
 import { getFollowers, getFollowing, } from '../services/relationships'
 import ResponsiveStoryCarousel from "../components/ResponsiveStoryCarousel";
 import { getMe } from "../services/authService";
-
-
+import Navbar from "../components/Nav";
+import moment from "moment";
 const ProfilePage = () => {
   const [isVisible, setIsVisible] = useState(true);
   const { isDark } = useContext(ThemeContext);
@@ -44,7 +44,6 @@ const ProfilePage = () => {
   const [media, setMedia] = useState(null);
   const { userProfileId } = useParams();
   const location = useLocation();
-  const [userData, setUserData] = useState(null);
   const [friends, setFriends] = useState([]);
   const [posts, setPosts] = useState([]);
   const [selectedPostId, setSelectedPostId] = useState(null);
@@ -57,7 +56,7 @@ const ProfilePage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [trendingTopics, setTrendingTopics] = useState([]);
   const [events, setEvents] = useState([]);
-  const [showEditProfile, setShowEditProfile] = useState(false);
+ 
   const [unreadCount, setUnreadCount] = useState(0);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
@@ -66,12 +65,11 @@ const ProfilePage = () => {
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [showPostDetail, setShowPostDetail] = useState(false);
   const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user"));
-  const userId = user?._id;
+ 
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
-  const { socket, setFlag, unseenMessages, setUser, setUserId } = useContext(UserContext);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const { socket, setFlag, unseenMessages, setUser, setUserId, user } = useContext(UserContext);
+  
   const [loadingUser, setLoadingUser] = useState(false);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingStories, setLoadingStories] = useState(false);
@@ -81,6 +79,7 @@ const ProfilePage = () => {
   const [showCommentInputs, setShowCommentInputs] = useState({});
   const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
+   const userId = user?._id;
   const loadData = async () => {
 
     const res = await getFollowers(userId);
@@ -104,7 +103,7 @@ const ProfilePage = () => {
   useEffect(() => {
     setFlag(true)
     if (location.pathname === "/profile" || location.pathname === "/") {
-      fetchUserData();
+      fetchuser();
     } else {
     }
     fetchPosts()
@@ -117,29 +116,9 @@ const ProfilePage = () => {
     }
   }, [])
 
-  const fetchUserData = async () => {
-  
-    try {
-      const data = await getUserData();
-      localStorage.setItem('user', JSON.stringify(data));
-      setUserData(data);
-      setUser(data);
-      setUserId(data._id);
-      setFriends(data.friends);
-    } catch (error) {
-      console.error("Error:", error);
-    }
-   
+  const fetchuser = async () => {
+    console.log('')
   };
-
-  const fetchMe = () => {
-    getMe().then(data => {
-      localStorage.setItem('user', JSON.stringify(data));
-      setUserData(data);
-      setUser(data);
-      setUserId(data._id);
-    }).catch(err => console.error("Error fetching user data:", err));
-  }
 
   const fetchPosts = async () => {
      if(!userId) return;
@@ -243,7 +222,7 @@ const ProfilePage = () => {
   const handleAddPost = async (text, media) => {
     try {
       // This API is not in profileService, so keep as is or move if needed
-      const userId = userData._id;
+      const userId = user._id;
       const formData = new FormData();
       formData.append("userId", userId)
       if (text) {
@@ -271,16 +250,7 @@ const ProfilePage = () => {
     }
   };
 
-  const handleSave = async (profileData) => {
-    try {
-      const userId = userData._id;
-      const updatedUser = await updateUserProfile(userId, profileData);
-      setUserData(updatedUser?.user);
-      setShowEditProfile(false);
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
-  };
+  
   const handleToggleLike = async (index, post, isLiked) => {
     const postId = post._id
 
@@ -291,7 +261,7 @@ const ProfilePage = () => {
         await likePost(postId);
       }
       const updatedPosts = setPosts(prevPosts => prevPosts?.map((post, i) =>
-        i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== userData?._id) : [...post.likes, { userId: { _id: userData?._id } }] } : post
+        i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== user?._id) : [...post.likes, { userId: { _id: user?._id } }] } : post
       ));
       // // const notificationData = {
       // //   recipient: post.userId._id,
@@ -415,7 +385,7 @@ const ProfilePage = () => {
   const handleFollowUser = async (userId) => {
     try {
       await followUser(userId);
-      fetchUserData(); // Refresh user data
+      fetchuser(); // Refresh user data
     } catch (error) {
       console.error("Error following user:", error);
     }
@@ -464,7 +434,7 @@ const ProfilePage = () => {
   const handleUnfollowUser = async (userId) => {
     try {
       await unfollowUser(userId);
-      fetchUserData(); // Refresh user data
+      fetchuser(); // Refresh user data
     } catch (error) {
       console.error("Error unfollowing user:", error);
     }
@@ -510,11 +480,7 @@ const ProfilePage = () => {
       console.error('Error creating story:', error);
     }
   };
-  const logOut = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
-  };
+ 
   const [selectedUserId, setSelectedUserId] = useState(null);
   const handleStoryClick = (userId) => {
     setSelectedUserId(userId);
@@ -541,54 +507,8 @@ const ProfilePage = () => {
       transition: 'background 0.3s ease, color 0.3s ease' 
     }}
   >
-    {/* Navigation Bar */}
-    <nav 
-      className={`navbar navbar-expand-lg shadow-sm sticky-top border-bottom p-0 ${isDark ? 'navbar-dark border-secondary' : 'navbar-light border-light-subtle'}`} 
-      style={{ background: isDark ? '#000000' : '#ffffff', zIndex: 1050, transition: 'background 0.3s ease' }}
-    >
-      <div className="container-fluid d-flex justify-content-between align-items-center px-3 py-2">
-        <a className="navbar-brand fw-bold text-gradient" href="/" >
-          HiBUDDY
-        </a>
-
-        <div className="d-flex align-items-center gap-3">
-          <div className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} onClick={() => navigate('./home')}>
-            <FaHome size={26} />
-          </div>
-          
-          <button className={`btn p-0 position-relative ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} onClick={() => navigate('/chats')}>
-            <RiMessengerLine size={26} />
-            {unseenMessages.length > 0 &&
-              <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.65rem' }}>
-                {unseenMessages.length}
-              </span>
-            }
-          </button>
-
-          <img
-            src={userData?.profilePicture}
-            alt="Profile"
-            className={`rounded-circle border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
-            style={{ width: "35px", height: "35px", objectFit: "cover", cursor: 'pointer' }}
-            onClick={() => setShowProfileModal(true)}
-          />
-          
-          <span className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}>
-            <FaBell size={22} onClick={() => setShowNotifications(true)} />
-          </span>
-
-          <NotificationModal
-            notifications={notifications}
-            unreadCount={unreadCount}
-            show={showNotifications}
-            onToggle={() => setShowNotifications(!showNotifications)}
-            onMarkRead={handleMarkNotificationAsRead}
-            onDelete={handleDeleteNotification}
-            theme={isDark ? 'dark' : 'light'}
-          />
-        </div>
-      </div>
-    </nav>
+   
+   
 
     {/* Main Content */}
     <div className="container-fluid pt-3">
@@ -643,69 +563,7 @@ const ProfilePage = () => {
             </div>
 
             {/* Notifications Card Area */}
-            <div className={`card border ${isDark ? 'border-secondary' : 'border-light-subtle'} mb-3`} style={{ background: isDark ? '#1f2833' : '#ffffff' }}>
-              <div className={`card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3 ${isDark ? 'border-secondary' : 'border-light-subtle'}`}>
-                <h6 className={`mb-0 fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>Notifications</h6>
-                <button
-                  className={`btn p-0 position-relative ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}
-                  onClick={() => {
-                    setShowNotifications(!showNotifications);
-                    if (showNotifications && notifications.length > 0) handleMarkNotificationAsRead(notifications[0]._id);
-                  }}
-                >
-                  <IoMdNotifications size={22} />
-                  {unreadCount > 0 && (
-                    <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.65rem' }}>
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-              <div className="p-3" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                {notifications.length > 0 ? (
-                  notifications?.map(notification => (
-                    <div
-                      key={notification._id}
-                      className="d-flex align-items-center mb-2 p-2 rounded custom-notification-item"
-                      style={{ 
-                        cursor: 'pointer', 
-                        background: notification.read 
-                          ? 'transparent' 
-                          : (isDark ? 'rgba(69, 243, 255, 0.05)' : 'rgba(0, 128, 128, 0.05)') 
-                      }}
-                      onClick={() => !notification.read && handleMarkNotificationAsRead(notification._id)}
-                    >
-                      <img
-                        src={notification.sender?.profilePicture || "https://via.placeholder.com/40"}
-                        alt="Profile"
-                        className="rounded-circle me-3"
-                        style={{ width: "36px", height: "36px", objectFit: "cover" }}
-                      />
-                      <div className="flex-grow-1 min-w-0">
-                        <p className={`mb-0 small text-truncate ${isDark ? 'text-light' : 'text-dark'}`}>{notification.message}</p>
-                        <small className="text-muted" style={{ fontSize: '0.75rem' }}>{moment(notification.createdAt).fromNow()}</small>
-                      </div>
-                      <div className="d-flex align-items-center ms-2">
-                        {!notification.read && (
-                          <span className="badge bg-info rounded-circle me-2 p-1" style={{ width: "6px", height: "6px" }}></span>
-                        )}
-                        <button
-                          className="btn btn-sm text-muted text-hover-danger p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteNotification(notification._id);
-                          }}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted small mb-0 text-center py-3">No new notifications</p>
-                )}
-              </div>
-            </div>
+          
           </div>
         </div>
 
@@ -719,16 +577,16 @@ const ProfilePage = () => {
           }}>
           
           {/* User Profile Header banner */}
-          {loadingStories ? <Loader text="Loading stories..." /> : userData && (
+          {loadingStories ? <Loader text="Loading stories..." /> : user && (
             <div 
               className={`profile-header rounded-4 p-4 mb-4 border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} 
               style={{ background: isDark ? 'linear-gradient(135deg, #000000 0%, #050505 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f3f5 100%)' }}
             >
               <div className="d-flex  flex-sm-row align-items-center gap-4">
                 <div className="position-relative">
-                  {userData?.profilePicture ? (
+                  {user?.profilePicture ? (
                     <img
-                      src={userData.profilePicture}
+                      src={user.profilePicture}
                       alt="Profile"
                       className={`rounded-circle img-thumbnail bg-transparent ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
                       style={{
@@ -749,14 +607,14 @@ const ProfilePage = () => {
                         background: isDark ? '#2c3540' : '#e9ecef'
                       }}
                     >
-                      {userData.userName?.charAt(0).toUpperCase()}
+                      {user.userName?.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
 
                 <div className="flex-grow-1 text-center text-sm-start">
-                  <h5 className={`fw-bold mb-1 ${isDark ? 'text-white' : 'text-dark'}`}>{userData?.userName}</h5>
-                  <p className={`small mb-3 style-bio ${isDark ? 'text-secondary' : 'text-muted'}`}>{userData?.bio || "Tell your story..."}</p>
+                  <h5 className={`fw-bold mb-1 ${isDark ? 'text-white' : 'text-dark'}`}>{user?.userName}</h5>
+                  <p className={`small mb-3 style-bio ${isDark ? 'text-secondary' : 'text-muted'}`}>{user?.bio || "Tell your story..."}</p>
                   
                   <div className="d-flex justify-content-center justify-content-sm-start align-items-center gap-4">
                     <div className="cursor-pointer" onClick={handleShowFollowers}>
@@ -887,7 +745,7 @@ const ProfilePage = () => {
                             </button>
                           </div>
                           <button className={`btn p-0 ${isDark ? 'text-light' : 'text-dark'}`} onClick={() => handleSavePost(post._id)}>
-                            <i className={`bi ${post.savedBy?.includes(userData?._id) ? "bi-bookmark-fill text-info" : "bi-bookmark"} fs-5`}></i>
+                            <i className={`bi ${post.savedBy?.includes(user?._id) ? "bi-bookmark-fill text-info" : "bi-bookmark"} fs-5`}></i>
                           </button>
                         </div>
 
@@ -911,7 +769,7 @@ const ProfilePage = () => {
                                   <span className="fw-bold me-2">{comment.userId?.firstName}:</span>
                                   <span className="text-secondary-subtle">{comment.text}</span>
                                 </p>
-                                {(comment.userId?._id === userData?._id || post.userId._id === userData?._id) && (
+                                {(comment.userId?._id === user?._id || post.userId._id === user?._id) && (
                                   <button className="btn btn-sm text-danger p-0 border-0 bg-transparent" onClick={() => handleDeleteComment(post._id, comment._id)}>
                                     <i className="bi bi-trash" style={{ fontSize: '0.75rem' }}></i>
                                   </button>
@@ -992,12 +850,10 @@ const ProfilePage = () => {
 
     {/* Modals Container */}
     {showModal && <CustomModal handleAddPost={handleAddPost} showModal={showModal} onClose={() => setShowModal(false)} theme={isDark ? 'dark' : 'light'} />}
-    {showProfileModal && userData && (
-      <EditProfile show={showProfileModal} onHide={() => setShowProfileModal(false)} userData={userData} onSave={handleSave} onSettings={() => { navigate('/settings'); setShowProfileModal(false); }} onLogout={logOut} theme={isDark ? 'dark' : 'light'} />
-    )}
+   
     <FollowModal show={showFollowersModal} onHide={() => setShowFollowersModal(false)} title="Followers" users={followers} currentUserId={userId} theme={isDark ? 'dark' : 'light'} />
     <FollowModal show={showFollowingModal} onHide={() => setShowFollowingModal(false)} title="Following" users={following} currentUserId={userId} theme={isDark ? 'dark' : 'light'} />
-    <CreateStory show={showCreateStory} onHide={() => setShowCreateStory(false)} onCreateStory={handleCreateStory} userData={userData} theme={isDark ? 'dark' : 'light'} />
+    <CreateStory show={showCreateStory} onHide={() => setShowCreateStory(false)} onCreateStory={handleCreateStory} user={user} theme={isDark ? 'dark' : 'light'} />
     <StoryViewer show={isStoryViewerOpen} onHide={() => setIsStoryViewerOpen(false)} setStoryGroups={setStoryGroups} storyGroups={storyGroups} initialGroup={selectedStoryGroup} theme={isDark ? 'dark' : 'light'} />
     {showPostDetail && selectedPostId && <PostDetail postId={selectedPostId} show={showPostDetail} onHide={() => setShowPostDetail(false)} onPostUpdated={fetchPosts} theme={isDark ? 'dark' : 'light'} />}
 

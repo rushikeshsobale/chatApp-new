@@ -28,6 +28,7 @@ import StoryCircle from '../components/StoryCircle';
 import StoryViewer from '../components/StoryViewer';
 import CreateStory from '../components/CreateStory';
 import { ThemeContext } from '../contexts/ThemeContext';
+import FriendSuggestion from '../components/FriendSuggestion';
 const HomePage = ({  socket }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null); // ADDED: Reference for quick story image upload
@@ -268,37 +269,7 @@ const HomePage = ({  socket }) => {
      
 
       {/* Dynamic Global Top Navigation Bar */}
-      <nav className={`d-flex align-items-center justify-content-between px-4 py-2 sticky-top ${theme.stickyTopNav}`} style={{ zIndex: 1020 }}>
-        <h4 className="m-0 fw-extrabold text-primary tracking-tight pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          HiBuddy
-        </h4>
-        <div style={{ maxWidth: "320px" }} className="w-100 d-none d-md-block">
-          <input 
-            type="text" 
-            className={`${theme.input} form-control-sm rounded-pill px-3`} 
-            placeholder="Search posts or creators..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="d-flex align-items-center gap-3">
-          <button className="btn p-0 position-relative text-inherit" style={{ color: "inherit" }} onClick={() => navigate('/notifications')}>
-            <FaBell size={20} />
-            {unreadCount > 0 && (
-              <Badge pill bg="danger" className="position-absolute top-0 start-100 translate-middle style={{ fontSize: '0.6rem' }}">
-                {unreadCount}
-              </Badge>
-            )}
-          </button>
-          <img 
-            src={currentUser?.profilePicture || "https://via.placeholder.com/35"} 
-            className="rounded-circle object-fit-cover pointer" 
-            width="35" height="35" 
-            onClick={() => navigate(`/ProfilePage/${userId}`)}
-            alt="Current profile view"
-          />
-        </div>
-      </nav>
+    
 
       {/* Main Structural Three Column Grid Component Wrapper */}
       <div className="container-fluid px-2 px-md-4 py-3">
@@ -328,7 +299,7 @@ const HomePage = ({  socket }) => {
 
           {/* ================= CENTER RAIL: ACTIVE FEED TIMELINE ================= */}
           <div className="col-12 mx-auto col-md-8 col-lg-6">
-            
+           
             {/* Story Groups Horizontal Line Container Component */}
             {/* CHANGED: Always show container so user can view the "Create Story" trigger bubble */}
             <div className={`${theme.card} p-3 rounded-3`}>
@@ -365,7 +336,13 @@ const HomePage = ({  socket }) => {
                   </div>
                 ))}
               </div>
+
+              
             </div>
+            <div className='d-block d-md-none mt-2 mb-3'>
+                 <FriendSuggestion/>
+            </div>
+             
 
             {/* Content Status Processing Feed Block */}
             {loading && filteredPosts.length === 0 ? (
@@ -455,6 +432,9 @@ const HomePage = ({  socket }) => {
           {/* ================= RIGHT RAIL: DYNAMIC INTERACTIVE WIDGETS ================= */}
           <div className="col-lg-3 d-none d-lg-block position-sticky" style={{ top: '80px', height: 'fit-content' }}>
             
+              <div className={`mb-4 rounded border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#1f2833' : '#ffffff' }}>
+                <FriendSuggestion  />
+              </div>
             {/* Trending Dynamic Widget Panel */}
             <div className={`${theme.card} p-3 rounded-3 mb-4`}>
               <h6 className="fw-bold mb-3 d-flex align-items-center gap-2">
@@ -501,7 +481,7 @@ const HomePage = ({  socket }) => {
                 </div>
               )}
             </div>
-
+             
           </div>
 
         </div>
