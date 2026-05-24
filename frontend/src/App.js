@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useContext} from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useContext } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 
 // Style Dependencies
@@ -35,13 +35,36 @@ import ErrorPage from './pages/ErrorPage.js';
 import HomePage from './pages/Home.js';
 
 // 1. Reusable Navigation Context Conditonal Wrapper
-const ManagedNavbar = ({ isAuthenticated }) => {
+const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const isLoggedInCookiePresent = document.cookie
+      .split('; ')
+      .some(row => row.startsWith('logged_in='));
 
+    if (isLoggedInCookiePresent) {
+      setIsAuthenticated(true);
+
+      // Only auto-redirect to /home if they are currently sitting on the landing/login pages
+      if (location.pathname === '/' || location.pathname === '/login') {
+        navigate('/home'); // Fixed the './home' relative path typo to absolute '/home'
+      }
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, [location.pathname, navigate, setIsAuthenticated]);
   // If the user isn't logged in, OR they are visiting the chats dashboard, hide it completely
-if (!isAuthenticated || (location.pathname !== '/profile' && location.pathname !== '/home')) {
-  return null;
-}
+  if (!isAuthenticated || (location.pathname !== '/profile' && location.pathname !== '/home')) {
+    return null;
+  }
+
+
+  // Hide the navbar entirely if not authenticated OR if visiting the chats dashboard
+  if (!isAuthenticated || location.pathname === '/chats') {
+    return null;
+  }
 
   return (
     <div className='container-fluid mt-1'>
@@ -55,7 +78,7 @@ function App() {
   const { isLoggedIn } = useSelector((state) => state.chat);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isDark = useContext(ThemeContext).isDark;
-  
+
   const {
     socket,
     loadUnseenMessages,
@@ -65,17 +88,6 @@ function App() {
     setShowIncoming
   } = useContext(UserContext);
 
-  // 1. Token Verification Lifecycle
-  useEffect(() => {
-     const isLoggedInCookiePresent = document.cookie
-      .split('; ')
-      .some(row => row.startsWith('logged_in='));
-    if (isLoggedInCookiePresent) {
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
-    } 
-  }, [isLoggedIn]);
 
   // 3. Socket Realtime Notifications Pipeline
   useEffect(() => {
@@ -123,7 +135,7 @@ function App() {
 
   return (
     <div className={`App bg-dark ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} pt-1`}>
-    
+
       {/* Realtime VoIP Signaling Layer Overlay */}
       {incomingCall && (
         <IncomingCall
@@ -140,7 +152,10 @@ function App() {
       {/* Global Application Router Engine */}
       <BrowserRouter>
         {/* Safely handles hiding navbar on /chats now that it is inside <BrowserRouter> */}
-        <ManagedNavbar isAuthenticated={isAuthenticated} />
+        <ManagedNavbar
+          isAuthenticated={isAuthenticated}
+          setIsAuthenticated={setIsAuthenticated}
+        />
 
         <Routes>
           {/* Default Dynamic Root Destination Mapping */}
@@ -148,7 +163,7 @@ function App() {
 
           {/* Standard Explicit Endpoints */}
           <Route path="/login" element={<AuthForms />} />
-          <Route path="/home" element={<HomePage/>} />
+          <Route path="/home" element={<HomePage />} />
           <Route path="/chats" element={<ChatComponent />} />
           <Route path="/ProfilePage/:userId" element={<ProfilePage />} />
           <Route path="/Profile" element={<ProfilePage />} />
