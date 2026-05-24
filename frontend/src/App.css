@@ -1,7 +1,7 @@
 /* Add to your ./css/index.css */
 
 body {
-  background-color: var(--bg-color);
+  background-color:rgba(var(--bs-dark-rgb), var(--bs-bg-opacity));
   color: var(--text-color);
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -18,7 +18,7 @@ body {
 }
 
 body.dark-theme {
-  --bg-color: #121212;  /* Dark background */
+  --bg-color: #1a2024;  /* Dark background */
   --text-color: #f8f9fa; /* Off-white for readability */
 }
 

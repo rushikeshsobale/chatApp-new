@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useState, useContext} from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 
 // Style Dependencies
@@ -17,7 +17,6 @@ import AuthForms from './pages/AuthForms.js';
 import Users from './pages/Users.js';
 import ChatComponent from './pages/Chat.js';
 import ProfilePage from './pages/ProfilePage.js';
-import PostFeed from './pages/Home.js';
 import PostDetail from './components/PostDetail.js';
 import ExplorePage from './pages/ExplorePage.js';
 import ForgotPassword from './components/ForgotPassword.js';
@@ -34,13 +33,29 @@ import PageNotFound from './components/PageNotFound';
 import { updateNotifications } from './store/notificationSlice';
 import ErrorPage from './pages/ErrorPage.js';
 import HomePage from './pages/Home.js';
-// From your original App.js logic
+
+// 1. Reusable Navigation Context Conditonal Wrapper
+const ManagedNavbar = ({ isAuthenticated }) => {
+  const location = useLocation();
+
+  // If the user isn't logged in, OR they are visiting the chats dashboard, hide it completely
+  if (!isAuthenticated || location.pathname === '/chats') {
+    return null;
+  }
+
+  return (
+    <div className='container-fluid mt-1'>
+      <Navbar />
+    </div>
+  );
+};
 
 function App() {
   const dispatch = useDispatch();
   const { isLoggedIn } = useSelector((state) => state.chat);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-
+  const isDark = useContext(ThemeContext).isDark;
+  
   const {
     socket,
     loadUnseenMessages,
@@ -59,8 +74,6 @@ function App() {
       setIsAuthenticated(false);
     }
   }, [isLoggedIn]);
-
-
 
   // 3. Socket Realtime Notifications Pipeline
   useEffect(() => {
@@ -107,7 +120,7 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
+    <div className={`App bg-dark ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} pt-1`}>
     
       {/* Realtime VoIP Signaling Layer Overlay */}
       {incomingCall && (
@@ -124,8 +137,8 @@ function App() {
 
       {/* Global Application Router Engine */}
       <BrowserRouter>
-        {/* Dynamic Global Application Header Navigation */}
-        {isAuthenticated && <Navbar />}
+        {/* Safely handles hiding navbar on /chats now that it is inside <BrowserRouter> */}
+        <ManagedNavbar isAuthenticated={isAuthenticated} />
 
         <Routes>
           {/* Default Dynamic Root Destination Mapping */}

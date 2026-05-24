@@ -68,10 +68,10 @@ const Navbar = ({
 
   return (
     <nav
-      className={`navbar navbar-expand-lg shadow-sm sticky-top border-bottom p-0 ${isDark ? 'navbar-dark border-secondary' : 'navbar-light border-light-subtle'}`}
+      className={`container-fluid navbar navbar-expand-lg rounded shadow-sm sticky-top border-bottom p-0 ${isDark ? 'navbar-dark  border-secondary' : 'navbar-light border-light-subtle'}`}
       style={{ background: isDark ? '#000000' : '#ffffff', zIndex: 1050, transition: 'background 0.3s ease' }}
     >
-      <div className="container-fluid d-flex justify-content-between align-items-center px-3 py-2">
+      <div className=" container-fluid d-flex justify-content-between align-items-center px-3 py-2">
         <a className="navbar-brand fw-bold text-gradient" href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
           HiBUDDY
         </a>
@@ -103,8 +103,8 @@ const Navbar = ({
             src={user?.profilePicture || '/default-avatar.png'}
             alt="Profile"
             className={`rounded-circle border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
-            style={{ width: "35px", height: "35px", objectFit: "cover", cursor: 'pointer' }}
-            onClick={() => setShowProfileModal(true)}
+            style={{ width: "30px", height: "30px", objectFit: "cover", cursor: 'pointer' }}
+            onClick={() => navigate(`./profile`)}
           />
 
           {/* Notifications Trigger */}

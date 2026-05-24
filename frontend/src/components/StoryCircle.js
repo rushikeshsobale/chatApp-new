@@ -2,16 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 const StoryCircle = ({ group, onClick, currentUserId }) => {
-    console.log(group, 'group in story circle');
     const { user, stories } = group;
-   console.log(currentUserId, 'current user id in story circle');
-    // 1️⃣ Check if ANY story in the user's list is unseen
     const hasUnseenStories = stories.some(story => 
         !story.viewers?.includes(currentUserId)
     );
-
     const isOwnStory = user._id === currentUserId;
-   
     return (
         <motion.div
             whileHover={{ scale: 1.05 }}

@@ -65,11 +65,9 @@ const ProfilePage = () => {
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [showPostDetail, setShowPostDetail] = useState(false);
   const token = localStorage.getItem("token");
- 
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
   const { socket, setFlag, unseenMessages, setUser, setUserId, user } = useContext(UserContext);
-  
   const [loadingUser, setLoadingUser] = useState(false);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingStories, setLoadingStories] = useState(false);
@@ -79,7 +77,9 @@ const ProfilePage = () => {
   const [showCommentInputs, setShowCommentInputs] = useState({});
   const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
-   const userId = user?._id;
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const[ showProfileModal,setShowProfileModal]=useState(false);
+  const userId = user?._id;
   const loadData = async () => {
 
     const res = await getFollowers(userId);
@@ -497,6 +497,22 @@ const ProfilePage = () => {
     lastScrollY.current = currentScrollY;
   };
 
+   const handleSave = async (profileData) => {
+        try {
+          const userId = user._id;
+          const updatedUser = await updateUserProfile(userId, profileData);
+          setUser(updatedUser?.user);
+          setShowEditProfile(false);
+        } catch (error) {
+          console.error("Error updating user:", error);
+        }
+      };
+       const logOut = () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/login");
+    };
+
   
   return (
   <div 
@@ -507,7 +523,9 @@ const ProfilePage = () => {
       transition: 'background 0.3s ease, color 0.3s ease' 
     }}
   >
-   
+       {showProfileModal && user && (
+         <EditProfile show={showProfileModal} onHide={() => setShowProfileModal(false)} user={user} onSave={handleSave} onSettings={() => { navigate('/settings'); setShowProfileModal(false); }} onLogout={logOut} theme={isDark ? 'dark' : 'light'} />
+       )}
    
 
     {/* Main Content */}
@@ -577,13 +595,13 @@ const ProfilePage = () => {
           }}>
           
           {/* User Profile Header banner */}
-          {loadingStories ? <Loader text="Loading stories..." /> : user && (
+          { user && (
             <div 
-              className={`profile-header rounded-4 p-4 mb-4 border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} 
+              className={`profile-header rounded-4 p-1 py-3 p-md-4 mb-4 border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} 
               style={{ background: isDark ? 'linear-gradient(135deg, #000000 0%, #050505 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f3f5 100%)' }}
             >
-              <div className="d-flex  flex-sm-row align-items-center gap-4">
-                <div className="position-relative">
+              <div className="d-flex w-100 align-items-center  justify-content-center">
+                <div className=" col-4 justify-content-center position-relative">
                   {user?.profilePicture ? (
                     <img
                       src={user.profilePicture}
@@ -610,11 +628,12 @@ const ProfilePage = () => {
                       {user.userName?.charAt(0).toUpperCase()}
                     </div>
                   )}
+                   <h5 className={` fs-sm my-1 ${isDark ? 'text-white' : 'text-dark'}`}>{user?.userName}</h5>
                 </div>
 
-                <div className="flex-grow-1 text-center text-sm-start">
-                  <h5 className={`fw-bold mb-1 ${isDark ? 'text-white' : 'text-dark'}`}>{user?.userName}</h5>
-                  <p className={`small mb-3 style-bio ${isDark ? 'text-secondary' : 'text-muted'}`}>{user?.bio || "Tell your story..."}</p>
+                <div className="col-8 p-1 text-center flex-grow-1 text-center text-sm-start">
+                 
+                  <p className={`small mb-3  style-bio ${isDark ? 'text-secondary' : 'text-muted'}`}>{user?.bio || "Tell your story... "}</p>
                   
                   <div className="d-flex justify-content-center justify-content-sm-start align-items-center gap-4">
                     <div className="cursor-pointer" onClick={handleShowFollowers}>
@@ -637,13 +656,13 @@ const ProfilePage = () => {
           </div> */}
 
           {/* Navigation Tabs */}
-          <div className={`card border mb-4 ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#121212' : '#ffffff' }}>
-            <div className="card-body p-0">
+          <div className={` mb-4 ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#121212' : '#ffffff' }}>
+            <div className=" p-0">
               <div className="d-flex justify-content-around">
                 {tabs?.map((tab) => (
                   <button
                     key={tab.id}
-                    className={`py-3 flex-grow-1 border-0 bg-transparent text-center position-relative ${activeTab === tab.id ? "text-info fw-bold" : "text-muted"}`}
+                    className={`py-2 flex-grow-1 border-0 bg-transparent text-center position-relative ${activeTab === tab.id ? "text-info fw-bold" : "text-muted"}`}
                     onClick={() => setActiveTab(tab.id)}
                     style={{ transition: "all 0.2s ease" }}
                   >
@@ -831,22 +850,49 @@ const ProfilePage = () => {
     </div>
 
     {/* Floating Action Mobile Dock */}
-    <div
-      className="position-fixed bottom-0 start-50 translate-middle-x mb-3 d-lg-none d-flex rounded-pill justify-content-center align-items-center gap-4 px-4 py-2 shadow-lg"
-      style={{
-        border: isDark ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-        background: isDark ? 'rgba(18, 18, 18, 0.85)' : 'rgba(255, 255, 255, 0.85)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 1000,
-        opacity: isVisible ? 1 : 0,
-        transition: 'opacity 0.3s ease-in-out, background 0.3s ease',
-        pointerEvents: isVisible ? 'auto' : 'none'
-      }}
-    >
-      <div className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} onClick={() => setShowCreateStory(true)}><FaCamera size={18} /></div>
-      <div className={`opacity-25 ${isDark ? 'bg-secondary' : 'bg-dark'}`} style={{ width: '1px', height: '16px' }}></div>
-      <div className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} onClick={() => setShowModal(true)}><i className="bi bi-pencil-square" style={{ fontSize: '18px' }}></i></div>
-    </div>
+   <div
+  className="position-fixed bottom-0 start-50 translate-middle-x mb-3 d-lg-none d-flex rounded-pill justify-content-center align-items-center gap-4 px-4 py-2 shadow-lg"
+  style={{
+    border: isDark ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+    background: isDark ? 'rgba(18, 18, 18, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+    backdropFilter: 'blur(10px)',
+    zIndex: 1000,
+    opacity: isVisible ? 1 : 0,
+    transition: 'opacity 0.3s ease-in-out, background 0.3s ease',
+    pointerEvents: isVisible ? 'auto' : 'none'
+  }}
+>
+  {/* Action 1: Create Story */}
+  <div 
+    className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} 
+    onClick={() => setShowCreateStory(true)}
+    title="Create Story"
+  >
+    <FaCamera size={18} />
+  </div>
+  
+  <div className={`opacity-25 ${isDark ? 'bg-secondary' : 'bg-dark'}`} style={{ width: '1px', height: '16px' }} />
+
+  {/* Action 2: Create Post */}
+  <div 
+    className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} 
+    onClick={() => setShowModal(true)}
+    title="Create Post"
+  >
+    <i className="bi bi-pencil-square" style={{ fontSize: '18px' }}></i>
+  </div>
+
+  <div className={`opacity-25 ${isDark ? 'bg-secondary' : 'bg-dark'}`} style={{ width: '1px', height: '16px' }} />
+
+  {/* Action 3: Edit Profile Shortcut */}
+  <div 
+    className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`} 
+    onClick={() => setShowProfileModal(true)}
+    title="Edit Profile"
+  >
+    <i className="bi bi-person-gear" style={{ fontSize: '19px' }}></i>
+  </div>
+</div>
 
     {/* Modals Container */}
     {showModal && <CustomModal handleAddPost={handleAddPost} showModal={showModal} onClose={() => setShowModal(false)} theme={isDark ? 'dark' : 'light'} />}
