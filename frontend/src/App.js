@@ -44,6 +44,7 @@ const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
       .split('; ')
       .some(row => row.startsWith('logged_in='));
 
+      console.log(isLoggedInCookiePresent, 'Navbar isLoggedInCookiePresent Check');
     if (isLoggedInCookiePresent) {
       setIsAuthenticated(true);
 
@@ -53,6 +54,7 @@ const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
       }
     } else {
       setIsAuthenticated(false);
+      navigate('/login')
     }
   }, [location.pathname, navigate, setIsAuthenticated]);
   // If the user isn't logged in, OR they are visiting the chats dashboard, hide it completely
