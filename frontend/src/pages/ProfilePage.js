@@ -680,12 +680,12 @@ const ProfilePage = () => {
 
         
           <div className="mb-4 rounded">
-{!posts && (
+{ (!posts|| posts?.length==0) && (
   <div className="text-center py-5 bounce-in">
     <img src="/no-posts.png" alt="No posts" style={{ width: "120px", marginBottom: "20px" }} />
     <h3 className={`fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>It's awfully quiet in here...</h3>
     <p className="text-muted mb-4">Be the hero this feed needs. Share your very first post!</p>
-    <button className="btn btn-primary btn-lg rounded-pill px-4 shadow">
+    <button className="btn  btn-lg rounded-pill px-4 shadow">
       ✨ Create First Post
     </button>
   </div>

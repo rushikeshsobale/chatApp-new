@@ -1,7 +1,8 @@
-import React, { createContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { fetchUnseenMessages } from "../services/messageService";
 import { getMe } from '../services/authService';
+
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
@@ -17,80 +18,73 @@ export const UserProvider = ({ children }) => {
   const [member, setMember] = useState({});
   const [incomingCall, setIncomingCall] = useState(null);
   const [callData, setCallData] = useState(null);
-  const [user, setUser] = useState({});
 
-  const fetchMe = () => {
-    getMe().then(data => {
-      localStorage.setItem('user', JSON.stringify(data));
-      console.log('Fetched user data:', data);
-      setUser(data);
-      setUserId(data._id);
-    }).catch(err => console.error("Error fetching user data:", err));
-  }
+  // 1. Single Lazy State Initializer (Reads LocalStorage instantly on mount)
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+        return null;
+      }
+    }
+    return null;
+  });
 
+  // 2. Keep the raw userId string in sync with the core user object changes
   useEffect(() => {
- 
-      fetchMe()
-    
-  }, [])
-  const loadUnseenMessages = async () => {
+    if (user?._id) {
+      setUserId(user._id);
+    } else {
+      setUserId(null);
+    }
+  }, [user]);
 
+  // 3. API Fallback (Stable functional layout reference via useCallback)
+  const fetchMe = useCallback(() => {
+    getMe()
+      .then(data => {
+        if (data && data._id) {
+          localStorage.setItem('user', JSON.stringify(data));
+          setUser(data);
+          console.log('Fetched user from API and synced storage:', data);
+        }
+      })
+      .catch(err => console.error("Error fetching user data:", err));
+  }, []);
+
+  // 4. API Trigger: ONLY fires if the initializer above returned null
+  useEffect(() => {
+    if (!user) {
+      fetchMe();
+    }
+  }, [user, fetchMe]);
+
+  // 5. Stable Messenger Check Action
+  const loadUnseenMessages = useCallback(async () => {
     if (user?._id) {
       try {
         const unseen = await fetchUnseenMessages(user._id);
-
         setUnseenMessages(unseen);
       } catch (err) {
         console.error('Error fetching unseen messages:', err);
       }
     }
-  };
-  useEffect(() => {
+  }, [user?._id]);
 
-    if (user) {
+  // 6. Keep Unseen Messages synchronized when User ID verified
+  useEffect(() => {
+    if (user?._id) {
       loadUnseenMessages();
-      setUserId(user._id);
     }
+  }, [user?._id, loadUnseenMessages]);
 
-  }, []);
-
+  // 7. Hardware Peripheral Initialization Layer
   useEffect(() => {
-    console.log('UserContext useEffect ran, userId: in effect', userId);
-    if (!user?._id) {
-      if (socket) {
-
-        socket.disconnect();
-        setSocket(null);
-        setActiveUsers([]);
-      }
-      console.log('No user ID found, skipping socket connection');
-      return;
-    }
-
-    const socketConnection = io(process.env.REACT_APP_API_URL, {
-      query: { id: user._id },
-    });
-
-    setSocket(socketConnection);
-    socketConnection.on('connect', () => {
-      const user3 = JSON.parse(localStorage.getItem('user3'));
-
-      socketConnection.emit('joinRoom', { userId: user._id });
-    });
-    const handleRestatus = (data) => {
-
-      setActiveUsers(data)
-    };
-    const handleStatus = (data) => {
-
-      setActiveUsers((prev) => {
-        if (!prev.some((u) => u._id === data.userId)) {
-          return [...prev, data.userId];
-        }
-        return prev;
-      });
-    };
     const initMedia = async () => {
+      if (!user?._id || myStream) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
@@ -103,41 +97,78 @@ export const UserProvider = ({ children }) => {
       }
     };
     initMedia();
+  }, [user?._id, myStream]);
+
+  // 8. Managed Socket Pipeline (Bound purely to secure user?._id validation changes)
+  useEffect(() => {
+    if (!user?._id) {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+        setActiveUsers([]);
+      }
+      return;
+    }
+
+    const socketConnection = io(process.env.REACT_APP_API_URL, {
+      query: { id: user._id },
+    });
+
+    setSocket(socketConnection);
+
+    socketConnection.on('connect', () => {
+      socketConnection.emit('joinRoom', { userId: user._id });
+    });
+
+    const handleRestatus = (data) => {
+      setActiveUsers(data);
+    };
+
+    const handleStatus = (data) => {
+      setActiveUsers((prev) => {
+        if (!prev.some((u) => u === data.userId || u?._id === data.userId)) {
+          return [...prev, data.userId];
+        }
+        return prev;
+      });
+    };
+
     const handleUserLeft = ({ userId: leftUserId }) => {
       setActiveUsers((prevUsers) => prevUsers.filter(id => id !== leftUserId));
     };
+
     const handleIncomingCall = (data) => {
       console.log('Received incoming call data:', data);
       const { offer, from, fromName } = data;
-      setCallData(offer)
+      setCallData(offer);
       setShowIncoming(true);
       setIncomingCall({ from, fromName, offer });
-    }
-    socketConnection.on('incoming-call', handleIncomingCall)
+    };
+
+    socketConnection.on('incoming-call', handleIncomingCall);
     socketConnection.on('restatus', handleRestatus);
     socketConnection.on('status', handleStatus);
     socketConnection.on('userLeft', handleUserLeft);
     socketConnection.on('disconnect', () => setActiveUsers([]));
-    socketConnection.on('checkit', loadUnseenMessages)
-    socketConnection.on('recievedGroupMessage', ({ messageIds }) => console.log('recievedGroupMessage', messageIds));
-    // socketConnection.on('incomingOffer', handleOffer)
+    socketConnection.on('checkit', loadUnseenMessages);
+    
     socketConnection.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
     });
+
     return () => {
+      socketConnection.off('incoming-call', handleIncomingCall);
       socketConnection.off('restatus', handleRestatus);
       socketConnection.off('status', handleStatus);
       socketConnection.off('userLeft', handleUserLeft);
-      // ✅ CLEANUP
+      socketConnection.off('checkit', loadUnseenMessages);
       socketConnection.off('connect');
       socketConnection.off('disconnect');
       socketConnection.off('connect_error');
-      // socketConnection.off('incomingOffer')
       socketConnection.disconnect();
     };
-  }, [userId]);
-  // Listen for incoming ICE candidates from the callee
-  // Listen for incoming ICE candidates from the callee
+  }, [user?._id, loadUnseenMessages]);
+
   return (
     <UserContext.Provider
       value={{

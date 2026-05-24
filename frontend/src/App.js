@@ -67,7 +67,7 @@ function App() {
 
   // 1. Token Verification Lifecycle
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('user');
     if (token) {
       setIsAuthenticated(true);
     } else {
