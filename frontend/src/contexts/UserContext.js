@@ -48,7 +48,7 @@ export const UserProvider = ({ children }) => {
       .then(data => {
         if (data && data._id) {
           localStorage.setItem('user', JSON.stringify(data));
-          setUser(data);
+         
           console.log('Fetched user from API and synced storage:', data);
         }
       })
@@ -181,10 +181,7 @@ export const UserProvider = ({ children }) => {
         setFlag,
         answer,
         incomingCall,
-        setIncomingCall,
-        user,
-        setUser,
-        setUserId,
+        setIncomingCall, 
         setMember,
         member,
         myStream,

@@ -67,7 +67,7 @@ const ProfilePage = () => {
   const token = localStorage.getItem("token");
   const apiUrl = process.env.REACT_APP_API_URL;
   const navigate = useNavigate();
-  const { socket, setFlag, unseenMessages, setUser, setUserId, user } = useContext(UserContext);
+  const { socket, setFlag, unseenMessages, setUserId } = useContext(UserContext);
   const [loadingUser, setLoadingUser] = useState(false);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingStories, setLoadingStories] = useState(false);
@@ -79,6 +79,7 @@ const ProfilePage = () => {
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const[ showProfileModal,setShowProfileModal]=useState(false);
+  const user = JSON.parse(localStorage.getItem('user'));
   const userId = user?._id;
   const loadData = async () => {
 
@@ -501,7 +502,7 @@ const ProfilePage = () => {
         try {
           const userId = user._id;
           const updatedUser = await updateUserProfile(userId, profileData);
-          setUser(updatedUser?.user);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
           setShowEditProfile(false);
         } catch (error) {
           console.error("Error updating user:", error);
