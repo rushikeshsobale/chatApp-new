@@ -39,9 +39,9 @@ const ManagedNavbar = ({ isAuthenticated }) => {
   const location = useLocation();
 
   // If the user isn't logged in, OR they are visiting the chats dashboard, hide it completely
-  if (!isAuthenticated || location.pathname === '/chats') {
-    return null;
-  }
+if (!isAuthenticated || (location.pathname !== '/profile' && location.pathname !== '/home')) {
+  return null;
+}
 
   return (
     <div className='container-fluid mt-1'>
