@@ -70,7 +70,12 @@ router.get('/google/callback',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      return res.redirect(`${process.env.FRONTEND_URL}/profile`);
+      res.cookie('logged_in', 'true', {
+        httpOnly: false, // React CAN read this one!
+        secure: true,
+        sameSite: 'strict'
+      });
+      return res.redirect(`${process.env.FRONTEND_URL}/home`);
     }
 
     // 🔹 CASE 2: No password → ask user to set it
@@ -349,11 +354,17 @@ router.post("/login", async (req, res) => {
       const hasKeys = await KeysModel.exists({
         userId: validateEmail._id
       });
-        res.cookie("token", token, {
+      res.cookie("token", token, {
         httpOnly: true,
         secure: true,        // true in production
         sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.cookie('logged_in', 'true', {
+        httpOnly: false, // React CAN read this one!
+        secure: true,
+        sameSite: 'strict'
       });
       res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
     } else {
@@ -437,7 +448,7 @@ router.post('/upload-keys', verifyToken, async (req, res) => {
     const salt = Buffer.from(Object.values(keysData.salt));
     const iv = Buffer.from(Object.values(keysData.iv));
     // Update the existing keys for this user, or create new ones if they don't exist
-  const keys =  await KeysModel.findOneAndUpdate(
+    const keys = await KeysModel.findOneAndUpdate(
       { userId: userId },
       {
         userId,
@@ -449,9 +460,9 @@ router.post('/upload-keys', verifyToken, async (req, res) => {
       { upsert: true, new: true }
     );
     await Muser.findOneAndUpdate(
-      {_id: userId},
+      { _id: userId },
       {
-        keysId:keys._id
+        keysId: keys._id
       }
     )
     res.status(200).json({ message: 'Keys uploaded and secured successfully' });

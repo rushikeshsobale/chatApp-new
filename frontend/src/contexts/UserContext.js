@@ -19,7 +19,7 @@ export const UserProvider = ({ children }) => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [callData, setCallData] = useState(null);
 
-  // 1. Single Lazy State Initializer (Reads LocalStorage instantly on mount)
+  // 1. Single Lazy State Initializer (Reads LocalStorage strictly ONCE on mount)
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
@@ -33,7 +33,7 @@ export const UserProvider = ({ children }) => {
     return null;
   });
 
-  // 2. Keep the raw userId string in sync with the core user object changes
+  // 2. Automatically sync raw string userId when the state object settles
   useEffect(() => {
     if (user?._id) {
       setUserId(user._id);
@@ -42,25 +42,36 @@ export const UserProvider = ({ children }) => {
     }
   }, [user]);
 
-  // 3. API Fallback (Stable functional layout reference via useCallback)
-  const fetchMe = useCallback(() => {
-    getMe()
-      .then(data => {
-        if (data && data._id) {
-          localStorage.setItem('user', JSON.stringify(data));
-         
-          console.log('Fetched user from API and synced storage:', data);
-        }
-      })
-      .catch(err => console.error("Error fetching user data:", err));
+  // 3. API Fallback wrapped safely to prevent recreation loops
+  const fetchUser = useCallback(async () => {
+    try {
+      const res = await getMe();
+ 
+      if (res && res._id) {
+        localStorage.setItem('user', JSON.stringify(res));
+        setUser(res);
+      }
+    } catch (err) {
+      console.error("Error running fallback fetchUser API:", err);
+    }
   }, []);
 
-  // 4. API Trigger: ONLY fires if the initializer above returned null
+  // 4. Verification Check: Only hit API if user state is missing AND the auth cookie says we have a valid session
   useEffect(() => {
-    if (!user) {
-      fetchMe();
+    console.log(user, 'Current User State Context');
+
+    // Check if the 'logged_in' cookie flag EXISTS
+    const isLoggedInCookiePresent = document.cookie
+      .split('; ')
+      .some(row => row.startsWith('logged_in='));
+
+    console.log(isLoggedInCookiePresent, 'isLoggedInCookiePresent Check');
+
+    // Condition: React memory is blank, but server cookie tells us they are authenticated
+    if (user === null && isLoggedInCookiePresent) {
+      fetchUser();
     }
-  }, [user, fetchMe]);
+  }, [user, fetchUser]);
 
   // 5. Stable Messenger Check Action
   const loadUnseenMessages = useCallback(async () => {
@@ -99,7 +110,7 @@ export const UserProvider = ({ children }) => {
     initMedia();
   }, [user?._id, myStream]);
 
-  // 8. Managed Socket Pipeline (Bound purely to secure user?._id validation changes)
+  // 8. Managed Socket Pipeline
   useEffect(() => {
     if (!user?._id) {
       if (socket) {
@@ -181,7 +192,10 @@ export const UserProvider = ({ children }) => {
         setFlag,
         answer,
         incomingCall,
-        setIncomingCall, 
+        setIncomingCall,
+        user,
+        setUser,
+        setUserId,
         setMember,
         member,
         myStream,

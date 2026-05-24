@@ -67,12 +67,14 @@ function App() {
 
   // 1. Token Verification Lifecycle
   useEffect(() => {
-    const token = localStorage.getItem('user');
-    if (token) {
+     const isLoggedInCookiePresent = document.cookie
+      .split('; ')
+      .some(row => row.startsWith('logged_in='));
+    if (isLoggedInCookiePresent) {
       setIsAuthenticated(true);
     } else {
       setIsAuthenticated(false);
-    }
+    } 
   }, [isLoggedIn]);
 
   // 3. Socket Realtime Notifications Pipeline
