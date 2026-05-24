@@ -73,7 +73,7 @@ router.get('/google/callback',
       res.cookie('logged_in', 'true', {
         httpOnly: false, // React CAN read this one!
         secure: true,
-        sameSite: 'strict'
+        sameSite: 'lax'
       });
       return res.redirect(`${process.env.FRONTEND_URL}/home`);
     }
@@ -364,7 +364,7 @@ router.post("/login", async (req, res) => {
       res.cookie('logged_in', 'true', {
         httpOnly: false, // React CAN read this one!
         secure: true,
-        sameSite: 'strict'
+        sameSite: 'lax'
       });
       res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
     } else {
