@@ -40,7 +40,16 @@ const ManagedNavbar = () => {
   const navigate = useNavigate();
   const { isLoggedIn } = useContext(UserContext);
 
-  console.log("ManagedNavbar evaluation pathii:", location.pathname, { isLoggedIn });
+  console.log("ManagedNavbar evaluation path:", location.pathname, { isLoggedIn });
+
+  // ✅ FIX: Move side-effect routing logic safely into a useEffect hook
+  useEffect(() => {
+    if (!isLoggedIn) {
+      console.log("User unauthenticated! Redirecting safely to /login...");
+      navigate('/login', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
+
   // If the user isn't logged in, stop rendering immediately 
   if (!isLoggedIn) {
     return null;
@@ -54,9 +63,6 @@ const ManagedNavbar = () => {
     return null;
   }
 
-   useEffect(() => {
-    
-  },[]);
   return (
     <div className='container-fluid mt-1'>
       <Navbar />
