@@ -65,7 +65,7 @@ export const UserProvider = ({ children }) => {
   }
 
   if(isLoggedIn && !user) fetchUser();
-   }, []);
+   }, [isLoggedIn]);
    
   const loadUnseenMessages = useCallback(async () => {
     if (user?._id) {
