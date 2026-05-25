@@ -50,8 +50,22 @@ export const UserProvider = ({ children }) => {
 
 
  useEffect(() => {
-  if(isLoggedIn) fetchUser();
-   }, [isLoggedIn]);
+  const user = localStorage.getItem('user');
+  if (user && user !== "undefined" && user !== "null") {
+    try {      const parsedUser = JSON.parse(user);
+      if (parsedUser && parsedUser._id) {
+        setIsLoggedIn(true);
+        setUser(parsedUser);
+      }
+    } catch (e) {
+      console.error("Failed to parse user from localStorage", e);
+    }
+  } else {
+    setIsLoggedIn(false);
+  }
+
+  if(isLoggedIn && !user) fetchUser();
+   }, []);
    
   const loadUnseenMessages = useCallback(async () => {
     if (user?._id) {

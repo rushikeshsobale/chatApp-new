@@ -76,7 +76,8 @@ function App() {
     incomingCall,
     setIncomingCall,
     showIncoming,
-    setShowIncoming
+    setShowIncoming,
+    setIsLoggedIn,
   } = useContext(UserContext);
 
 
@@ -124,6 +125,13 @@ function App() {
     return () => window.removeEventListener('resize', setHeight);
   }, []);
 
+  useEffect(() => { 
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setIsLoggedIn(true);
+      setUser(JSON.parse(userData));
+    }
+  },[]);
   return (
     <div className={`App bg-dark ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} pt-1`}>
 
