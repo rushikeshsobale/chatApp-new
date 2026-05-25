@@ -32,7 +32,7 @@ import "../css/AuthForms.css";
 
 const AuthPage = () => {
   const dispatch = useDispatch();
-  const { setUser, setUserId } = useContext(UserContext);
+  const { setUser } = useContext(UserContext);
   const { isDark, toggleTheme } = useContext(ThemeContext); // Use Theme Context
   const navigate = useNavigate();
 
@@ -87,10 +87,7 @@ const AuthPage = () => {
 
         localStorage.setItem("token", token);
         const decodedData = jwtDecode(token);
-        
-        dispatch({ type: SET_USER, payload: { user: decodedData } });
-        setUser(decodedData);
-        setUserId(decodedData._id);
+
         localStorage.setItem("user", JSON.stringify(decodedData));
 
         if (!hasKeys) {
@@ -117,7 +114,12 @@ const AuthPage = () => {
             await CryptoUtils.saveKeyLocally(unlockedKey);
           }
         }
-        navigate("/profile");
+
+        const frontendUrl = `/auth-success`;
+        const queryParams = `?auth_status=success&username=${decodedData.userName}`;
+
+        navigate(frontendUrl + queryParams);
+
       } else {
         if (authStep === 1) {
           await sendVerification(formData.email);
@@ -146,7 +148,7 @@ const AuthPage = () => {
   return (
     // Changed bg-light to bg-body-tertiary to naturally fall back on dark backgrounds
     <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary py-5 position-relative">
-      
+
       {/* Floating Theme Toggle Switch Button */}
       <button
         onClick={toggleTheme}
@@ -159,14 +161,14 @@ const AuthPage = () => {
 
       {/* Surface Card: shadow adapts contextually to dark layouts */}
       <div className={`card border-0 p-4 p-sm-5 ${isDark ? 'shadow-lg bg-dark' : 'shadow-sm bg-white'}`} style={{ maxWidth: "460px", width: "100%", borderRadius: "20px" }}>
-        
+
         {/* Step-by-Step Context Tracker Header */}
         <div className="text-center mb-4">
-          <span 
-            className="badge mb-2 text-uppercase tracking-wider fw-bold px-3 py-15" 
-            style={{ 
-              fontSize: '0.75rem', 
-              backgroundColor: isDark ? 'rgba(13, 202, 240, 0.18)' : 'rgba(13, 202, 240, 0.1)' ,
+          <span
+            className="badge mb-2 text-uppercase tracking-wider fw-bold px-3 py-15"
+            style={{
+              fontSize: '0.75rem',
+              backgroundColor: isDark ? 'rgba(13, 202, 240, 0.18)' : 'rgba(13, 202, 240, 0.1)',
               color: '#0dcaf0'
             }}
           >
@@ -183,7 +185,7 @@ const AuthPage = () => {
         {errors.form && <div className="alert alert-danger py-2.5 px-3 small border-0 rounded-3 text-center mb-3">{errors.form}</div>}
 
         <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
-          
+
           {/* STEP 1: Core Credentials */}
           {authStep === 1 && (
             <>
@@ -368,8 +370,8 @@ const AuthPage = () => {
 
           <p className="small text-center text-secondary mt-2 mb-0">
             {isLogin ? "New to our ecosystem? " : "Already verified? "}
-            <span 
-              className="text-info fw-bold" 
+            <span
+              className="text-info fw-bold"
               style={{ cursor: 'pointer', textDecoration: 'underline' }}
               onClick={() => {
                 setIsLogin(!isLogin);

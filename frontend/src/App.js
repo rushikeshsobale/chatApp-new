@@ -33,55 +33,62 @@ import PageNotFound from './components/PageNotFound';
 import { updateNotifications } from './store/notificationSlice';
 import ErrorPage from './pages/ErrorPage.js';
 import HomePage from './pages/Home.js';
+import { setUser } from './store/action.js';
 
-// 1. Reusable Navigation Context Conditonal Wrapper
+// 1. Reusable Navigation Context Conditional Wrapper
 const ManagedNavbar = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { isLoggedIn } = useContext(UserContext);
-
-  console.log("ManagedNavbar evaluation path:", location.pathname, { isLoggedIn });
-
-  // ✅ FIX: Move side-effect routing logic safely into a useEffect hook
+  const { isLoggedIn, user } = useContext(UserContext);
  
-  // If the user isn't logged in, stop rendering immediately 
-  if (!isLoggedIn) {
-    return null;
-  }
+  useEffect(() => {
+    console.log("ManagedNavbar evaluation path:", location.pathname, { isLoggedIn });
 
-  // Hide the navbar entirely if visiting chats or ANY route outside /profile and /home
-  if (
-    location.pathname === '/chats' || 
-    (location.pathname !== '/profile' && location.pathname !== '/home')
-  ) {
-    return null;
-  }
 
+  }, [location.pathname, isLoggedIn]);
+ 
+
+ if(location.pathname ==='/home' || location.pathname ==='/profile' ){
   return (
     <div className='container-fluid mt-1'>
       <Navbar />
     </div>
   );
+}
+else{
+  return null;
+}
 };
 
 function App() {
   const dispatch = useDispatch();
-  const { isLoggedIn } = useSelector((state) => state.chat);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isDark = useContext(ThemeContext).isDark;
 
+  // ✅ FIX 1: Rename the Redux variable to avoid shadowing your authentication context
+
+
+  // ✅ FIX 2: Connect directly to the True Context Engine variables
   const {
+    setUser,
     socket,
     loadUnseenMessages,
     incomingCall,
     setIncomingCall,
     showIncoming,
     setShowIncoming,
-    setIsLoggedIn,
+    isLoggedIn, // 👈 Grabbing the actual global Boolean login state
   } = useContext(UserContext);
 
-
-  // 3. Socket Realtime Notifications Pipeline
+  useEffect(() => {
+    console.log("App component mounted, checking login status...");
+    const loggedIn = JSON.parse(localStorage.getItem('user'));
+    if (loggedIn) {
+      console.log("User is logged in: ", loggedIn);
+      setUser(loggedIn); // Ensure we populate the global user state on app load
+    } else {
+      console.log("User is not logged in.");
+    }
+  },[]);
+  // Realtime VoIP Signaling Layer Overlay
   useEffect(() => {
     if (socket) {
       socket.on('friendRequestNotification', (data) => {
@@ -103,7 +110,7 @@ function App() {
     };
   }, [socket, dispatch, loadUnseenMessages]);
 
-  // 4. Clean Socket Disconnection Teardown
+  // Clean Socket Disconnection Teardown
   useEffect(() => {
     return () => {
       if (socket) {
@@ -112,7 +119,7 @@ function App() {
     };
   }, [socket]);
 
-  // 5. Dynamic Device Viewport Unit Normalization
+  // Dynamic Device Viewport Unit Normalization
   useEffect(() => {
     function setHeight() {
       document.documentElement.style.setProperty(
@@ -125,10 +132,8 @@ function App() {
     return () => window.removeEventListener('resize', setHeight);
   }, []);
 
- 
   return (
     <div className={`App bg-dark ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} pt-1`}>
-      {/* Realtime VoIP Signaling Layer Overlay */}
       {incomingCall && (
         <IncomingCall
           show={showIncoming}
@@ -143,16 +148,13 @@ function App() {
 
       {/* Global Application Router Engine */}
       <BrowserRouter>
-        {/* Safely handles hiding navbar on /chats now that it is inside <BrowserRouter> */}
-        <ManagedNavbar
-          isAuthenticated={isAuthenticated}
-          setIsAuthenticated={setIsAuthenticated}
-        />
+        <ManagedNavbar />
 
         <Routes>
-          {/* Default Dynamic Root Destination Mapping */}
-          <Route path="/" element={isAuthenticated ? <ProfilePage /> : <AuthForms />} />
+          {/* ✅ FIX 3: Bind root route conditional rendering directly to Context isLoggedIn */}
+          <Route path="/" element={isLoggedIn ? <ProfilePage /> : <AuthForms />} />
           <Route path="/auth-success" element={<AuthSuccess />} />
+          
           {/* Standard Explicit Endpoints */}
           <Route path="/login" element={<AuthForms />} />
           <Route path="/home" element={<HomePage />} />
@@ -166,7 +168,6 @@ function App() {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/userProfile/:userId" element={<UserProfilePage />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/auth-success" element={<AuthSuccess />} />
           <Route path="/set_password" element={<SetPasswordcomponent />} />
           <Route
             path="/error"
@@ -178,7 +179,6 @@ function App() {
             }
           />
           <Route path="/not-found" element={<PageNotFound />} />
-          {/* Universal 404 Fallback Catch (For invalid typed-out client URLs) */}
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </BrowserRouter>

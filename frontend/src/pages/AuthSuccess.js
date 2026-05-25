@@ -1,10 +1,25 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserContext } from '../contexts/UserContext';
+import { getMe } from '../services/authService';
+
 export default function AuthSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
-  const {isLoggedIn,setIsLoggedIn} = useContext(UserContext);
+  const {isLoggedIn,setIsLoggedIn, setUser} = useContext(UserContext);
+    const fetchUser = useCallback(async () => {
+      try {
+        const res = await getMe();
+        if (res && res._id) {
+          localStorage.setItem('user', JSON.stringify(res));
+          setUser(res);
+          setIsLoggedIn(true);  
+        }
+      } catch (err) {
+        console.error("Error running fallback fetchUser API:", err);
+      }
+    }, []);
+    
   useEffect(() => {
     // 1. Parse the URL params
     const urlParams = new URLSearchParams(location.search);
@@ -15,7 +30,7 @@ export default function AuthSuccess() {
       // 2. Set your localStorage variables
       localStorage.setItem('user_logged_in', 'true');
       localStorage.setItem('username', username || '');
-      setIsLoggedIn(true);
+      fetchUser(); // Ensure we fetch the user data to populate context
       // 3. Smoothly redirect to /home 
       // 'replace: true' clears this loading screen from browser history
       setTimeout(() => {

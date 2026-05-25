@@ -47,7 +47,14 @@ const ChatComponent = () => {
   const themeBg = isDark ? "bg-dark text-light" : "bg-light text-dark";
   const themeCard = isDark ? "bg-secondary text-light" : "bg-white text-dark";
   const themeBorder = isDark ? "border-secondary" : "border-light";
-
+  useEffect(() => { 
+    console.log("Checking login status on Chat mount...");
+      const loggedIn = JSON.parse(localStorage.getItem('user'));
+          if(!loggedIn){
+            console.log("User is logged in: going to login", loggedIn);
+          navigate('/login')
+          }
+        },[]);
   useEffect(() => {
     fetchUserKeys().then(async (response) => {
       const publicKeyBuffer = new Uint8Array(response.publicKey.data);

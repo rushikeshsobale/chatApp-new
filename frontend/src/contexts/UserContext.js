@@ -9,7 +9,7 @@ export const UserProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [unseenMessages, setUnseenMessages] = useState([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(null);
   const [myStream, setMyStream] = useState(null);
   const myVideoRef = useRef();
   const [answer, setAnswer] = useState(null);
@@ -36,36 +36,10 @@ export const UserProvider = ({ children }) => {
 
 
   // 3. API Fallback wrapped safely to prevent recreation loops
-  const fetchUser = useCallback(async () => {
-    try {
-      const res = await getMe();
-      if (res && res._id) {
-        localStorage.setItem('user', JSON.stringify(res));
-        setUser(res);
-      }
-    } catch (err) {
-      console.error("Error running fallback fetchUser API:", err);
-    }
-  }, [isLoggedIn]);
 
 
- useEffect(() => {
-  const user = localStorage.getItem('user');
-  if (user && user !== "undefined" && user !== "null") {
-    try {      const parsedUser = JSON.parse(user);
-      if (parsedUser && parsedUser._id) {
-        setIsLoggedIn(true);
-        setUser(parsedUser);
-      }
-    } catch (e) {
-      console.error("Failed to parse user from localStorage", e);
-    }
-  } else {
-    setIsLoggedIn(false);
-  }
 
-  if(isLoggedIn && !user) fetchUser();
-   }, [isLoggedIn]);
+ 
    
   const loadUnseenMessages = useCallback(async () => {
     if (user?._id) {
@@ -185,6 +159,7 @@ export const UserProvider = ({ children }) => {
         incomingCall,
         setIncomingCall,
         user,
+        setUser,
         setMember,
         member,
         myStream,

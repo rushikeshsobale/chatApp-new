@@ -58,7 +58,15 @@ const HomePage = ({ socket }) => {
     const { user, setIsLoggedIn } = useContext(UserContext);
     const userId = user?._id;
     // --- 1. Initial Data Pipeline Aggregation ---
-  
+    useEffect(() => {
+      console.log("Checking login status on ProfilePage mount...");
+      const loggedIn = JSON.parse(localStorage.getItem('user'));
+      if (!loggedIn) {
+        console.log("User is not logged in: going to login", loggedIn);
+        navigate('/login')
+      }
+    }, []);
+     
     useEffect(() => {
         if (!userId) return;
 
