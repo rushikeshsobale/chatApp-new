@@ -69,12 +69,12 @@ router.get('/google/callback',
         sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
-
-      res.cookie('logged_in', 'true', {
-        httpOnly: false, // React CAN read this one!
-        secure: true,
-        sameSite: 'lax'
-      });
+res.cookie('logged_in', 'true', {
+  httpOnly: false,
+  secure: true,
+  sameSite: 'none',
+  path: '/'
+});
       return res.redirect(`${process.env.FRONTEND_URL}/home`);
     }
 
@@ -361,11 +361,12 @@ router.post("/login", async (req, res) => {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      res.cookie('logged_in', 'true', {
-        httpOnly: false, // React CAN read this one!
-        secure: true,
-        sameSite: 'lax'
-      });
+     res.cookie('logged_in', 'true', {
+  httpOnly: false,
+  secure: true,
+  sameSite: 'none',
+  path: '/'
+});
       res.status(200).json({ message: "Successfully logged in", token, hasKeys: hasKeys || false });
     } else {
       res.status(400).json({ message: "Password does not match" });
