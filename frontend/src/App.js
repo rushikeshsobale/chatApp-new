@@ -38,10 +38,10 @@ import HomePage from './pages/Home.js';
 const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  
+  const { user } = useContext(UserContext);
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));  
-    console.log(document.cookie, 'Current Cookies on Navbar Check');
+;  
+    console.log(user, 'Current User on Navbar Check');
   
     if (user) {
       setIsAuthenticated(true);
@@ -54,7 +54,7 @@ const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
       setIsAuthenticated(false);
       navigate('/login')
     }
-  }, [location.pathname, navigate, setIsAuthenticated]);
+  }, [user]);
   // If the user isn't logged in, OR they are visiting the chats dashboard, hide it completely
   if (!isAuthenticated || (location.pathname !== '/profile' && location.pathname !== '/home')) {
     return null;
