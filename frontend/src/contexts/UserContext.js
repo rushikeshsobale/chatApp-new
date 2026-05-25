@@ -9,7 +9,7 @@ export const UserProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [unseenMessages, setUnseenMessages] = useState([]);
-  
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [myStream, setMyStream] = useState(null);
   const myVideoRef = useRef();
   const [answer, setAnswer] = useState(null);
@@ -33,7 +33,7 @@ export const UserProvider = ({ children }) => {
   });
 
   // 2. Automatically sync raw string userId when the state object settles
- 
+
 
   // 3. API Fallback wrapped safely to prevent recreation loops
   const fetchUser = useCallback(async () => {
@@ -46,26 +46,13 @@ export const UserProvider = ({ children }) => {
     } catch (err) {
       console.error("Error running fallback fetchUser API:", err);
     }
-  }, []);
+  }, [isLoggedIn]);
 
-  // 4. Verification Check: Only hit API if user state is missing AND the auth cookie says we have a valid session
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const authStatus = urlParams.get('auth_status');
-    console.log(urlParams, 'urlParam')
-    if (authStatus === 'success') {
-      fetchUser();
-      localStorage.setItem('user_logged_in', 'true');
-      const cleanUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, cleanUrl);
-    }
-    // Check if the 'logged_in' cookie flag EXISTS
-   
-    // Condition: React memory is blank, but server cookie tells us they are authenticated
-   
-  }, []);
 
-  // 5. Stable Messenger Check Action
+ useEffect(() => {
+  if(isLoggedIn) fetchUser();
+   }, [isLoggedIn]);
+   
   const loadUnseenMessages = useCallback(async () => {
     if (user?._id) {
       try {
@@ -154,7 +141,7 @@ export const UserProvider = ({ children }) => {
     socketConnection.on('userLeft', handleUserLeft);
     socketConnection.on('disconnect', () => setActiveUsers([]));
     socketConnection.on('checkit', loadUnseenMessages);
-    
+
     socketConnection.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
     });
@@ -176,7 +163,6 @@ export const UserProvider = ({ children }) => {
     <UserContext.Provider
       value={{
         socket,
-      
         activeUsers,
         unseenMessages,
         setUnseenMessages,
@@ -190,7 +176,9 @@ export const UserProvider = ({ children }) => {
         myStream,
         showIncoming,
         setShowIncoming,
-        callData
+        callData,
+        setIsLoggedIn,
+        isLoggedIn,
       }}
     >
       {children}

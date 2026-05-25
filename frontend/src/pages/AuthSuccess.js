@@ -1,29 +1,66 @@
-// In AuthSuccess.jsx (page for /auth-success)
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useDispatch } from 'react-redux';
-import {jwtDecode} from 'jwt-decode';
-import { SET_USER } from "../store/action";
+import React, { useContext, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { UserContext } from '../contexts/UserContext';
 export default function AuthSuccess() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const location = useLocation();
+  const {isLoggedIn,setIsLoggedIn} = useContext(UserContext);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-
-    if (token) {
-      localStorage.setItem("token", token);
-      const decodedData = jwtDecode(token);
-      dispatch({
-        type: SET_USER,
-        payload: { user: decodedData }, // Replace with actual userId
-      });
-      localStorage.setItem("user", JSON.stringify(decodedData));
-      navigate("/"); // or wherever you want to go
+    // 1. Parse the URL params
+    const urlParams = new URLSearchParams(location.search);
+    const authStatus = urlParams.get('auth_status');
+    const username = urlParams.get('username');
+   
+    if (authStatus === 'success') {
+      // 2. Set your localStorage variables
+      localStorage.setItem('user_logged_in', 'true');
+      localStorage.setItem('username', username || '');
+      setIsLoggedIn(true);
+      // 3. Smoothly redirect to /home 
+      // 'replace: true' clears this loading screen from browser history
+      setTimeout(() => {
+      navigate('/home', { replace: true });
+      }, 1000); // Optional: Add a slight delay for better UX
     } else {
-      navigate("/login");
+      // Fallback if something went wrong during OAuth
+      navigate('/login', { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, location]);
+   
+  
 
-  return <p>Signing you in...</p>;
+  return (
+    <div style={styles.container}>
+      <div style={styles.spinner}></div>
+      <p style={styles.text}>Setting up your workspace...</p>
+    </div>
+  );
 }
+
+// Quick minimal dark styles to match a clean dev aesthetic
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    backgroundColor: '#121212',
+    color: '#ffffff',
+    fontFamily: 'sans-serif'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #333',
+    borderTop: '4px solid #00ffff',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '20px'
+  },
+  text: {
+    fontSize: '16px',
+    letterSpacing: '0.5px',
+    color: '#aaa'
+  }
+};

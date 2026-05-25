@@ -69,15 +69,11 @@ router.get('/google/callback',
         sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
-res.cookie('logged_in', 'true', {
-  httpOnly: false,
-  secure: true,
-  sameSite: 'none',
-  path: '/'
-});
-   const frontendUrl = `${process.env.FRONTEND_URL}/home` ;
-     
-    return  res.redirect(`${frontendUrl}?auth_status=success`);
+   // BACKEND
+const frontendUrl = `${process.env.FRONTEND_URL}/auth-success`;
+const queryParams = `?auth_status=success&username=${req.user.userName}`;
+
+return res.redirect(frontendUrl + queryParams);
     }
 
     // 🔹 CASE 2: No password → ask user to set it

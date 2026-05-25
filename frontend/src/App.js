@@ -35,34 +35,31 @@ import ErrorPage from './pages/ErrorPage.js';
 import HomePage from './pages/Home.js';
 
 // 1. Reusable Navigation Context Conditonal Wrapper
-const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
+const ManagedNavbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useContext(UserContext);
-  useEffect(() => {
-;  
-    
-  
-    if (user) {
-      setIsAuthenticated(true);
+  const { isLoggedIn } = useContext(UserContext);
 
-      // Only auto-redirect to /home if they are currently sitting on the landing/login pages
-      if (location.pathname === '/' || location.pathname === '/login') {
-        navigate('/home'); // Fixed the './home' relative path typo to absolute '/home'
-      }
-    } else {
-      setIsAuthenticated(false);
-      navigate('/login')
+  console.log("ManagedNavbar evaluation path:", location.pathname, { isLoggedIn });
+
+  // ✅ FIX: Move side-effect routing logic safely into a useEffect hook
+  useEffect(() => {
+    if (!isLoggedIn) {
+      console.log("User unauthenticated! Redirecting safely to /login...");
+      navigate('/login', { replace: true });
     }
-  }, [user]);
-  // If the user isn't logged in, OR they are visiting the chats dashboard, hide it completely
-  if (!isAuthenticated || (location.pathname !== '/profile' && location.pathname !== '/home')) {
+  }, [isLoggedIn, navigate]);
+
+  // If the user isn't logged in, stop rendering immediately 
+  if (!isLoggedIn) {
     return null;
   }
 
-
-  // Hide the navbar entirely if not authenticated OR if visiting the chats dashboard
-  if (!isAuthenticated || location.pathname === '/chats') {
+  // Hide the navbar entirely if visiting chats or ANY route outside /profile and /home
+  if (
+    location.pathname === '/chats' || 
+    (location.pathname !== '/profile' && location.pathname !== '/home')
+  ) {
     return null;
   }
 
@@ -160,7 +157,7 @@ function App() {
         <Routes>
           {/* Default Dynamic Root Destination Mapping */}
           <Route path="/" element={isAuthenticated ? <ProfilePage /> : <AuthForms />} />
-
+          <Route path="/auth-success" element={<AuthSuccess />} />
           {/* Standard Explicit Endpoints */}
           <Route path="/login" element={<AuthForms />} />
           <Route path="/home" element={<HomePage />} />

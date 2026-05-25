@@ -102,7 +102,7 @@ const ProfilePage = () => {
 
   // Fetch User Data
   useEffect(() => {
-    setFlag(true)
+  
     if (location.pathname === "/profile" || location.pathname === "/") {
       fetchuser();
     } else {
