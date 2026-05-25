@@ -40,6 +40,7 @@ const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
   const navigate = useNavigate();
   
   useEffect(() => {
+    console.log(document.cookie, 'Current Cookies on Navbar Check');
     const isLoggedInCookiePresent = document.cookie
       .split('; ')
       .some(row => row.startsWith('logged_in='));
