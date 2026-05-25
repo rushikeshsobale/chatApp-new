@@ -40,13 +40,10 @@ const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
   const navigate = useNavigate();
   
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));  
     console.log(document.cookie, 'Current Cookies on Navbar Check');
-    const isLoggedInCookiePresent = document.cookie
-      .split('; ')
-      .some(row => row.startsWith('logged_in='));
-
-      console.log(isLoggedInCookiePresent, 'Navbar isLoggedInCookiePresent Check');
-    if (isLoggedInCookiePresent) {
+  
+    if (user) {
       setIsAuthenticated(true);
 
       // Only auto-redirect to /home if they are currently sitting on the landing/login pages
