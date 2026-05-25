@@ -75,7 +75,9 @@ res.cookie('logged_in', 'true', {
   sameSite: 'none',
   path: '/'
 });
-      return res.redirect(`${process.env.FRONTEND_URL}/home`);
+   const frontendUrl = `${process.env.FRONTEND_URL}/home` ;
+     
+    return  res.redirect(`${frontendUrl}?auth_status=success`);
     }
 
     // 🔹 CASE 2: No password → ask user to set it

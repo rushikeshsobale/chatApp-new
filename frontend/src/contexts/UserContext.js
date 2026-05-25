@@ -9,7 +9,7 @@ export const UserProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [unseenMessages, setUnseenMessages] = useState([]);
-  const [flag, setFlag] = useState(false);
+  
   const [myStream, setMyStream] = useState(null);
   const myVideoRef = useRef();
   const [answer, setAnswer] = useState(null);
@@ -39,7 +39,6 @@ export const UserProvider = ({ children }) => {
   const fetchUser = useCallback(async () => {
     try {
       const res = await getMe();
-     console.log(res, 'Response from getMe API Fallback');
       if (res && res._id) {
         localStorage.setItem('user', JSON.stringify(res));
         setUser(res);
@@ -51,15 +50,20 @@ export const UserProvider = ({ children }) => {
 
   // 4. Verification Check: Only hit API if user state is missing AND the auth cookie says we have a valid session
   useEffect(() => {
-    console.log(user, 'Current User State Context');
-
+    const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get('auth_status');
+    console.log(urlParams, 'urlParam')
+    if (authStatus === 'success') {
+      fetchUser();
+      localStorage.setItem('user_logged_in', 'true');
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
     // Check if the 'logged_in' cookie flag EXISTS
    
     // Condition: React memory is blank, but server cookie tells us they are authenticated
-    if (user === null ) {
-      fetchUser();
-    }
-  }, [user, fetchUser]);
+   
+  }, []);
 
   // 5. Stable Messenger Check Action
   const loadUnseenMessages = useCallback(async () => {
@@ -177,7 +181,6 @@ export const UserProvider = ({ children }) => {
         unseenMessages,
         setUnseenMessages,
         loadUnseenMessages,
-        setFlag,
         answer,
         incomingCall,
         setIncomingCall,
