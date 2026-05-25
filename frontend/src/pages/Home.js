@@ -58,7 +58,7 @@ const HomePage = ({  socket }) => {
   const {user} = useContext(UserContext);
   const userId = user?._id;
   // --- 1. Initial Data Pipeline Aggregation ---
-  console.log(user, 'user')
+ 
   useEffect(() => {
     if (!userId) return;
     
