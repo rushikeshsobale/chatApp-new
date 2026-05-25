@@ -39,7 +39,7 @@ export const UserProvider = ({ children }) => {
   const fetchUser = useCallback(async () => {
     try {
       const res = await getMe();
- 
+     console.log(res, 'Response from getMe API Fallback');
       if (res && res._id) {
         localStorage.setItem('user', JSON.stringify(res));
         setUser(res);
@@ -54,14 +54,9 @@ export const UserProvider = ({ children }) => {
     console.log(user, 'Current User State Context');
 
     // Check if the 'logged_in' cookie flag EXISTS
-    const isLoggedInCookiePresent = document.cookie
-      .split('; ')
-      .some(row => row.startsWith('logged_in='));
-
-    console.log(isLoggedInCookiePresent, 'isLoggedInCookiePresent Check');
-
+   
     // Condition: React memory is blank, but server cookie tells us they are authenticated
-    if (user === null && isLoggedInCookiePresent) {
+    if (user === null ) {
       fetchUser();
     }
   }, [user, fetchUser]);
