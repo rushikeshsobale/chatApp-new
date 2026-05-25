@@ -41,7 +41,7 @@ const ManagedNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
   const { user } = useContext(UserContext);
   useEffect(() => {
 ;  
-    console.log(user, 'Current User on Navbar Check');
+    console.log(user, 'appjs');
   
     if (user) {
       setIsAuthenticated(true);
