@@ -94,6 +94,7 @@ const ChatComponent = () => {
           })
         );
         setConversations(updatedConversations);
+        console.log("Loaded conversations:", updatedConversations);
       } catch (err) {
         console.error("Error loading conversations:", err);
       }
