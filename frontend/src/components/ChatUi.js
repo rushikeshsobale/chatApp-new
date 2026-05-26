@@ -6,7 +6,7 @@ import { createNotification } from '../services/notificationService'
 import { deleteMessages } from '../services/messageService';
 import { ThemeContext } from "../contexts/ThemeContext";
 import {
- 
+
   faCheckDouble,
   faEllipsisV,
   faTrashAlt,
@@ -26,7 +26,7 @@ import { fetchUserKeys, recieverpublickey } from '../services/keyse2e';
 import CryptoUtils from '../utils/CryptoUtils';
 import { createOrGetConversation } from '../services/conversations';
 import { fetchMessage } from '../services/messageService';
-const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation}) => {
+const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation }) => {
   const { socket, loadUnseenMessages } = useContext(UserContext);
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -47,7 +47,9 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
   const [userPrivateKey, setUserPrivateKey] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [senderPublicKey, setSenderPublicKey] = useState(null);
+  
   useEffect(() => {
+    console.log("ChatUi mounted with conversation:", conversation, "and member:", member);
     const initializeKey = async () => {
       try {
         const key = await CryptoUtils.loadKeyLocally();
@@ -565,8 +567,8 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
     }
   }, [messages]);
 
-   const {isDark} = useContext(ThemeContext);
-const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
+  const { isDark } = useContext(ThemeContext);
+  const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
   const headerFooterBg = isDark ? "bg-secondary text-white border-secondary" : "bg-light text-dark border-light";
   const messagesAreaBg = isDark ? "#121212" : "#f0f2f5";
   const sentBubbleBg = isDark ? "#005c4b" : "#d9fdd3";
@@ -575,230 +577,230 @@ const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
   return (
     <>
 
-      <div 
-      className={`d-flex flex-column w-100 ${themeBg}`} 
-      style={{ 
-        height: "100vh", 
-        maxHeight: "-webkit-fill-available", // Fixes mobile Safari address bar issues
-        overflow: "hidden" 
-      }}
-    >
-      {/* Chat Header */}
-      <div className={`d-flex align-items-center justify-content-between p-2 border-bottom ${headerFooterBg}`} style={{position:'fixed', top:'0', left:'0', width:'100%', height:'60px'}}>
-        <div className="d-flex align-items-center gap-2">
-          <button className="btn p-1 text-inherit" onClick={onBack}>
-            <FaArrowLeft size={18} />
-          </button>
-          
-          <div className="d-flex align-items-center gap-2">
-            <div className="position-relative" style={{ width: "40px", height: "40px" }}>
-              <img
-                className="rounded-circle"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                src={member?.profilePicture}
-                alt="user"
-              />
-              {typingUser && typingUser !== userId && typingUser === member._id && (
-                <div className="position-absolute bottom-0 end-0 bg-success rounded-circle" style={{ width: "10px", height: "10px" }} />
-              )}
-            </div>
-            
-            <div className="d-flex flex-column justify-content-center" style={{ lineHeight: "1.2" }}>
-              <h6 className="m-0 text-truncate" style={{ maxWidth: "120px" }}>
-                {member?.userName}
-              </h6>
-              <small className={isDark ? "text-light-50" : "text-muted"} style={{ fontSize: "0.75rem" }}>
-                {typingUser && typingUser !== userId && typingUser === member._id ? "typing..." : "online"}
-              </small>
-            </div>
-          </div>
-        </div>
-
-        {/* Header Actions */}
-        <div className="d-flex align-items-center gap-1">
-          <button
-            className={`btn border-0 rounded-circle d-flex align-items-center justify-content-center ${isDark ? 'text-white' : 'text-dark'}`}
-            onClick={() => setOutgoingCall(true)}
-            style={{ width: "38px", height: "38px", background: "rgba(120,120,120,0.1)" }}
-          >
-            <FaVideoIcon size={16} />
-          </button>
-          
-          <div className="dropdown">
-            <button className={`btn border-0 ${isDark ? 'text-white' : 'text-dark'}`} data-bs-toggle="dropdown" type="button">
-              <FontAwesomeIcon icon={faEllipsisV} />
-            </button>
-            <div className={`dropdown-menu dropdown-menu-end ${isDark ? 'dropdown-menu-dark' : ''}`}>
-              <button className="dropdown-item text-danger" onClick={() => deleteMessages(userId, member.id)}>
-                <FontAwesomeIcon icon={faTrashAlt} className="me-2" /> clear chat
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    
-      {/* Messages Area */}
-      <div 
-        className="flex-grow-1 p-3 overflow-y-auto" 
-        style={{ 
-          position:'relative',
-          top:'60px',
-          background: messagesAreaBg,
-          scrollbarWidth: "thin"
+      <div
+        className={`d-flex flex-column w-100 ${themeBg}`}
+        style={{
+          height: "100vh",
+          maxHeight: "-webkit-fill-available", // Fixes mobile Safari address bar issues
+          overflow: "hidden"
         }}
       >
-        {messages?.length === 0 ? (
-          <div className="d-flex align-items-center justify-content-center h-100 text-muted">
-            <p>Start a conversation with {member?.userName} !</p>
-          </div>
-        ) : (
-          messages?.map((message, index) => {
-            const isReceived = message.receiverId === userId;
-            return (
-              <div
-                key={message._id || index}
-                className={`d-flex mb-2 ${isReceived ? 'justify-content-start' : 'justify-content-end'}`}
-              >
-                <div 
-                  className={`p-2 rounded-3 shadow-sm position-relative ${bubbleTextColor}`}
-                  style={{ 
-                    backgroundColor: isReceived ? receivedBubbleBg : sentBubbleBg,
-                    maxWidth: "75%",
-                    minWidth: "60px"
-                  }}
-                >
-                  {/* Decrypted Text content */}
-                  <div className="small text-break mb-1">
-                    {decryptedMessages[message._id] ? decryptedMessages[message._id] : "…"}
-                  </div>
+        {/* Chat Header */}
+        <div className={`d-flex align-items-center justify-content-between p-2 border-bottom ${headerFooterBg}`} style={{ position: 'fixed', top: '0', left: '0', width: '100%', height: '60px' }}>
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn p-1 text-inherit" onClick={onBack}>
+              <FaArrowLeft size={18} />
+            </button>
 
-                  {/* Attachment Management */}
-                  {message?.attachment && (
-                    <div className="mt-1 mb-1 rounded overflow-hidden">
-                      {message.attachment.type === 'image' && (
-                        <img
-                          src={message.attachment.name}
-                          alt="Attachment"
-                          className="img-fluid w-100"
-                          style={{ maxHeight: "200px", objectFit: "cover" }}
-                        />
-                      )}
-
-                      {message.attachment.type === 'video' && (
-                        <video controls className="w-100" style={{ maxHeight: "200px" }}>
-                          <source src={message.attachment.name} type="video/mp4" />
-                        </video>
-                      )}
-
-                      {(!message.attachment.type || message.attachment.type === 'file') && (
-                        <a
-                          href={message.attachment.name}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="d-flex align-items-center gap-2 p-2 border rounded text-decoration-none small text-truncate"
-                        >
-                          <FontAwesomeIcon icon={faFileAlt} />
-                          <span>{message.attachment.name || 'Download File'}</span>
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Message Meta Data */}
-                  <div className="d-flex align-items-center justify-content-end gap-1" style={{ fontSize: "0.65rem", opacity: 0.7 }}>
-                    <span>
-                      {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {!isReceived && (
-                      <span className={message?.status === 'read' ? 'text-info' : ''}>
-                        <FontAwesomeIcon icon={message?.status === 'read' ? faCheckDouble : faCheck} />
-                      </span>
-                    )}
-                  </div>
-                </div>
+            <div className="d-flex align-items-center gap-2">
+              <div className="position-relative" style={{ width: "40px", height: "40px" }}>
+                <img
+                  className="rounded-circle"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  src={member?.profilePicture}
+                  alt="user"
+                />
+                {typingUser && typingUser !== userId && typingUser === member._id && (
+                  <div className="position-absolute bottom-0 end-0 bg-success rounded-circle" style={{ width: "10px", height: "10px" }} />
+                )}
               </div>
-            );
-          })
-        )}
-      </div>
 
-      {/* Input / Controls Area */}
-      <div className={`p-2 border-top position-relative ${headerFooterBg}`}>
-        
-        {/* Attachment Popup menu alternative overlay */}
-        {showAttachmentPopup && (
-          <div className={`position-absolute bottom-100 start-0 m-2 p-2 rounded shadow ${isDark ? 'bg-secondary' : 'bg-white'}`} style={{ zIndex: 1050 }}>
-            <div className="d-flex flex-column gap-1">
-              <button className="btn btn-sm text-start" onClick={() => handleFileSelect("image")}>
-                <FontAwesomeIcon icon={faImage} className="me-2" /> Photo
-              </button>
-              <button className="btn btn-sm text-start" onClick={() => handleFileSelect("video")}>
-                <FontAwesomeIcon icon={faVideo} className="me-2" /> Video
-              </button>
-              <button className="btn btn-sm text-start" onClick={() => handleFileSelect("document")}>
-                <FontAwesomeIcon icon={faFileAlt} className="me-2" /> Document
-              </button>
+              <div className="d-flex flex-column justify-content-center" style={{ lineHeight: "1.2" }}>
+                <h6 className="m-0 text-truncate" style={{ maxWidth: "120px" }}>
+                  {member?.userName}
+                </h6>
+                <small className={isDark ? "text-light-50" : "text-muted"} style={{ fontSize: "0.75rem" }}>
+                  {typingUser && typingUser !== userId && typingUser === member._id ? "typing..." : "online"}
+                </small>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Emoji Selector Overlay */}
-        {showEmojiPicker && (
-          <div className="position-absolute bottom-100 end-0 m-2 shadow" style={{ zIndex: 1050 }}>
-            <EmojiPicker onEmojiClick={handleEmojiClick} width={280} height={320} theme={isDark ? "dark" : "light"} />
+          {/* Header Actions */}
+          <div className="d-flex align-items-center gap-1">
+            <button
+              className={`btn border-0 rounded-circle d-flex align-items-center justify-content-center ${isDark ? 'text-white' : 'text-dark'}`}
+              onClick={() => setOutgoingCall(true)}
+              style={{ width: "38px", height: "38px", background: "rgba(120,120,120,0.1)" }}
+            >
+              <FaVideoIcon size={16} />
+            </button>
+
+            <div className="dropdown">
+              <button className={`btn border-0 ${isDark ? 'text-white' : 'text-dark'}`} data-bs-toggle="dropdown" type="button">
+                <FontAwesomeIcon icon={faEllipsisV} />
+              </button>
+              <div className={`dropdown-menu dropdown-menu-end ${isDark ? 'dropdown-menu-dark' : ''}`}>
+                <button className="dropdown-item text-danger" onClick={() => deleteMessages(userId, member.id)}>
+                  <FontAwesomeIcon icon={faTrashAlt} className="me-2" /> clear chat
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-
-        {/* Core Input controls */}
-        <div className="d-flex align-items-center gap-1">
-          <button className={`btn border-0 p-2 ${isDark ? 'text-white' : 'text-dark'}`} onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}>
-            <FontAwesomeIcon icon={faPaperclip} />
-          </button>
-          
-          <input
-            type="text"
-            ref={inputRef}
-            className={`form-control form-control-sm border-0 ${isDark ? 'bg-dark text-white' : 'bg-white text-dark'}`}
-            placeholder="Type a message..."
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onFocus={handleTyping}
-            onBlur={handleBlur}
-            style={{ borderRadius: "20px" }}
-          />
-
-          <button className={`btn border-0 p-2 ${isDark ? 'text-white' : 'text-dark'}`} onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
-            <FontAwesomeIcon icon={faSmile} />
-          </button>
-          
-          <button 
-            className="btn btn-success rounded-circle d-flex align-items-center justify-content-center p-2" 
-            onClick={() => sendMessage(selectedFile)}
-            disabled={!messageInput.trim() && !selectedFile}
-            style={{ width: "36px", height: "36px" }}
-          >
-            <FontAwesomeIcon icon={faPaperPlane} size="sm" className="text-white" />
-          </button>
         </div>
 
-        {/* Attached File Preview Bar */}
-        {selectedFile && (
-          <div className="d-flex align-items-center justify-content-between p-1 mt-2 border rounded bg-opacity-10 bg-black small">
-            <span className="text-truncate px-1">{selectedFile.name}</span>
-            <button className="btn btn-sm py-0 text-danger" onClick={() => setSelectedFile(null)}>×</button>
+        {/* Messages Area */}
+        <div
+          className="flex-grow-1 p-3 overflow-y-auto"
+          style={{
+            position: 'relative',
+            top: '60px',
+            background: messagesAreaBg,
+            scrollbarWidth: "thin"
+          }}
+        >
+          {messages?.length === 0 ? (
+            <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+              <p>Start a conversation with {member?.userName} !</p>
+            </div>
+          ) : (
+            messages?.map((message, index) => {
+              const isReceived = message.receiverId === userId;
+              return (
+                <div
+                  key={message._id || index}
+                  className={`d-flex mb-2 ${isReceived ? 'justify-content-start' : 'justify-content-end'}`}
+                >
+                  <div
+                    className={`p-2 rounded-3 shadow-sm position-relative ${bubbleTextColor}`}
+                    style={{
+                      backgroundColor: isReceived ? receivedBubbleBg : sentBubbleBg,
+                      maxWidth: "75%",
+                      minWidth: "60px"
+                    }}
+                  >
+                    {/* Decrypted Text content */}
+                    <div className="small text-break mb-1">
+                      {decryptedMessages[message._id] ? decryptedMessages[message._id] : "…"}
+                    </div>
+
+                    {/* Attachment Management */}
+                    {message?.attachment && (
+                      <div className="mt-1 mb-1 rounded overflow-hidden">
+                        {message.attachment.type === 'image' && (
+                          <img
+                            src={message.attachment.name}
+                            alt="Attachment"
+                            className="img-fluid w-100"
+                            style={{ maxHeight: "200px", objectFit: "cover" }}
+                          />
+                        )}
+
+                        {message.attachment.type === 'video' && (
+                          <video controls className="w-100" style={{ maxHeight: "200px" }}>
+                            <source src={message.attachment.name} type="video/mp4" />
+                          </video>
+                        )}
+
+                        {(!message.attachment.type || message.attachment.type === 'file') && (
+                          <a
+                            href={message.attachment.name}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="d-flex align-items-center gap-2 p-2 border rounded text-decoration-none small text-truncate"
+                          >
+                            <FontAwesomeIcon icon={faFileAlt} />
+                            <span>{message.attachment.name || 'Download File'}</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Message Meta Data */}
+                    <div className="d-flex align-items-center justify-content-end gap-1" style={{ fontSize: "0.65rem", opacity: 0.7 }}>
+                      <span>
+                        {new Date(message?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {!isReceived && (
+                        <span className={message?.status === 'read' ? 'text-info' : ''}>
+                          <FontAwesomeIcon icon={message?.status === 'read' ? faCheckDouble : faCheck} />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Input / Controls Area */}
+        <div className={`p-2 border-top position-relative ${headerFooterBg}`}>
+
+          {/* Attachment Popup menu alternative overlay */}
+          {showAttachmentPopup && (
+            <div className={`position-absolute bottom-100 start-0 m-2 p-2 rounded shadow ${isDark ? 'bg-secondary' : 'bg-white'}`} style={{ zIndex: 1050 }}>
+              <div className="d-flex flex-column gap-1">
+                <button className="btn btn-sm text-start" onClick={() => handleFileSelect("image")}>
+                  <FontAwesomeIcon icon={faImage} className="me-2" /> Photo
+                </button>
+                <button className="btn btn-sm text-start" onClick={() => handleFileSelect("video")}>
+                  <FontAwesomeIcon icon={faVideo} className="me-2" /> Video
+                </button>
+                <button className="btn btn-sm text-start" onClick={() => handleFileSelect("document")}>
+                  <FontAwesomeIcon icon={faFileAlt} className="me-2" /> Document
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Emoji Selector Overlay */}
+          {showEmojiPicker && (
+            <div className="position-absolute bottom-100 end-0 m-2 shadow" style={{ zIndex: 1050 }}>
+              <EmojiPicker onEmojiClick={handleEmojiClick} width={280} height={320} theme={isDark ? "dark" : "light"} />
+            </div>
+          )}
+
+          {/* Core Input controls */}
+          <div className="d-flex align-items-center gap-1">
+            <button className={`btn border-0 p-2 ${isDark ? 'text-white' : 'text-dark'}`} onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}>
+              <FontAwesomeIcon icon={faPaperclip} />
+            </button>
+
+            <input
+              type="text"
+              ref={inputRef}
+              className={`form-control form-control-sm border-0 ${isDark ? 'bg-dark text-white' : 'bg-white text-dark'}`}
+              placeholder="Type a message..."
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onFocus={handleTyping}
+              onBlur={handleBlur}
+              style={{ borderRadius: "20px" }}
+            />
+
+            <button className={`btn border-0 p-2 ${isDark ? 'text-white' : 'text-dark'}`} onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+              <FontAwesomeIcon icon={faSmile} />
+            </button>
+
+            <button
+              className="btn btn-success rounded-circle d-flex align-items-center justify-content-center p-2"
+              onClick={() => sendMessage(selectedFile)}
+              disabled={!messageInput.trim() && !selectedFile}
+              style={{ width: "36px", height: "36px" }}
+            >
+              <FontAwesomeIcon icon={faPaperPlane} size="sm" className="text-white" />
+            </button>
           </div>
+
+          {/* Attached File Preview Bar */}
+          {selectedFile && (
+            <div className="d-flex align-items-center justify-content-between p-1 mt-2 border rounded bg-opacity-10 bg-black small">
+              <span className="text-truncate px-1">{selectedFile.name}</span>
+              <button className="btn btn-sm py-0 text-danger" onClick={() => setSelectedFile(null)}>×</button>
+            </div>
+          )}
+        </div>
+
+        {/* Outgoing Call handling structure logic */}
+        {showOutgoingCall && OutGoingCall && (
+          <OutGoingCall
+            show={showOutgoingCall}
+            member={member}
+            onCancel={() => setOutgoingCall(false)}
+          />
         )}
       </div>
-
-      {/* Outgoing Call handling structure logic */}
-      {showOutgoingCall && OutGoingCall && (
-        <OutGoingCall
-          show={showOutgoingCall}
-          member={member}
-          onCancel={() => setOutgoingCall(false)}
-        />
-      )}
-    </div>
 
     </>
   );

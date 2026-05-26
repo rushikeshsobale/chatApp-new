@@ -160,6 +160,7 @@ const ChatComponent = () => {
 
   const handleFriendSelect = async (member) => {
     setSelectedFriend(member);
+    setSelectedConversation(null);
   };
 
   const handleConversationSelect = async (conversation, lastUnseenMsg = []) => {
