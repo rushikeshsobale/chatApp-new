@@ -99,7 +99,7 @@ const ChatComponent = () => {
       }
     };
     loadConversations();
-  }, [selectedFriend]);
+  }, []);
 
   // Swipe Handlers
   const handleTouchStart = (e) => {
