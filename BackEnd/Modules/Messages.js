@@ -1,41 +1,158 @@
 const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
 
-// Reaction schema
-const ReactionSchema = new Schema(
-  {
-    userId: { type: String, required: true },
-    emoji: { type: String, required: true },
-    reactedAt: { type: Date, default: Date.now },
-  },
-  { _id: false }
-);
-
-// Message schema
 const MessageSchema = new Schema(
   {
     conversationId: {
-      type: String,
-      ref: "Conversation"
+      type: Schema.Types.ObjectId,
+      ref: "Conversation",
+      required: true,
+      index: true,
     },
-    senderId: { type: String, required: true, ref: 'Muser', },
-    receiverId: { type: String }, // Optional for group messages
-    content: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now },
-    messageType: { type: String, enum: ["text", "image", "video", "file"], default: "text" },
-    status: { type: String, enum: ["sent", "delivered", "read", "deleteForMe", "deleteForEveryone"], default: "sent" },
-    attachment: {
-      name: { type: String },
-      type: { type: String, enum: ['image', 'video', 'file'], default: 'file' },
 
+    senderId: {
+      type: String,
+      ref: "Muser",
+      required: true,
+      index: true,
     },
-    hash: { type: String, required: false },
-    reactions: [ReactionSchema], // Embedded reactions
+
+    receiverId: {
+      type: String,
+      ref: "Muser",
+      required: true,
+      index: true,
+    },
+
+    // E2EE encrypted payload
+    content: {
+      type: String,
+      default: "",
+    },
+
+    messageType: {
+      type: String,
+      enum: [
+        "text",
+        "image",
+        "video",
+        "file",
+        "voice_call",
+        "video_call",
+        "call_log",
+      ],
+      default: "text",
+    },
+
+    attachment: {
+      url: {
+        type: String,
+        default: null,
+      },
+
+      name: {
+        type: String,
+        default: null,
+      },
+
+      mimeType: {
+        type: String,
+        default: null,
+      },
+
+      size: {
+        type: Number,
+        default: 0,
+      },
+    },
+
+    // Reply support
+    parentId: {
+      type: Schema.Types.ObjectId,
+      ref: "messages",
+      default: null,
+    },
+
+    // Emoji reactions
+    reactions: [
+      {
+        userId: {
+          type: String,
+          ref: "Muser",
+        },
+
+        emoji: {
+          type: String,
+          required: true,
+        },
+
+        reactedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // Delivery status
+    status: {
+      type: String,
+      enum: ["sent", "delivered", "read"],
+      default: "sent",
+    },
+
+    readAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Call metadata
+    callDetails: {
+      callType: {
+        type: String,
+        enum: ["voice", "video"],
+        default: null,
+      },
+      startedAt: Date,
+
+      duration: {
+        type: Number,
+        default: 0,
+      },
+
+      callStatus: {
+        type: String,
+        enum: [
+          "ringing",
+          "answered",
+          "missed",
+          "rejected",
+          "completed",
+          "cancelled",
+        ],
+        default: null,
+      },
+    },
+
+    // Soft delete
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// Indexing for performance
-MessageSchema.index({ chatId: 1, timestamp: -1 });
+// Useful indexes
+MessageSchema.index({ conversationId: 1, createdAt: 1 });
+MessageSchema.index({ receiverId: 1, status: 1 });
+MessageSchema.index({ senderId: 1, receiverId: 1 });
+MessageSchema.index({ createdAt: -1 });
 
 module.exports = model("messages", MessageSchema);

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { UserContext } from "../contexts/UserContext";
-import { ThemeContext } from "../contexts/ThemeContext"; // New Import
+import { ThemeContext } from "../contexts/ThemeContext";
 import { useDispatch } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import { Link, useNavigate } from "react-router-dom";
@@ -33,7 +33,7 @@ import "../css/AuthForms.css";
 const AuthPage = () => {
   const dispatch = useDispatch();
   const { setUser } = useContext(UserContext);
-  const { isDark, toggleTheme } = useContext(ThemeContext); // Use Theme Context
+  const { isDark, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
 
   const [isLogin, setIsLogin] = useState(true);
@@ -80,89 +80,77 @@ const AuthPage = () => {
 
     try {
       if (isLogin) {
-        const { token, hasKeys } = await login({
+        // 1. Submit email/password to the updated backend router
+        const response = await login({
           email: formData.email,
           password: formData.password,
         });
-
-        localStorage.setItem("token", token);
-        const decodedData = jwtDecode(token);
-
-        localStorage.setItem("user", JSON.stringify(decodedData));
-
-        if (!hasKeys) {
-          const keyPair = await crypto.subtle.generateKey(
-            { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
-            true,
-            ["encrypt", "decrypt"]
+        if (response.success) {
+          navigate(
+            response.redirectTo || "/home"
           );
-          const { encrypted, salt, iv } = await CryptoUtils.encryptPrivateKey(keyPair.privateKey, formData.password);
-          const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-
-          await uploadUserKeys({
-            publicKey: new Uint8Array(publicKey),
-            encryptedPrivateKey: new Uint8Array(encrypted),
-            salt: new Uint8Array(salt),
-            iv: new Uint8Array(iv),
-          });
-          await CryptoUtils.saveKeyLocally(keyPair.privateKey);
-        } else {
-          let localKey = await CryptoUtils.loadKeyLocally();
-          if (!localKey) {
-            const dbKeys = await fetchUserKeys();
-            const unlockedKey = await CryptoUtils.getPrivateKeyFromBackup(dbKeys, formData.password);
-            await CryptoUtils.saveKeyLocally(unlockedKey);
-          }
         }
-
-        const frontendUrl = `/auth-success`;
-        const queryParams = `?auth_status=success&username=${decodedData.userName}`;
-
-        navigate(frontendUrl + queryParams);
 
       } else {
         if (authStep === 1) {
           await sendVerification(formData.email);
           setAuthStep(2);
         } else if (authStep === 2) {
-          const verified = await verifyEmail({ email: formData.email, code: verificationCode });
-          if (verified) setAuthStep(3);
-        } else {
-          const response = await register({ ...formData, verificationCode });
-          localStorage.setItem('userId', response.userId);
-          navigate("/onboarding");
+
+          const response =
+            await verifyEmail({
+              email: formData.email,
+              code: verificationCode,
+            });
+
+          if (response.success) {
+
+            if (response.userId) {
+              localStorage.setItem(
+                "userId",
+                response.userId
+              );
+            }
+
+            navigate(
+              response.redirectTo ||
+              "/onboarding"
+            );
+          }
         }
       }
     } catch (error) {
       console.error("Authentication system failure:", error);
-      setErrors({ ...errors, form: error.message || "Authentication process failed." });
+      setErrors({
+        ...errors,
+        form:
+          error?.response?.data?.message ||
+          error.message ||
+          "Authentication process failed.",
+      });
     } finally {
-      setLoading(false);
+       setLoading(false);
     }
   };
 
   const handleSocialLogin = (provider) => {
+    // Hits the passport routing endpoint directly
     window.location.href = `${process.env.REACT_APP_API_URL}/auth/${provider}`;
   };
 
   return (
-    // Changed bg-light to bg-body-tertiary to naturally fall back on dark backgrounds
     <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary py-5 position-relative">
-
-      {/* Floating Theme Toggle Switch Button */}
       <button
         onClick={toggleTheme}
+        type="button"
         className={`btn position-absolute top-0 end-0 m-4 shadow-sm border rounded-circle d-flex align-items-center justify-content-center ${isDark ? 'btn-dark border-secondary' : 'btn-white border-muted'}`}
         style={{ width: "42px", height: "42px", transition: "all 0.25s ease" }}
         aria-label="Toggle structural interface theme"
       >
-        {isDark ? <FaSun className="text-warning animate-spin" size={16} /> : <FaMoon className="text-secondary" size={16} />}
+        {isDark ? <FaSun className="text-warning" size={16} /> : <FaMoon className="text-secondary" size={16} />}
       </button>
 
-      {/* Surface Card: shadow adapts contextually to dark layouts */}
       <div className={`card border-0 p-4 p-sm-5 ${isDark ? 'shadow-lg bg-dark' : 'shadow-sm bg-white'}`} style={{ maxWidth: "460px", width: "100%", borderRadius: "20px" }}>
-
-        {/* Step-by-Step Context Tracker Header */}
         <div className="text-center mb-4">
           <span
             className="badge mb-2 text-uppercase tracking-wider fw-bold px-3 py-15"
@@ -185,14 +173,11 @@ const AuthPage = () => {
         {errors.form && <div className="alert alert-danger py-2.5 px-3 small border-0 rounded-3 text-center mb-3">{errors.form}</div>}
 
         <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
-
-          {/* STEP 1: Core Credentials */}
           {authStep === 1 && (
             <>
               <div>
                 <label className="form-label small fw-semibold text-secondary mb-1">Email Address</label>
                 <div className="input-group">
-                  {/* Changed standard bg-light/text-muted classes to adaptive theme semantics */}
                   <span className="input-group-text bg-body border-end-0 text-secondary">
                     <FaEnvelope size={14} />
                   </span>
@@ -239,7 +224,6 @@ const AuthPage = () => {
             </>
           )}
 
-          {/* STEP 2: One-Time Password Verification Block */}
           {authStep === 2 && (
             <div className="text-center py-2">
               <p className="text-muted small mb-3">
@@ -258,14 +242,13 @@ const AuthPage = () => {
                 <button type="button" className="btn btn-link p-0 text-info text-decoration-none small fw-medium" onClick={() => setAuthStep(1)}>
                   Change Email
                 </button>
-                <button type="button" className="btn btn-link p-0 text-muted text-decoration-none small fw-medium" onClick={() => console.log("Resend code integration trigger")}>
+                <button type="button" className="btn btn-link p-0 text-muted text-decoration-none small fw-medium" onClick={() => console.log("Resend code trigger")}>
                   Resend Code
                 </button>
               </div>
             </div>
           )}
 
-          {/* STEP 3: Extensive Profile Setup Details */}
           {authStep === 3 && (
             <div className="d-flex flex-column gap-3">
               <div>
@@ -382,26 +365,17 @@ const AuthPage = () => {
               {isLogin ? "Sign Up" : "Log In"}
             </span>
           </p>
-
-          {isLogin && (
-            <div className="text-center">
-              <Link to="/forgot-password" className="text-secondary text-decoration-none extra-small text-muted" style={{ fontSize: '0.8rem' }}>
-                Forgot Password?
-              </Link>
-            </div>
-          )}
         </form>
 
-        {/* Modular Native Divider Component */}
         <div className="d-flex align-items-center my-4">
           <div className="flex-grow-1" style={{ height: '1px', backgroundColor: 'var(--bs-border-color)' }}></div>
           <span className="mx-3 text-muted extra-small fw-bold text-uppercase tracking-widest" style={{ fontSize: '0.7rem' }}>Third-Party Provider</span>
           <div className="flex-grow-1" style={{ height: '1px', backgroundColor: 'var(--bs-border-color)' }}></div>
         </div>
 
-        {/* Integrated Social Federation Action Row */}
         <div className="d-grid">
           <button
+            type="button"
             className={`btn d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold ${isDark ? 'btn-outline-secondary text-white' : 'btn-outline-muted border text-dark bg-white'}`}
             onClick={() => handleSocialLogin("google")}
             style={{ fontSize: "0.85rem", borderRadius: "8px" }}
@@ -409,16 +383,6 @@ const AuthPage = () => {
             <FaGoogle className="text-danger" /> Connect Google Account
           </button>
         </div>
-
-        {/* Absolute Legal Footer Context */}
-        <div className="text-center mt-4 pt-1">
-          <p className="text-muted mb-0" style={{ fontSize: '0.75rem', lineHeight: '1.5' }}>
-            By continuing your authentication query, you endorse our{" "}
-            <Link to="/terms" className="text-body fw-semibold text-decoration-none">Terms of Service</Link> &{" "}
-            <Link to="/privacy" className="text-body fw-semibold text-decoration-none">Privacy Schema</Link>.
-          </p>
-        </div>
-
       </div>
     </div>
   );

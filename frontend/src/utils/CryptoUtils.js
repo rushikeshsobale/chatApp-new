@@ -1,6 +1,8 @@
 /**
  * CryptoUtils.js 
- * Handles RSA-OAEP Key Management, AES-GCM Encryption, and IndexedDB Persistence.
+ * Consolidated Cryptographic Utility Engine for HiBuddy.
+ * Handles Asymmetric RSA-OAEP Keypairs, Ephemeral Symmetric AES-GCM Session Streams, 
+ * Group Conversions, and Secure Browser-Level IndexedDB Ledger Management.
  */
 
 const DB_NAME = "KeyStorage";
@@ -9,7 +11,9 @@ const KEY_ALIAS = "user-main-private-key";
 
 const CryptoUtils = {
 
-  // --- 1. UTILITIES --- 
+  // ==========================================
+  // 1. DATA CONVERSION TRANSFORMS
+  // ==========================================
 
   base64ToArrayBuffer(base64) {
     const binaryString = window.atob(base64);
@@ -20,109 +24,61 @@ const CryptoUtils = {
     return bytes.buffer;
   },
 
-  // --- 2. KEY DERIVATION (PBKDF2) ---
+  arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  },
+
+  // ==========================================
+  // 2. ASYMMETRIC INITIALIZATION UTILITIES
+  // ==========================================
 
   /**
-   * Turns a password into a 256-bit AES key.
-   * iterations: 100,000 is a standard for security/performance balance.
+   * Generates a pristine RSA-OAEP 2048-bit Asymmetric Cryptographic Keypair.
+   * Private key stays local to the device; Public key gets published to MongoDB.
    */
-  async deriveEncryptionKey(password, salt) {
-    const encoder = new TextEncoder();
-    const baseKey = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(password),
-      "PBKDF2",
-      false,
-      ["deriveKey"]
-    );
-
-    return await crypto.subtle.deriveKey(
+  async generateSessionKeyPair() {
+    return await window.crypto.subtle.generateKey(
       {
-        name: "PBKDF2",
-        salt: salt,
-        iterations: 100000,
+        name: "RSA-OAEP",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]), // 65537 standard
         hash: "SHA-256",
       },
-      baseKey,
-      { name: "AES-GCM", length: 256 },
-      false,
+      true, // Must stay exportable to back it up into IndexedDB / transfer public keys
       ["encrypt", "decrypt"]
     );
   },
 
-  // --- 3. ENCRYPTION (For First-Time Setup) ---
+  /**
+   * Transforms a native CryptoKey object into a portable string format for network transport.
+   */
+  async exportPublicKeyString(publicKey) {
+    const exported = await window.crypto.subtle.exportKey("spki", publicKey);
+    return this.arrayBufferToBase64(exported);
+  },
 
   /**
-   * Encrypts a Private Key so it can be safely stored in the database.
+   * Restores a base64 string representation back into a usable Web Crypto Public Key Instance.
    */
-  async encryptPrivateKey(privateKey, password) {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12)); // GCM standard IV
-
-    const aesKey = await this.deriveEncryptionKey(password, salt);
-
-    // Export the private key to a raw format (PKCS#8) before encrypting
-    const exportedRawKey = await crypto.subtle.exportKey("pkcs8", privateKey);
-
-    const encrypted = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: iv },
-      aesKey,
-      exportedRawKey
+  async importPublicKeyString(base64String) {
+    const buffer = this.base64ToArrayBuffer(base64String);
+    return await window.crypto.subtle.importKey(
+      "spki",
+      buffer,
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      true,
+      ["encrypt"]
     );
-
-    return { encrypted, salt, iv };
   },
 
-  // --- 4. RECOVERY (For New Devices) ---
-
-  /**
-   * Unlocks the encrypted key from the DB using the password.
-   */
-  async getPrivateKeyFromBackup(dbEntry, userPassword) {
-    try {
-      // 1. Helper to extract the data array and convert to Uint8Array
-      const toUint8 = (field) => {
-        if (field && field.data && Array.isArray(field.data)) {
-          return new Uint8Array(field.data);
-        }
-        // Fallback in case it's already a base64 string
-        if (typeof field === 'string') {
-          return new Uint8Array(this.base64ToArrayBuffer(field));
-        }
-        return field;
-      };
-
-      // 2. Extract the actual bytes from the 'data' array
-      const encryptedBuffer = toUint8(dbEntry.encryptedPrivateKey);
-      const saltBuffer = toUint8(dbEntry.salt);
-      const ivBuffer = toUint8(dbEntry.iv);
-
-      // 3. Proceed with decryption using the extracted bytes
-      const aesKey = await this.deriveEncryptionKey(userPassword, saltBuffer);
-
-      const decryptedRawKey = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: ivBuffer },
-        aesKey,
-        encryptedBuffer
-      );
-
-      // 4. Final import
-      return await crypto.subtle.importKey(
-        "pkcs8",
-        decryptedRawKey,
-        { name: "RSA-OAEP", hash: "SHA-256" },
-        true,
-        ["decrypt"]
-      );
-
-    } catch (error) {
-      console.error("Decryption failed internally:", error);
-      // If it fails here, it's either a bad password or corrupted bytes
-      throw new Error("Failed to unlock keys. Please check your password.");
-    }
-  },
-
-  // --- 5. INDEXED-DB (Local Device Storage) ---
+  // ==========================================
+  // 3. INDEXED-DB PERSISTENCE (Local Vault)
+  // ==========================================
 
   _openDB() {
     return new Promise((resolve, reject) => {
@@ -137,11 +93,15 @@ const CryptoUtils = {
     });
   },
 
-  async saveKeyLocally(privateKey) {
-    const db = await this._openDB();
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put(privateKey, KEY_ALIAS);
-  },
+ // In CryptoUtils.js, update saveKeyLocally:
+async saveKeyLocally(privateKey) {
+  const db = await this._openDB();
+  const transaction = db.transaction(STORE_NAME, "readwrite");
+  const store = transaction.objectStore(STORE_NAME);
+  
+  // Important: IndexedDB can store CryptoKey objects directly in most modern browsers!
+  store.put(privateKey, KEY_ALIAS);
+},
 
   async loadKeyLocally() { 
     try {
@@ -150,15 +110,11 @@ const CryptoUtils = {
         const transaction = db.transaction(STORE_NAME, "readonly");
         const store = transaction.objectStore(STORE_NAME);
         const request = store.get(KEY_ALIAS);
-        request.onsuccess = () => {
-          // request.result will be the CryptoKey object or undefined if not found
-          resolve(request.result || null);
-        };
+        request.onsuccess = () => resolve(request.result || null);
         request.onerror = () => {
-          console.error("IndexedDB Get Error:", request.error);
+          console.error("IndexedDB Key Retrieval Fault:", request.error);
           resolve(null);
         };
-        // Handle cases where the transaction itself fails
         transaction.onabort = () => resolve(null);
       });
     } catch (err) {
@@ -166,168 +122,179 @@ const CryptoUtils = {
       return null;
     }
   }, 
- async decryptMessage(data, privateKey, currentUserId) {
-  if(!data||!privateKey||!currentUserId) return
-  try {
-    // 🔥 Convert string to object if needed
-    const payload =
-      typeof data.content === "string"
-        ? JSON.parse(data.content)
-        : data.content;
 
-    const isMe =
-      data.senderId === currentUserId ||
-      data.senderId?._id === currentUserId;
-    const encryptedKeyBase64 = isMe
-      ? payload.keyForSender
-      : payload.keyForReceiver;
+  // ==========================================
+  // 4. HYBRID 1-ON-1 CRYPTOGRAPHIC ENGINE
+  // ==========================================
 
-    if (!encryptedKeyBase64) {
-    
-      return "[Invalid message]";
+  /**
+   * Encrypts a message body via unique hybrid symmetric/asymmetric generation layout blocks.
+   * @param {string} rawTextMessage - Unencrypted text string.
+   * @param {CryptoKey} senderPublicKey - Your public key instance.
+   * @param {CryptoKey} receiverPublicKey - Target user's public key instance.
+   */
+  async encryptDirectMessage(rawTextMessage, senderPublicKey, receiverPublicKey) {
+    console.log("Encrypting message:", rawTextMessage, senderPublicKey, receiverPublicKey); 
+    try {
+      const encoder = new TextEncoder();
+      const messageBuffer = encoder.encode(rawTextMessage);
+
+      // 1. Generate an ephemeral individual symmetric message key
+      const aesKey = await window.crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+      );
+
+      const iv = window.crypto.getRandomValues(new Uint8Array(12)); // 12-byte fast IV
+
+      // 2. Symmetric fast block encryption
+      const ciphertextBuffer = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        aesKey,
+        messageBuffer
+      );
+
+      // 3. Package the session key for export
+      const rawAesKeyBuffer = await window.crypto.subtle.exportKey("raw", aesKey);
+
+      // 4. Asymmetric wrapper for both users to allow bidirectional conversation context views
+      const encryptedKeyForReceiver = await window.crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        receiverPublicKey,
+        rawAesKeyBuffer
+      );
+
+      const encryptedKeyForSender = await window.crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        senderPublicKey,
+        rawAesKeyBuffer
+      );
+
+      return {
+        ciphertext: this.arrayBufferToBase64(ciphertextBuffer),
+        iv: this.arrayBufferToBase64(iv),
+        keyForReceiver: this.arrayBufferToBase64(encryptedKeyForReceiver),
+        keyForSender: this.arrayBufferToBase64(encryptedKeyForSender)
+      }; 
+    } catch (error) {
+      console.error("Encryption sequence dropped:", error);
+      throw new Error("E2EE payload construction aborted.");
+    }
+  },
+
+  /**
+   * Decrypts a structural hybrid session wrapper down to a plaintext UI readable string.
+   */
+  async decryptMessage(data, privateKey, currentUserId) {
+    if (!data || !privateKey || !currentUserId) return "";
+    try {
+      const payload = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
+
+      const isMe = data.senderId === currentUserId || data.senderId?._id === currentUserId;
+      const encryptedKeyBase64 = isMe ? payload.keyForSender : payload.keyForReceiver;
+
+      if (!encryptedKeyBase64) return "[Corrupted Encryption Frame]";
+
+      // Unpack raw symmetric token using your browser's underlying private key instance
+      const rawAesKey = await window.crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        privateKey,
+        this.base64ToArrayBuffer(encryptedKeyBase64)
+      );
+
+      const aesKey = await window.crypto.subtle.importKey(
+        "raw",
+        rawAesKey, 
+        "AES-GCM",
+        false,
+        ["decrypt"]
+      );
+
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: this.base64ToArrayBuffer(payload.iv) },
+        aesKey,
+        this.base64ToArrayBuffer(payload.ciphertext)
+      );
+
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error("Decryption failed:", error);
+      return "⚠️ Unable to decrypt message";
+    }
+  },
+
+  // ==========================================
+  // 5. ENCRYPTED MULTICAST GROUP LAYER
+  // ==========================================
+
+  async decryptGroupKey(conversation, privateKeyObj) {
+    if (!conversation.encryptedGroupKey) throw new Error("No encrypted group key found");
+    const encryptedKeyBuffer = this.base64ToArrayBuffer(conversation.encryptedGroupKey);
+
+    let privateKey;
+    if (privateKeyObj instanceof CryptoKey) {
+      privateKey = privateKeyObj;
+    } else {
+      const privateKeyBuffer = new Uint8Array(privateKeyObj.data);
+      privateKey = await window.crypto.subtle.importKey(
+        "pkcs8",
+        privateKeyBuffer,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        true,
+        ["decrypt"]
+      );
     }
 
-    const rawAesKey = await crypto.subtle.decrypt(
+    const decryptedGroupKeyBuffer = await window.crypto.subtle.decrypt(
       { name: "RSA-OAEP" },
       privateKey,
-      this.base64ToArrayBuffer(encryptedKeyBase64)
+      encryptedKeyBuffer
     );
 
-    const aesKey = await crypto.subtle.importKey(
+    return window.crypto.subtle.importKey(
       "raw",
-      rawAesKey, 
-      "AES-GCM",
-      false,
-      ["decrypt"]
-    );
-
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: this.base64ToArrayBuffer(payload.iv) },
-      aesKey,
-      this.base64ToArrayBuffer(payload.ciphertext)
-    );
-
-    return new TextDecoder().decode(decrypted);
-
-  } catch (error) {
-    console.error("Decryption failed:", error);
-    return "[Unable to decrypt]";
-  }
-}
-};
-
-// utils/CryptoUtils.js
-
-// 🔹 Base64 helpers
-const base64ToArrayBuffer = (base64) => {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-
-  return bytes.buffer;
-};
-
-const arrayBufferToBase64 = (buffer) => {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-
-  return btoa(binary);
-};
-
-
-// 🔐 1️⃣ Decrypt Group Key
-export const decryptGroupKey = async (conversation, privateKeyObj) => {
-  if (!conversation.encryptedGroupKey) {
-    throw new Error("No encrypted group key found");
-  }
-
-  const encryptedKeyBuffer = base64ToArrayBuffer(
-    conversation.encryptedGroupKey
-  );
-
-  let privateKey;
-
-  // Handle CryptoKey vs stored buffer
-  if (privateKeyObj instanceof CryptoKey) {
-    privateKey = privateKeyObj;
-  } else {
-    const privateKeyBuffer = new Uint8Array(privateKeyObj.data);
-
-    privateKey = await crypto.subtle.importKey(
-      "pkcs8",
-      privateKeyBuffer,
-      {
-        name: "RSA-OAEP",
-        hash: "SHA-256",
-      },
+      decryptedGroupKeyBuffer,
+      { name: "AES-GCM" },
       true,
-      ["decrypt"]
+      ["encrypt", "decrypt"]
     );
-  }
+  },
 
-  // 🔐 Decrypt AES group key
-  const decryptedGroupKeyBuffer = await crypto.subtle.decrypt(
-    { name: "RSA-OAEP" },
-    privateKey,
-    encryptedKeyBuffer
-  );
-
-  // 🔐 Convert to usable AES key
-  return crypto.subtle.importKey(
-    "raw",
-    decryptedGroupKeyBuffer,
-    { name: "AES-GCM" },
-    true,
-    ["encrypt", "decrypt"]
-  );
-};
-// 🔐 2️⃣ Encrypt Message
-export const encryptGroupMessage = async (message, groupKey) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(message);
-  const iv = crypto.getRandomValues(new Uint8Array(12)); // 12 bytes IV
-  const encrypted = await crypto.subtle.encrypt(
-    {
-      name: "AES-GCM",
-      iv,
-    },
-    groupKey,
-    data
-  );
-  return {
-    ciphertext: arrayBufferToBase64(encrypted),
-    iv: arrayBufferToBase64(iv),
-  };
-};
-// 🔐 3️⃣ Decrypt Message
-export const decryptGroupMessage = async (encryptedPayload, groupKey) => {
-  
-  try {
-    const { ciphertext, iv } = encryptedPayload;
-    const encryptedBuffer = base64ToArrayBuffer(ciphertext);
-    const ivBuffer = new Uint8Array(base64ToArrayBuffer(iv));
-    const decrypted = await crypto.subtle.decrypt(
-      {
-        name: "AES-GCM",
-        iv: ivBuffer,
-      },
+  async encryptGroupMessage(message, groupKey) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(message);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    
+    const encrypted = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
       groupKey,
-      encryptedBuffer
+      data
     );
+    return {
+      ciphertext: this.arrayBufferToBase64(encrypted),
+      iv: this.arrayBufferToBase64(iv),
+    };
+  },
 
-    const decoder = new TextDecoder();
-    return decoder.decode(decrypted);
+  async decryptGroupMessage(encryptedPayload, groupKey) {
+    try {
+      const { ciphertext, iv } = encryptedPayload;
+      const encryptedBuffer = this.base64ToArrayBuffer(ciphertext);
+      const ivBuffer = new Uint8Array(this.base64ToArrayBuffer(iv));
+      
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: ivBuffer },
+        groupKey,
+        encryptedBuffer
+      );
 
-  } catch (err) {
-    console.error("Decryption failed:", err);
-    return "⚠️ Unable to decrypt message";
+      return new TextDecoder().decode(decrypted);
+    } catch (err) {
+      console.error("Group decryption breakdown:", err);
+      return "⚠️ Unable to decrypt message";
+    }
   }
 };
+
 export default CryptoUtils;

@@ -8,7 +8,7 @@ const IncomingCall = () => {
     const [show, setShow] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [connecting, setConnecting] = useState(false);
-    
+
     const peerRef = useRef(null);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
@@ -26,236 +26,362 @@ const IncomingCall = () => {
         }
     }, [incomingCall]);
 
-    const handleIncomingSignal = useCallback(async (data) => {
-        if (data.type !== 'ice-candidate') return;
-        const candidate = data.candidate;
-        if (!candidate) return;
-
-        if (peerRef.current && peerRef.current.remoteDescription) {
-            try {
-                await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (err) {
-                console.error("Error adding ICE candidate:", err);
-            }
-        } else {
-            pendingIceCandidates.current.push(candidate);
-        }
-    }, []);
-
-    const cleanup = useCallback(() => {
-        if (peerRef.current) {
-            peerRef.current.close();
-            peerRef.current = null;
-        }
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => track.stop());
-            localStreamRef.current = null;
-        }
-        setIsConnected(false);
-        setConnecting(false);
-        setIncomingCall(null);
-        setShow(false);
-    }, [setIncomingCall]);
-
-    useEffect(() => {
-        if (!socket) return;
-        socket.on('call-ended', cleanup);
-        socket.on("receive-signal", handleIncomingSignal);
-        socket.on("call-canceled", cleanup);
-        return () => {
-            socket.off('call-ended', cleanup);
-            socket.off("receive-signal", handleIncomingSignal);
-            socket.off("call-canceled", cleanup);
-        };
-    }, [socket, handleIncomingSignal, cleanup]);
 
     const handleAccept = async () => {
-        if (!incomingCall) return;
-        setConnecting(true);
-
         try {
-            const peer = new RTCPeerConnection({
-                iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-            });
-            peerRef.current = peer;
+            setConnecting(true);
 
+            const peer = new RTCPeerConnection({
+                iceServers: [
+                    {
+                        urls: [
+                            "stun:stun.l.google.com:19302",
+                            "stun:stun1.l.google.com:19302",
+                        ],
+                    },
+                ],
+            });
+
+            peerRef.current = peer;
+        
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
+                video: incomingCall?.callType === "video",
                 audio: true,
             });
-
-            if (localVideoRef.current) localVideoRef.current.srcObject = stream;
             localStreamRef.current = stream;
-            stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+
+            stream.getTracks().forEach(track => {
+                peer.addTrack(track, stream);
+            });
 
             peer.ontrack = (event) => {
                 if (remoteVideoRef.current) {
                     remoteVideoRef.current.srcObject = event.streams[0];
-                    setIsConnected(true);
-                    setConnecting(false);
                 }
+
+                setIsConnected(true);
+                setConnecting(false);
             };
 
-            peer.onicecandidate = event => {
-                if (event.candidate) {
-                    socket.emit("send-signal", {
-                        to: incomingCall.from,
-                        type: 'ice-candidate',
-                        candidate: event.candidate
-                    });
-                }
-            };
+            peer.onicecandidate = (event) => {
+                if (!event.candidate) return;
 
-            await peer.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
-            
-            for (let candidate of pendingIceCandidates.current) {
-                await peer.addIceCandidate(new RTCIceCandidate(candidate));
-            }
-            pendingIceCandidates.current = [];
+                socket.emit("call:ice_candidate", {
+                    receiverId: incomingCall.senderId,
+                    candidate: event.candidate,
+                });
+            };
+        console.log("Setting remote description with offer:", incomingCall);
+            await peer.setRemoteDescription(
+                new RTCSessionDescription(incomingCall.offer)
+            );
 
             const answer = await peer.createAnswer();
+
             await peer.setLocalDescription(answer);
-            socket.emit("answer", { to: incomingCall.from, answer });
+
+            socket.emit("call:answer", {
+                receiverId: incomingCall.senderId,
+                answer,
+            });
 
         } catch (err) {
-            console.error("❌ Error accepting call:", err);
+            console.error(err);
             setConnecting(false);
         }
     };
 
-    const handleReject = () => {
-        if (incomingCall) socket.emit("reject-call", { to: incomingCall.from });
-        cleanup();
-    };
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleIce = async ({ candidate }) => {
+            console.log("Received ICE candidate: incoming", candidate);
+            try {
+                if (!peerRef.current) return;
+
+                await peerRef.current.addIceCandidate(
+                    new RTCIceCandidate(candidate)
+                );
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        socket.on("call:ice_candidate", handleIce);
+
+        return () => {
+            socket.off("call:ice_candidate", handleIce);
+        };
+    }, [socket]);
 
     const handleEndCall = () => {
-        if (incomingCall) socket.emit('end-call', { to: incomingCall.from });
+        if (incomingCall?.senderId) {
+            socket.emit("call:end", {
+                receiverId: incomingCall.senderId,
+                conversationId: incomingCall.conversationId,
+            });
+        }
+
         cleanup();
     };
 
+    const handleReject = () => {
+
+        if (incomingCall?.senderId) {
+            socket.emit("call:reject", {
+                receiverId: incomingCall.senderId,
+                conversationId: incomingCall.conversationId,
+            });
+        }
+
+        cleanup();
+    }
+
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleRemoteEnd = () => {
+            cleanup();
+        };
+
+        socket.on("call:end", handleRemoteEnd);
+
+        return () => {
+            socket.off("call:end", handleRemoteEnd);
+        };
+    }, [socket]);
+
+    const cleanup = () => {
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
+        }
+
+        if (peerRef.current) {
+            peerRef.current.close();
+            peerRef.current = null;
+        }
+
+        setIsConnected(false);
+        setConnecting(false);
+        setShow(false);
+        setIncomingCall(null);
+    };
     return (
-        <Modal 
-            show={show} 
-            onHide={handleReject} 
-            centered 
-            backdrop="static" 
-            contentClassName="bg-dark text-white border-0 shadow-lg"
-            style={{ borderRadius: '15px', overflow: 'hidden' }}
+       <Modal
+    show={show}
+    onHide={handleReject}
+    centered
+    backdrop="static"
+    contentClassName="bg-dark text-white border-0 shadow-lg"
+>
+    <Modal.Body
+        className="p-0 position-relative overflow-hidden"
+        style={{
+            backgroundColor: "#121212",
+            minHeight: "500px",
+            borderRadius: "18px",
+        }}
+    >
+        {/* Header */}
+        <div
+            className="position-absolute top-0 start-0 w-100 p-4 z-3"
+            style={{
+                background:
+                    "linear-gradient(to bottom, rgba(0,0,0,.8), transparent)",
+            }}
         >
-            <Modal.Body className="p-0 position-relative" style={{ backgroundColor: '#121212', minHeight: '450px' }}>
-                
-                {/* Header Overlay */}
-                <div className="position-absolute top-0 w-100 p-4 z-3 d-flex justify-content-between align-items-start" 
-                     style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)' }}>
-                    <div>
-                        <h5 className="mb-1 fw-bold text-uppercase tracking-wider">
-                            {isConnected ? "In Call" : "Incoming Video Call"}
-                        </h5>
-                        <p className="small text-light opacity-75 mb-0">
-                            {incomingCall?.fromName || "Unknown User"}
-                        </p>
-                    </div>
-                    {isConnected && (
-                        <div className="badge bg-danger px-3 py-2 d-flex align-items-center">
-                            <span className="me-2 d-inline-block" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white', animation: 'pulse 1.5s infinite' }}></span>
-                            LIVE
-                        </div>
-                    )}
+            <div className="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 className="mb-1 fw-bold">
+                        {isConnected
+                            ? `${incomingCall?.callType === "audio"
+                                ? "Voice"
+                                : "Video"
+                            } Call`
+                            : `Incoming ${incomingCall?.callType === "audio"
+                                ? "Voice"
+                                : "Video"
+                            } Call`}
+                    </h5>
+
+                    <small className="text-light opacity-75">
+                        {incomingCall?.fromName || "Unknown User"}
+                    </small>
                 </div>
 
-                {/* Main View Area */}
-                <div className="w-100 h-100 d-flex align-items-center justify-content-center" style={{ minHeight: '450px' }}>
-                    {/* Placeholder when not connected */}
-                    {!isConnected && !connecting && (
-                        <div className="text-center">
-                            <div className="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto mb-4" 
-                                 style={{ width: '100px', height: '100px', fontSize: '2.5rem' }}>
-                                {incomingCall?.fromName?.charAt(0) || <FaVideo />}
-                            </div>
-                            <h4 className="mb-2">{incomingCall?.fromName}</h4>
-                            <p className="text-muted">Is calling you...</p>
-                        </div>
-                    )}
+                {isConnected && (
+                    <span className="badge bg-success px-3 py-2">
+                        Connected
+                    </span>
+                )}
+            </div>
+        </div>
 
-                    {/* Connecting Spinner */}
-                    {connecting && (
-                        <div className="text-center">
-                            <Spinner animation="grow" variant="primary" />
-                            <p className="mt-3 text-muted">Establishing connection...</p>
-                        </div>
-                    )}
-
-                    {/* Remote Video */}
+        {/* Main Content */}
+        <div
+            className="d-flex justify-content-center align-items-center w-100 h-100"
+            style={{ minHeight: "500px" }}
+        >
+            {/* VIDEO CALL */}
+            {incomingCall?.callType === "video" && (
+                <>
                     <video
                         ref={remoteVideoRef}
                         autoPlay
                         playsInline
-                        className={`w-100 h-100 position-absolute top-0 start-0 ${isConnected ? 'opacity-100' : 'opacity-0'}`}
-                        style={{ objectFit: 'cover', transition: 'opacity 0.5s ease-in' }}
+                        className={`position-absolute top-0 start-0 w-100 h-100 ${isConnected ? "opacity-100" : "opacity-0"
+                            }`}
+                        style={{
+                            objectFit: "cover",
+                            transition: "opacity .4s ease",
+                        }}
                     />
 
-                    {/* Local Video (PiP) */}
                     <video
                         ref={localVideoRef}
                         autoPlay
                         playsInline
                         muted
-                        className={`position-absolute bottom-0 end-0 m-3 rounded shadow-lg border border-secondary ${isConnected ? 'opacity-100' : 'opacity-0'}`}
-                        style={{ 
-                            width: '120px', 
-                            height: '160px', 
-                            objectFit: 'cover', 
-                            zIndex: 10,
-                            transition: 'opacity 0.5s ease-in'
+                        className={`position-absolute bottom-0 end-0 m-3 rounded shadow border border-secondary ${isConnected ? "opacity-100" : "opacity-0"
+                            }`}
+                        style={{
+                            width: "130px",
+                            height: "170px",
+                            objectFit: "cover",
+                            zIndex: 100,
+                            transition: "opacity .4s ease",
                         }}
                     />
-                </div>
+                </>
+            )}
 
-                {/* Action Buttons Overlay */}
-                <div className="position-absolute bottom-0 w-100 p-4 d-flex justify-content-center gap-4 z-3"
-                     style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}>
-                    
-                    {!isConnected ? (
-                        <>
-                            <Button 
-                                variant="success" 
-                                onClick={handleAccept} 
-                                disabled={connecting}
-                                className="rounded-circle p-3 d-flex align-items-center justify-content-center border-0 shadow"
-                                style={{ width: '60px', height: '60px' }}
-                            >
-                                <FaPhoneAlt size={24} />
-                            </Button>
-                            <Button 
-                                variant="danger" 
-                                onClick={handleReject} 
-                                className="rounded-circle p-3 d-flex align-items-center justify-content-center border-0 shadow"
-                                style={{ width: '60px', height: '60px' }}
-                            >
-                                <FaPhoneSlash size={24} />
-                            </Button>
-                        </>
-                    ) : (
-                        <Button 
-                            variant="danger" 
-                            onClick={handleEndCall}
-                            className="rounded-pill px-5 py-2 d-flex align-items-center justify-content-center border-0 shadow fw-bold"
-                        >
-                            <FaPhoneSlash className="me-2" /> End Call
-                        </Button>
-                    )}
+            {/* VOICE CALL */}
+            {incomingCall?.callType === "audio" && (
+                <div className="text-center">
+                    <div
+                        className="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto mb-4"
+                        style={{
+                            width: "140px",
+                            height: "140px",
+                            fontSize: "4rem",
+                            fontWeight: "bold",
+                        }}
+                    >
+                        {incomingCall?.fromName?.charAt(0)?.toUpperCase()}
+                    </div>
+
+                    <h3 className="mb-2">
+                        {incomingCall?.fromName}
+                    </h3>
+
+                    <p className="text-muted">
+                        {isConnected
+                            ? "Voice call connected"
+                            : "Incoming voice call"}
+                    </p>
                 </div>
-            </Modal.Body>
-            
-            {/* Minimal CSS for the pulse effect */}
-            <style>{`
-                @keyframes pulse {
-                    0% { opacity: 1; }
-                    50% { opacity: 0.3; }
-                    100% { opacity: 1; }
-                }
-            `}</style>
-        </Modal>
+            )}
+
+            {/* Ringing Screen */}
+            {!isConnected && !connecting && (
+                <div
+                    className="position-absolute text-center"
+                    style={{ zIndex: 20 }}
+                >
+                    <div
+                        className="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto mb-4"
+                        style={{
+                            width: "110px",
+                            height: "110px",
+                            fontSize: "3rem",
+                            fontWeight: "bold",
+                        }}
+                    >
+                        {incomingCall?.fromName?.charAt(0)?.toUpperCase()}
+                    </div>
+
+                    <h4>{incomingCall?.fromName}</h4>
+
+                    <p className="text-light opacity-75">
+                        Incoming{" "}
+                        {incomingCall?.callType === "audio"
+                            ? "Voice"
+                            : "Video"}{" "}
+                        Call
+                    </p>
+                </div>
+            )}
+
+            {/* Connecting */}
+            {connecting && (
+                <div
+                    className="position-absolute text-center"
+                    style={{ zIndex: 20 }}
+                >
+                    <Spinner animation="grow" />
+
+                    <p className="mt-3 text-light">
+                        Connecting...
+                    </p>
+                </div>
+            )}
+        </div>
+
+        {/* Bottom Controls */}
+        <div
+            className="position-absolute bottom-0 start-0 w-100 p-4 d-flex justify-content-center gap-4"
+            style={{
+                background:
+                    "linear-gradient(to top, rgba(0,0,0,.8), transparent)",
+                zIndex: 200,
+            }}
+        >
+            {!isConnected ? (
+                <>
+                    <Button
+                        variant="success"
+                        onClick={handleAccept}
+                        disabled={connecting}
+                        className="rounded-circle border-0 shadow"
+                        style={{
+                            width: "70px",
+                            height: "70px",
+                        }}
+                    >
+                        <FaPhoneAlt size={28} />
+                    </Button>
+
+                    <Button
+                        variant="danger"
+                        onClick={handleReject}
+                        className="rounded-circle border-0 shadow"
+                        style={{
+                            width: "70px",
+                            height: "70px",
+                        }}
+                    >
+                        <FaPhoneSlash size={28} />
+                    </Button>
+                </>
+            ) : (
+                <Button
+                    variant="danger"
+                    onClick={handleEndCall}
+                    className="rounded-pill px-4 py-2 fw-semibold shadow"
+                >
+                    <FaPhoneSlash className="me-2" />
+                    End Call
+                </Button>
+            )}
+        </div>
+    </Modal.Body>
+</Modal>
     );
 };
 

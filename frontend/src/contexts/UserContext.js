@@ -1,24 +1,19 @@
 import React, { createContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
-import { fetchUnseenMessages } from "../services/messageService";
-import { getMe } from '../services/authService';
-
+import { initializeSocket, disconnectSocket } from '../utils/socket';
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
-  const [unseenMessages, setUnseenMessages] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(null);
-  const [myStream, setMyStream] = useState(null);
+  
   const myVideoRef = useRef();
   const [answer, setAnswer] = useState(null);
   const [showIncoming, setShowIncoming] = useState(false);
   const [member, setMember] = useState({});
   const [incomingCall, setIncomingCall] = useState(null);
-  const [callData, setCallData] = useState(null);
-
-  // 1. Single Lazy State Initializer (Reads LocalStorage strictly ONCE on mount)
+  const [callData, setCallData] = useState(null)
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
@@ -31,130 +26,58 @@ export const UserProvider = ({ children }) => {
     }
     return null;
   });
+  
+  
 
-  // 2. Automatically sync raw string userId when the state object settles
-
-
-  // 3. API Fallback wrapped safely to prevent recreation loops
-
-
-
- 
-   
-  const loadUnseenMessages = useCallback(async () => {
-    if (user?._id) {
-      try {
-        const unseen = await fetchUnseenMessages(user._id);
-        setUnseenMessages(unseen);
-      } catch (err) {
-        console.error('Error fetching unseen messages:', err);
-      }
-    }
-  }, [user?._id]);
-
-  // 6. Keep Unseen Messages synchronized when User ID verified
   useEffect(() => {
-    if (user?._id) {
-      loadUnseenMessages();
-    }
-  }, [user?._id, loadUnseenMessages]);
-
-  // 7. Hardware Peripheral Initialization Layer
-  useEffect(() => {
-    const initMedia = async () => {
-      if (!user?._id || myStream) return;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-        setMyStream(stream);
-        if (myVideoRef.current) myVideoRef.current.srcObject = stream;
-      } catch (err) {
-        console.error("Error accessing media devices:", err);
-      }
-    };
-    initMedia();
-  }, [user?._id, myStream]);
-
-  // 8. Managed Socket Pipeline
-  useEffect(() => {
+    // Teardown if user logs out or session expires
     if (!user?._id) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setActiveUsers([]);
-      }
+      disconnectSocket();
+      setSocket(null);
       return;
     }
 
-    const socketConnection = io(process.env.REACT_APP_API_URL, {
-      query: { id: user._id },
-    });
-
+    // Connect using our centralized service engine
+    const socketConnection = initializeSocket(user._id);
     setSocket(socketConnection);
-
-    socketConnection.on('connect', () => {
-      socketConnection.emit('joinRoom', { userId: user._id });
-    });
-
-    const handleRestatus = (data) => {
-      setActiveUsers(data);
-    };
-
-    const handleStatus = (data) => {
+    socketConnection.emit('user:init', user._id);
+    socketConnection.on('user:status_changed', (data) => {
+      console.log('User status changed:', data);
       setActiveUsers((prev) => {
-        if (!prev.some((u) => u === data.userId || u?._id === data.userId)) {
+        const exists = prev.some((u) => u === data.userId || u?._id === data.userId);
+        if (!exists) {
           return [...prev, data.userId];
         }
         return prev;
       });
-    };
-
-    const handleUserLeft = ({ userId: leftUserId }) => {
-      setActiveUsers((prevUsers) => prevUsers.filter(id => id !== leftUserId));
-    };
-
-    const handleIncomingCall = (data) => {
-      console.log('Received incoming call data:', data);
-      const { offer, from, fromName } = data;
-      setCallData(offer);
-      setShowIncoming(true);
-      setIncomingCall({ from, fromName, offer });
-    };
-
-    socketConnection.on('incoming-call', handleIncomingCall);
-    socketConnection.on('restatus', handleRestatus);
-    socketConnection.on('status', handleStatus);
-    socketConnection.on('userLeft', handleUserLeft);
-    socketConnection.on('disconnect', () => setActiveUsers([]));
-    socketConnection.on('checkit', loadUnseenMessages);
-
-    socketConnection.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+    });
+    socketConnection.emit('user:get_status', user._id, (data) => {
+      if (data.status === 'online') {
+        setActiveUsers((prev) => [...prev, user._id]);
+      }
     });
 
+    socketConnection.on("online_users", (users) => {
+      setActiveUsers(users);
+    });
+    // No global event listeners needed here anymore! 
+    // Chat-specific events (messages/typing) are handled inside ChatUi.
+    socketConnection.on("call:incoming", (data) => {
+      console.log("Incoming call:", data);
+      setIncomingCall(data);
+      setShowIncoming(true);
+    });
     return () => {
-      socketConnection.off('incoming-call', handleIncomingCall);
-      socketConnection.off('restatus', handleRestatus);
-      socketConnection.off('status', handleStatus);
-      socketConnection.off('userLeft', handleUserLeft);
-      socketConnection.off('checkit', loadUnseenMessages);
-      socketConnection.off('connect');
-      socketConnection.off('disconnect');
-      socketConnection.off('connect_error');
-      socketConnection.disconnect();
+      // Disconnect cleanly on component unmount
+      disconnectSocket();
     };
-  }, [user?._id, loadUnseenMessages]);
+  }, [user?._id]);
 
   return (
     <UserContext.Provider
       value={{
         socket,
         activeUsers,
-        unseenMessages,
-        setUnseenMessages,
-        loadUnseenMessages,
         answer,
         incomingCall,
         setIncomingCall,
@@ -162,7 +85,7 @@ export const UserProvider = ({ children }) => {
         setUser,
         setMember,
         member,
-        myStream,
+     
         showIncoming,
         setShowIncoming,
         callData,

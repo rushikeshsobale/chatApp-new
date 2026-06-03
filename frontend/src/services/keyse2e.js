@@ -10,25 +10,17 @@ export const recieverpublickey = async (recieverId) => {
   }
 };
 
-export const fetchUserKeys = async () => {
-  console.log('Fetching user keys');
-  try {
-    const response = await api.get('/auth/user-keys');
+export const updatePublickey = async (publicKey) => { 
+  try{
+    const response = await api.patch('/auth/public-key', { publicKey });  
     return response.data;
-  } catch (error) {
-    console.error('Failed to fetch user keys:', error);
-    throw error;
   }
-};
+  catch{
+    console.error('Failed to update public key');
+  }
+}
 
-export const uploadUserKeys = async (keyData) => {
-  console.log('Uploading user keys:', keyData);
-  try {
-    const response = await api.post('/auth/upload-keys', keyData);
-    return response.data;
-  } catch (error) {
-    console.error('Failed to upload user keys:', error);
-    throw error;
-  }
-};
+
+
+
 

@@ -11,22 +11,24 @@ export const fetchUnseenMessages = async (receiverId) => {
     throw error;
   }
 };
-  
-export const fetchMessage = async (conversationId, page = 1, limit = 20) => {
-  try {
-    const response = await api.get('/messages/getMessages', {
-      params: {
-        conversationId,
-        page,
-        limit
-      }
-    });
 
+export const callSendMessage = async (messageData) => {
+  try {
+    const response = await api.post('/messages/postMessage', messageData);
     return response.data;
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    console.error('Failed to send message:', error);
     throw error;
   }
+};
+
+// services/messageService.js
+export const fetchMessage = async (conversationId, page = 1, limit = 20) => {
+  const response = await api.get('/messages/getMessages', {
+    params: { conversationId, page, limit }
+  });
+  // Assuming your backend returns an array directly now based on the fix above
+  return response.data; 
 };
 
 

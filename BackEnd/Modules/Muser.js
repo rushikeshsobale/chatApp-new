@@ -1,51 +1,122 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
 const userSchema = new mongoose.Schema({
-  googleId: { type: String, unique: true, sparse: true }, 
+  // OAuth
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+
+  // Core Identity
   email: {
     type: String,
     required: true,
     unique: true,
     trim: true,
-    lowercase: true
+    lowercase: true,
   },
+
   userName: {
     type: String,
-    required: true,
     unique: true,
-    trim: true
+    sparse: true,
+    trim: true,
+
+    // Required only after onboarding
+    required: function () {
+      return this.onboardingComplete;
+    },
   },
+
+  publicKey: {
+    type: String,
+    default: "",
+    maxlength: 5000,
+  },
+
   password: {
     type: String,
+    minlength: 6,
+
+    // Required only after onboarding
     required: function () {
-      return !this.googleId;
-    }
+      return this.onboardingComplete;
+    },
+
+    // Hide password by default
+    select: false,
   },
-  firstName: { type: String },
-  lastName: { type: String },
-  gender: { type: String, enum: ['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say'] },
-  birthDate: { type: Date },
-  location: { type: String },
+
+  // Profile
+  firstName: {
+    type: String,
+    trim: true,
+  },
+
+  lastName: {
+    type: String,
+    trim: true,
+  },
+
+  gender: {
+    type: String,
+    enum: [
+      "Male",
+      "Female",
+      "Non-binary",
+      "Other",
+      "Prefer not to say",
+    ],
+  },
+
+  birthDate: {
+    type: Date,
+  },
+
+  location: {
+    type: String,
+    trim: true,
+  },
+
   profilePicture: {
     type: String,
-    default: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
+    default:
+      "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
   },
-  bio: { type: String, maxlength: 300 },
-  isPrivate: { type: Boolean, default: false }, // If true, requests must be accepted
+
+  bio: {
+    type: String,
+    maxlength: 300,
+    default: "",
+  },
+
+  isPrivate: {
+    type: Boolean,
+    default: false,
+  },
+
   keysId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "keysModel"
+    ref: "keysModel",
   },
+
+  // Onboarding
+  onboardingComplete: {
+    type: Boolean,
+    default: false,
+  },
+
   // Interests
   interests: {
     music: [{ type: String }],
     sports: [{ type: String }],
     movies: [{ type: String }],
     books: [{ type: String }],
-    hobbies: [{ type: String }]
+    hobbies: [{ type: String }],
   },
-  
+
   // Favorites
   favorites: {
     singer: { type: String },
@@ -53,54 +124,102 @@ const userSchema = new mongoose.Schema({
     movie: { type: String },
     book: { type: String },
     food: { type: String },
-    cuisine: { type: String }
+    cuisine: { type: String },
   },
-  
+
   // Professional
   professional: {
     profession: { type: String },
     education: { type: String },
     skills: [{ type: String }],
-    workExperience: { type: String }
+    workExperience: { type: String },
   },
-  
+
   // Social
   social: {
     website: { type: String },
     twitter: { type: String },
     instagram: { type: String },
-    linkedin: { type: String }
+    linkedin: { type: String },
   },
-  
-  // System
-  emailVerified: { type: Boolean, default: false },
-  onboardingComplete: { type: Boolean, default: false },
-  lastUpdated: { type: Date },
+
+  // Verification
+  emailVerified: {
+    type: Boolean,
+    default: false,
+  },
+
+  lastUpdated: {
+    type: Date,
+  },
+
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
-  
-  // Your existing fields
-  phone: { type: String },
-  requests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  friends: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Muser'
-  }]
+
+  // Optional Phone
+  phone: {
+    type: String,
+  },
+
+  // Friends System
+  requests: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Muser",
+    },
+  ],
+
+  friends: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Muser",
+    },
+  ],
 });
 
 // Password hashing middleware
-userSchema.pre('save', async function(next) {
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 10);
+userSchema.pre("save", async function (next) {
+  try {
+
+    // Only hash if modified
+    if (!this.isModified("password")) {
+      return next();
+    }
+
+    // Skip empty password
+    if (!this.password) {
+      return next();
+    }
+
+    const salt = await bcrypt.genSalt(10);
+
+    this.password = await bcrypt.hash(
+      this.password,
+      salt
+    );
+
+    next();
+
+  } catch (error) {
+    next(error);
   }
-  next();
 });
 
-// Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
+// Password comparison method
+userSchema.methods.comparePassword =
+  async function (candidatePassword) {
 
-module.exports = mongoose.model('Muser', userSchema);
+    if (!this.password) {
+      return false;
+    }
+
+    return bcrypt.compare(
+      candidatePassword,
+      this.password
+    );
+  };
+
+module.exports =
+  mongoose.model("Muser", userSchema);

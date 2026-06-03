@@ -14,21 +14,11 @@ router.get("/", auth, async (req, res) => {
       .sort({ lastMessageAt: -1 })
       .populate({
         path: "participants",
-        select: "userName profilePicture"
+        select: "userName profilePicture  publicKey"
       })
       .populate("lastMessage")
       .lean();
-    const optimizedConversations = conversations.map((conv) => {
-      const myKey = conv.encryptedKeys.find(
-        (k) => k.userId.toString() === userId.toString()
-      );
-      return {
-        ...conv,
-        encryptedGroupKey: myKey ? myKey.encryptedKey : null,
-        encryptedKeys: undefined // optional: remove completely
-      };
-    });
-    res.json(optimizedConversations);
+    res.json(conversations);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch conversations" });
@@ -118,7 +108,7 @@ router.post("/", auth, upload.single("groupAvatar"), async (req, res) => {
 });
 router.get("/:id", auth, async (req, res) => {
   const conversation = await Conversation.findById(req.params.id)
-    .populate("participants", "userName profilePicture")
+    .populate("participants", "userName profilePicture publickey")
   if (!conversation) {
     return res.status(404).json({ message: "Not found" });
   }

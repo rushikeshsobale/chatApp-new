@@ -1,724 +1,281 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Modal, Form, Button, Spinner, Alert, ProgressBar, Card, InputGroup, Badge } from 'react-bootstrap';
-import { xx } from 'react-icons/fa';
-import { FaBook, FaMusic, FaFutbol, FaGamepad, FaVideo, FaChevronRight } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaCamera,
-  FaLock,
-  FaQuestionCircle,
-  FaSignOutAlt,
-  FaTimes,
   FaCheckCircle,
-  FaArrowRight,
-  FaCog,
-  FaUserSecret,
-  FaEnvelopeOpenText,
-  FaPalette,
-  FaGlobe, // Added for Bio/Basic Info
-  FaUserEdit,
-} from 'react-icons/fa';
+  FaUserEdit
+} from "react-icons/fa";
+import { completeProfile } from "../services/authService";
 
-
-// --- Modals for Step Completion ---
-
-// 1. Basic Info Modal
-const BasicInfoModal = ({ setShow, show, onHide, user, onSaveBasicInfo }) => {
-  const [firstName, setFirstName] = useState(user?.firstName || '');
-  const [lastName, setLastName] = useState(user?.lastName || '');
-  const [bio, setBio] = useState(user?.bio || '');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    onSaveBasicInfo({ firstName, lastName, bio });
-    setIsLoading(false);
-    onHide();
-  };
-
-  const isSaveDisabled = isLoading || !firstName.trim() || !lastName.trim() || !bio.trim();
-
-  // Custom styles for the dark aesthetic
-  const darkModalStyle = {
-    backgroundColor: '#121212', // Deep black/grey
-    color: '#e0e0e0',           // Off-white text
-    border: '1px solid #333'    // Subtle border
-  };
-
-  const inputStyle = {
-    backgroundColor: '#1e1e1e',
-    border: '1px solid #444',
-    color: '#fff',
-    fontSize: '0.95rem'
-  };
-
-  return (
-    <Modal show={show} onHide={onHide} centered contentClassName="border-0">
-      <div style={darkModalStyle} className="rounded-3">
-        <Modal.Header className="border-0 pb-0 d-flex justify-content-between align-items-center">
-          <Modal.Title className="fs-5 fw-bold text-white">
-            Profile Details
-          </Modal.Title>
-          <Button
-            variant="link"
-            className="text-muted p-0"
-            onClick={onHide}
-          >
-            <FaTimes size={18} />
-          </Button>
-        </Modal.Header>
-
-        <Modal.Body className="pt-2">
-          <p className="small text-secondary mb-4">Complete your information to continue.</p>
-
-          <Form onSubmit={handleSubmit}>
-            <div className="row g-2">
-              <Form.Group className="col-md-6 mb-3" controlId="formFirstName">
-                <Form.Label className="small text-secondary">First Name</Form.Label>
-                <Form.Control
-                  style={inputStyle}
-                  className="shadow-none focus-dark"
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                />
-              </Form.Group>
-
-              <Form.Group className="col-md-6 mb-3" controlId="formLastName">
-                <Form.Label className="small text-secondary">Last Name</Form.Label>
-                <Form.Control
-                  style={inputStyle}
-                  className="shadow-none focus-dark"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                />
-              </Form.Group>
-            </div>
-
-            <Form.Group className="mb-4" controlId="formBio">
-              <Form.Label className="small text-secondary">Short Bio</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                style={inputStyle}
-                className="shadow-none focus-dark"
-                placeholder="Brief description..."
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                required
-              />
-            </Form.Group>
-
-            <Button
-              variant="light"
-              type="submit"
-              className="w-100 fw-bold py-2 mb-2"
-              disabled={isSaveDisabled}
-              style={{ borderRadius: '6px' }}
-            >
-              {isLoading ? (
-                <Spinner animation="border" size="sm" />
-              ) : (
-                "Save Changes"
-              )}
-            </Button>
-          </Form>
-        </Modal.Body>
-      </div>
-    </Modal>
-  );
+const CONFIG_THEME = {
+  bgApp: "#09090b",
+  bgCard: "#141416",
+  bgInput: "#1d1d21",
+  border: "#2a2a30",
+  textMain: "#f4f4f5",
+  textMuted: "#a1a1aa",
+  accent: "#8b5cf6",
+  error: "#ef4444"
 };
-// 2. Interests Modal (Placeholder)
-const INTEREST_CATEGORIES = [
-  { key: 'books', label: 'Books 📚', icon: FaBook, options: ['Fantasy', 'Sci-Fi', 'Non-Fiction', 'Biography', 'Mystery', 'Poetry'] },
-  { key: 'music', label: 'Music 🎵', icon: FaMusic, options: ['Pop', 'Rock', 'Hip Hop', 'Jazz', 'Classical', 'Electronic'] },
-  { key: 'sports', label: 'Sports ⚽', icon: FaFutbol, options: ['Basketball', 'Football', 'Soccer', 'Tennis', 'Running', 'Yoga'] },
-  { key: 'hobbies', label: 'Hobbies 🎨', icon: FaGamepad, options: ['Gaming', 'Cooking', 'Photography', 'Traveling', 'Gardening', 'Coding'] },
-  { key: 'movies', label: 'Movies 🎬', icon: FaVideo, options: ['Action', 'Comedy', 'Drama', 'Horror', 'Documentary', 'Anime'] },
+
+const FOOD_CUISINES = [
+  "Italian", "Indian", "Chinese", "Mexican", "Japanese", 
+  "Thai", "French", "Mediterranean", "American", "Other"
 ];
 
-const InterestsModal = ({ show, onHide, onSaveInterests }) => {
-  const initialInterests = INTEREST_CATEGORIES.reduce((acc, cat) => {
-    acc[cat.key] = [];
-    return acc;
-  }, {});
+export default function EditProfile({ setUser, initialData = null }) {
+  const navigate = useNavigate();
+  const userId = localStorage.getItem("userId");
 
-  const [selectedInterests, setSelectedInterests] = useState(initialInterests);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showError, setShowError] = useState(false);
+  // Changed from profilePic to profilePicture to match your DB schema
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [bio, setBio] = useState("");
+  const [userName, setUserName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
 
-  const toggleInterest = useCallback((categoryKey, interest) => {
-    setShowError(false);
-    setSelectedInterests(prev => {
-      const currentList = prev[categoryKey];
-      const isSelected = currentList.includes(interest);
-      const newList = isSelected
-        ? currentList.filter(i => i !== interest)
-        : [...currentList, interest];
-
-      return { ...prev, [categoryKey]: newList };
-    });
-  }, []);
-
-  const totalSelectedCount = useMemo(() => {
-    return Object.values(selectedInterests).flat().length;
-  }, [selectedInterests]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (totalSelectedCount < 3) {
-      setShowError(true);
-      return;
-    }
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    onSaveInterests({ interests: selectedInterests, onboardingComplete: true });
-    setIsLoading(false);
-    onHide();
-  };
-
-  // Modern Dark Styles
-  const darkModalStyle = {
-    backgroundColor: '#121212',
-    color: '#e0e0e0',
-    border: '1px solid #333'
-  };
-
-  const tagStyle = (isSelected) => ({
-    backgroundColor: isSelected ? '#ffffff' : 'transparent',
-    color: isSelected ? '#000' : '#888',
-    borderColor: isSelected ? '#ffffff' : '#444',
-    fontSize: '0.8rem',
-    borderRadius: '20px',
-    transition: 'all 0.2s ease',
-    fontWeight: isSelected ? '600' : '400'
+  const [userData, setUserData] = useState({
+    favorites: { singer: "", sportsperson: "", movie: "", book: "", food: "", cuisine: "" }
   });
 
-  const InterestCategorySelector = ({ category }) => (
-    <div className="mb-4">
-      <h6 className="text-white-50 mb-3 text-uppercase small ls-wide">
-        <category.icon className="me-2" /> {category.label}
-      </h6>
-      <div className="d-flex flex-wrap gap-2">
-        {category.options.map((option) => {
-          const isSelected = selectedInterests[category.key].includes(option);
-          return (
-            <Button
-              key={option}
-              variant="outline-secondary"
-              style={tagStyle(isSelected)}
-              className="px-3"
-              onClick={() => toggleInterest(category.key, option)}
-            >
-              {option}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    let savedUser = null;
+    try {
+      const localData = localStorage.getItem("user");
+      if (localData) savedUser = JSON.parse(localData);
+    } catch (e) {
+      console.error("Failed to parse cached local user object:", e);
+    }
+
+    const sourceData = initialData || savedUser;
+
+    if (sourceData) {
+      if (sourceData.userName) setUserName(sourceData.userName);
+      if (sourceData.bio) setBio(sourceData.bio);
+      // Maps db key 'profilePicture' into state context
+      if (sourceData.profilePicture) setProfilePicture(sourceData.profilePicture);
+      if (sourceData.favorites) {
+        setUserData({
+          favorites: {
+            singer: sourceData.favorites.singer || "",
+            sportsperson: sourceData.favorites.sportsperson || "",
+            movie: sourceData.favorites.movie || "",
+            book: sourceData.favorites.book || "",
+            food: sourceData.favorites.food || "",
+            cuisine: sourceData.favorites.cuisine || ""
+          }
+        });
+      }
+    }
+  }, [initialData]);
+
+  const handleInputChange = (field, value) => {
+    setUserData((prev) => ({
+      ...prev,
+      favorites: { ...prev.favorites, [field]: value }
+    }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      // Saves string to profilePicture state
+      reader.onloadend = () => setProfilePicture(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!userName.trim()) {
+      setShowErrors(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Constructs payload with correct database structure key 'profilePicture'
+      const payload = { profilePicture, bio, userName: userName.trim(), ...userData };
+      const response = await completeProfile(userId, payload);
+      
+      if (response.success) {
+        localStorage.setItem("user", JSON.stringify(response.user));
+        if (setUser) {
+          setUser(response.user);
+        }
+        navigate("/");
+      }
+    } catch (err) {
+      console.error("Profile updates failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <Modal show={show} onHide={onHide} centered contentClassName="border-0">
-      <div style={darkModalStyle} className="rounded-4 overflow-hidden">
-        <Modal.Header className="border-0 pb-0 d-flex justify-content-between">
-          <Modal.Title className="fs-5 fw-bold text-white">Your Interests</Modal.Title>
-          <Button variant="link" className="text-muted p-0" onClick={onHide}><FaTimes /></Button>
-        </Modal.Header>
-
-        <Modal.Body>
-          <p className="small text-secondary mb-4">
-            Pick at least 3 things you love to personalize your feed.
+    <div 
+      className="p-3 d-flex flex-column justify-content-center align-items-center"
+      style={{
+        backgroundColor: CONFIG_THEME.bgApp,
+        color: CONFIG_THEME.textMain,
+        minHeight: "100vh",
+        width: "100vw",
+        overflowX: "hidden"
+      }}
+    >
+      <div className="w-100" style={{ maxWidth: "600px" }}>
+        
+        <header className="text-center mb-4">
+          <h2 className="fw-bold text-white mb-1 d-flex align-items-center justify-content-center gap-2">
+            Edit Profile <FaUserEdit style={{ color: CONFIG_THEME.accent }} size={24} />
+          </h2>
+          <p className="small mb-0" style={{ color: CONFIG_THEME.textMuted }}>
+            Modify your user details and platform preference criteria settings.
           </p>
+        </header>
 
-          <div className="interest-selection-container pe-2 mb-4"
-            style={{ maxHeight: '45vh', overflowY: 'auto', scrollbarWidth: 'thin' }}>
-            {INTEREST_CATEGORIES.map(category => (
-              <InterestCategorySelector key={category.key} category={category} />
-            ))}
-          </div>
-
-          <div className="pt-3 border-top border-dark">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <span className="small text-secondary">
-                {totalSelectedCount < 3 ? `Select ${3 - totalSelectedCount} more` : 'Ready to go!'}
-              </span>
-              <span className={`small fw-bold ${totalSelectedCount >= 3 ? 'text-white' : 'text-secondary'}`}>
-                {totalSelectedCount} / 3
-              </span>
-            </div>
-
-            <Form onSubmit={handleSubmit}>
-              <Button
-                variant="light"
-                type="submit"
-                className="w-100 fw-bold py-2 shadow-sm"
-                disabled={isLoading || totalSelectedCount < 3}
+        <div 
+          className="p-4 p-md-5"
+          style={{
+            backgroundColor: CONFIG_THEME.bgCard,
+            border: `1px solid ${CONFIG_THEME.border}`,
+            borderRadius: "24px",
+            boxShadow: "0 25px 50px -12px rgba(0,0,0,0.6)"
+          }}
+        >
+          {/* Avatar Area */}
+          <div className="text-center mb-4">
+            <label htmlFor="edit-avatar-input" className="d-inline-block" style={{ cursor: "pointer" }}>
+              <div 
+                className="rounded-circle d-flex flex-column align-items-center justify-content-center overflow-hidden mx-auto"
+                style={{ 
+                  width: "130px", 
+                  height: "130px", 
+                  backgroundColor: CONFIG_THEME.bgInput, 
+                  border: `2px dashed ${CONFIG_THEME.accent}`,
+                }}
               >
-                {isLoading ? <Spinner size="sm" /> : "Finish"}
-              </Button>
-            </Form>
+                {profilePicture ? (
+                  <img src={profilePicture} alt="Current profile" className="w-100 h-100 object-fit-cover" />
+                ) : (
+                  <div className="d-flex flex-column align-items-center gap-2" style={{ color: CONFIG_THEME.textMuted }}>
+                    <FaCamera size={20} style={{ color: CONFIG_THEME.accent }} />
+                    <span style={{ fontSize: "11px", fontWeight: "600" }}>Change Photo</span>
+                  </div>
+                )}
+              </div>
+              <input id="edit-avatar-input" type="file" accept="image/*" className="d-none" onChange={handleFileChange} />
+            </label>
           </div>
-        </Modal.Body>
-      </div>
-    </Modal>
-  );
-};
-// --- Settings Modal (Kept the same) ---
-const SettingsModal = ({ show, onHide, isPrivate, onTogglePrivate, onShowChangePassword, onLogout }) => {
-  const darkModalStyle = {
-    backgroundColor: '#121212',
-    color: '#e0e0e0',
-    border: '1px solid #333'
-  };
 
-  // Shared style for row items
-  const rowStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '12px 0',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s',
-    borderBottom: '1px solid #222'
-  };
-
-  return (
-    <Modal show={show} onHide={onHide} centered contentClassName="border-0">
-      <div style={darkModalStyle} className="rounded-4 overflow-hidden">
-        <Modal.Header className="border-0 pb-0 d-flex justify-content-between">
-          <Modal.Title className="fs-5 fw-bold text-white">Settings</Modal.Title>
-          <Button variant="link" className="text-muted p-0" onClick={onHide}>
-            <FaTimes size={18} />
-          </Button>
-        </Modal.Header>
-
-        <Modal.Body className="px-4 pb-4">
-          <p className="small text-secondary mb-3">Manage your account and privacy</p>
-
-          {/* Privacy Switch Row */}
-          <div style={rowStyle} className="justify-content-between">
-            <span className="d-flex align-items-center gap-3">
-              <FaUserSecret className="text-secondary" size={18} />
-              <span className="small fw-medium">Private Profile</span>
-            </span>
-            <Form.Check
-              type="switch"
-              id="private-switch"
-              checked={isPrivate}
-              onChange={onTogglePrivate}
-              className="custom-dark-switch"
+          {/* Username handle Field */}
+          <div className="text-start mb-3">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <label className="form-label small fw-semibold text-uppercase tracking-wider mb-0" style={{ color: CONFIG_THEME.textMuted, fontSize: "11px" }}>Username Handle *</label>
+              {showErrors && !userName.trim() && (
+                <span className="small fw-medium" style={{ color: CONFIG_THEME.error, fontSize: "11px" }}>This field is required</span>
+              )}
+            </div>
+            <input
+              type="text"
+              className="form-control shadow-none p-3"
+              placeholder="Username cannot be empty..."
+              value={userName}
+              onChange={(e) => setUserName(e.target.value.replace(/\s+/g, ''))}
+              style={{ 
+                backgroundColor: CONFIG_THEME.bgInput, 
+                color: CONFIG_THEME.textMain, 
+                fontSize: "14px", 
+                borderRadius: "12px",
+                border: showErrors && !userName.trim() ? `1px solid ${CONFIG_THEME.error}` : `1px solid transparent`
+              }}
             />
           </div>
 
-          {/* Change Password */}
-          <div
-            style={rowStyle}
-            onClick={() => { onHide(); onShowChangePassword(); }}
-            className="hover-opacity"
-          >
-            <span className="d-flex align-items-center gap-3">
-              <FaLock className="text-secondary" size={16} />
-              <span className="small fw-medium">Change Password</span>
-            </span>
+          {/* Bio text block field */}
+          <div className="text-start mb-4">
+            <label className="form-label small fw-semibold text-uppercase tracking-wider" style={{ color: CONFIG_THEME.textMuted, fontSize: "11px" }}>Bio Summary</label>
+            <textarea
+              className="form-control shadow-none border-0 p-3"
+              rows="3"
+              maxLength="300"
+              placeholder="Tell your story here..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              style={{ backgroundColor: CONFIG_THEME.bgInput, color: CONFIG_THEME.textMain, fontSize: "14px", borderRadius: "12px", resize: "none" }}
+            />
+            <div className="text-end mt-1 small" style={{ color: CONFIG_THEME.textMuted, fontSize: "11px" }}>{bio.length}/300</div>
           </div>
 
-          {/* Help Center */}
-          <div
-            style={rowStyle}
-            onClick={() => { alert('Redirecting...'); onHide(); }}
-            className="hover-opacity"
-          >
-            <span className="d-flex align-items-center gap-3">
-              <FaQuestionCircle className="text-secondary" size={16} />
-              <span className="small fw-medium">Help & Support</span>
-            </span>
-          </div>
+          <hr style={{ borderTop: `1px solid ${CONFIG_THEME.border}`, margin: "1.5rem 0" }} />
 
-          {/* Log Out - Minimalist Danger Style */}
-          <div
-            style={{ ...rowStyle, borderBottom: 'none' }}
-            onClick={onLogout}
-            className="hover-opacity mt-2"
-          >
-            <span className="d-flex align-items-center gap-3 text-danger">
-              <FaSignOutAlt size={16} />
-              <span className="small fw-bold">Log Out</span>
-            </span>
-          </div>
-        </Modal.Body>
-      </div>
-    </Modal>
-  );
-};
-// --- Profile Stepper Component (NEW HORIZONTAL STRIP) ---
-const ProfileStepper = ({ steps, onStartAction }) => {
-  const totalSteps = steps?.length;
-  const completedStepsCount = steps?.filter(step => step.isCompleted)?.length;
-  const progress = Math.round((completedStepsCount / totalSteps) * 100);
-
-  const getStepStatus = (index) => {
-    if (steps[index].isCompleted) return 'complete';
-    if (index === completedStepsCount) return 'active';
-    return 'pending';
-  };
-
-  return (
-    <div className="px-4 py-1  mb-1 bg-white shadow-sm rounded-lg">
-      <h6 className=" mb-4">
-        <FaUserEdit className="me-2 text-primary" /> Profile Setup ({progress}%)
-      </h6>
-
-      <div className="d-flex justify-content-between position-relative step-container">
-        {/* Horizontal Connector Line */}
-
-
-        {steps?.map((step, index) => {
-          const status = getStepStatus(index);
-          const isActive = status === 'active';
-          const isCompleted = status === 'complete';
-          const isPending = status === 'pending';
-
-          return (
-            <div
-              key={step.id}
-              className={`stepper-step text-center ${status}`}
-              onClick={step.onAction}
-              style={{ cursor: isActive ? 'pointer' : 'default' }}
-            >
-              <div className={`step-icon mx-auto d-flex align-items-center justify-content-center p-2 rounded-circle shadow`}>
-                {isCompleted ? <FaCheckCircle size={18} className="text-light" /> : <step.icon size={18} className="text-light" style={{ zIndex: 1 }} />}
+          {/* Preferences Grid Panel */}
+          <h5 className="fw-bold mb-3 small text-uppercase tracking-wider" style={{ color: CONFIG_THEME.accent }}>Personal Preferences</h5>
+          <div className="row g-3">
+            {[
+              { key: "singer", name: "Favorite Singer / Band", hint: "e.g., Daft Punk" },
+              { key: "sportsperson", name: "Favorite Athlete", hint: "e.g., Serena Williams" },
+              { key: "movie", name: "Favorite Movie", hint: "e.g., Inception" },
+              { key: "book", name: "Favorite Novel / Book", hint: "e.g., Dune" },
+              { key: "food", name: "Favorite Dish", hint: "e.g., Sushi" }
+            ].map((fieldItem) => (
+              <div className="col-12 col-sm-6" key={fieldItem.key}>
+                <label className="form-label mb-1 small" style={{ color: CONFIG_THEME.textMuted, fontSize: "12px" }}>{fieldItem.name}</label>
+                <input
+                  type="text"
+                  className="form-control shadow-none border-0"
+                  placeholder={fieldItem.hint}
+                  value={userData.favorites[fieldItem.key]}
+                  onChange={(e) => handleInputChange(fieldItem.key, e.target.value)}
+                  style={{ backgroundColor: CONFIG_THEME.bgInput, color: CONFIG_THEME.textMain, fontSize: "14px", padding: "0.6rem 0.8rem", borderRadius: "8px" }}
+                />
               </div>
-              <small className="d-block mt-2 fw-medium">{step.label}</small>
+            ))}
 
-              {/* Action Button for Active Step */}
-              {isActive && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="mt-2 step-action-button"
-                  onClick={step.onAction}
-                >
-                  {step.actionText || 'Start'} <FaArrowRight size={10} />
-                </Button>
-              )}
+            <div className="col-12 col-sm-6">
+              <label className="form-label mb-1 small" style={{ color: CONFIG_THEME.textMuted, fontSize: "12px" }}>Favorite Cuisine</label>
+              <select
+                className="form-select shadow-none border-0"
+                value={userData.favorites.cuisine}
+                onChange={(e) => handleInputChange("cuisine", e.target.value)}
+                style={{ backgroundColor: CONFIG_THEME.bgInput, color: CONFIG_THEME.textMain, fontSize: "14px", padding: "0.6rem 0.8rem", borderRadius: "8px" }}
+              >
+                <option value="">Select choice...</option>
+                {FOOD_CUISINES.map((cuisineOption) => (
+                  <option key={cuisineOption} value={cuisineOption} style={{ backgroundColor: CONFIG_THEME.bgCard }}>
+                    {cuisineOption}
+                  </option>
+                ))}
+              </select>
             </div>
-          );
-        })}
-        <div className="stepper-progress-line" style={{ width: `${progress}%`, zIndex: 3 }}></div>
+          </div>
+
+          <footer className="d-flex justify-content-between align-items-center mt-5 pt-3" style={{ borderTop: `1px solid ${CONFIG_THEME.border}` }}>
+            <button
+              type="button"
+              className="btn btn-link text-decoration-none p-0 small shadow-none"
+              onClick={() => navigate("/")}
+              style={{ color: CONFIG_THEME.textMuted, fontSize: "13px" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn text-white px-4 py-2 fw-semibold d-flex align-items-center gap-2 shadow-none"
+              onClick={handleSaveChanges}
+              disabled={loading}
+              style={{ backgroundColor: CONFIG_THEME.accent, border: "none", borderRadius: "8px", fontSize: "14px" }}
+            >
+              {loading ? (
+                <span className="spinner-border spinner-border-sm" role="status"></span>
+              ) : (
+                <>Save Changes <FaCheckCircle size={12} /></>
+              )}
+            </button>
+          </footer>
+
+        </div>
       </div>
     </div>
   );
-};
-
-const ChangePasswordModal = ({ show, onHide, onChangePassword }) => {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  useEffect(() => {
-    if (!show) {
-      setError('');
-      setSuccess('');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-    }
-  }, [show]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (newPassword !== confirmNewPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (newPassword.length < 8) {
-      setError("Minimum 8 characters required.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      onChangePassword(currentPassword, newPassword);
-      setSuccess("Password updated.");
-      setTimeout(onHide, 1200);
-    } catch (err) {
-      setError("Error updating password.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const darkModalStyle = {
-    backgroundColor: '#121212',
-    color: '#e0e0e0',
-    border: '1px solid #333'
-  };
-
-  const inputStyle = {
-    backgroundColor: '#1e1e1e',
-    border: '1px solid #444',
-    color: '#fff',
-    fontSize: '0.9rem',
-    borderRadius: '8px'
-  };
-
-  return (
-    <Modal show={show} onHide={onHide} centered contentClassName="border-0">
-      <div style={darkModalStyle} className="rounded-4">
-        <Modal.Header className="border-0 pb-0 d-flex justify-content-between align-items-center">
-          <Modal.Title className="fs-5 fw-bold text-white">Security</Modal.Title>
-          <Button variant="link" className="text-muted p-0" onClick={onHide}>
-            <FaTimes size={18} />
-          </Button>
-        </Modal.Header>
-
-        <Modal.Body className="pt-2">
-          <p className="small text-secondary mb-4">Update your password to keep your account secure.</p>
-
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3">
-              <Form.Label className="small text-secondary">Current Password</Form.Label>
-              <Form.Control
-                type="password"
-                style={inputStyle}
-                className="shadow-none focus-dark"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="small text-secondary">New Password</Form.Label>
-              <Form.Control
-                type="password"
-                style={inputStyle}
-                className="shadow-none focus-dark"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-4">
-              <Form.Label className="small text-secondary">Confirm New Password</Form.Label>
-              <Form.Control
-                type="password"
-                style={inputStyle}
-                className="shadow-none focus-dark"
-                value={confirmNewPassword}
-                onChange={(e) => setConfirmNewPassword(e.target.value)}
-                required
-              />
-            </Form.Group>
-
-            {/* Subtle Inline Feedback */}
-            {error && <div className="text-danger small mb-3 text-center fw-medium">{error}</div>}
-            {success && <div className="text-white small mb-3 text-center fw-medium">{success}</div>}
-
-            <Button
-              variant="light"
-              type="submit"
-              className="w-100 fw-bold py-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Spinner animation="border" size="sm" />
-              ) : (
-                "Update Password"
-              )}
-            </Button>
-          </Form>
-        </Modal.Body>
-      </div>
-    </Modal>
-  );
-};
-
-
-const EditProfile = ({ show, onHide, user, onSave, onLogout, onChangePassword, onTogglePrivateProfile }) => {
-  const [previewUrl, setPreviewUrl] = useState(user?.profilePicture || null);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showBasicInfoModal, setShowBasicInfoModal] = useState(false);
-  const [showInterestsModal, setShowInterestsModal] = useState(false);
-  const [onShowChangePassword, setShowChangePassword] = useState(false);
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const updatedFormData = { profilePicture: file };
-      // setFormData(updatedFormData);
-      setPreviewUrl(URL.createObjectURL(file));
-      onSave(updatedFormData); // Update picture immediately
-    }
-  };
-  // Define steps for 2026 Minimalist UI
-  const steps = [
-    { id: 'basic', label: 'Basic Info', isCompleted: user?.bio !== "undefined", onAction: () => setShowBasicInfoModal(true) },
-    { id: 'interests', label: 'Interests', isCompleted: user?.onboardingComplete, onAction: () => setShowInterestsModal(true) }
-  ];
-
-  return (
-    <>
-      <Modal show={show} onHide={onHide} centered size="md">
-        <Modal.Body className="p-0 bg-prof-dark border-0">
-          {/* Header Actions */}
-          <div className="d-flex justify-content-between p-3 position-absolute w-100" style={{ zIndex: 10 }}>
-            <button className="prof-icon-btn" onClick={() => setShowSettingsModal(true)}><FaCog /></button>
-            <button className="prof-icon-btn" onClick={onHide}><FaTimes /></button>
-          </div>
-
-          {/* Profile Identity Section */}
-          <div className="prof-hero pt-5 pb-4 text-center">
-            <div className="prof-avatar-wrapper mx-auto mb-3">
-              <img src={previewUrl || 'https://via.placeholder.com/150'} alt="Profile" />
-              <div className="prof-avatar-overlay" onClick={() => document.getElementById('img-input').click()}>
-                <FaCamera size={14} />
-              </div>
-              <input id="img-input" type="file" hidden onChange={(e) => handleImageChange(e)} />
-            </div>
-            <div className="prof-user-name">{user?.userName || 'User'}</div>
-            <div className="prof-user-email">{user?.email}</div>
-          </div>
-
-          {/* New Modern Stepper Section */}
-          <div className="px-4 py-3">
-            <div className="prof-section-label">Profile Completion</div>
-            <div className="prof-stepper-grid">
-              {steps.map(step => (
-                <div
-                  key={step.id}
-                  className={`prof-step-item ${step.isCompleted ? 'completed' : ''}`}
-                  onClick={step.onAction}
-                >
-                  <div className="prof-step-indicator" />
-                  <div className="prof-step-content">
-                    <span>{step.label}</span>
-                    <FaChevronRight size={10} className="prof-arrow" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bio Section */}
-          <div className="px-4 pb-4">
-            <div className="prof-section-label">Current Bio</div>
-            <div className="prof-bio-box">
-              {user?.bio && user.bio !== "undefined" ? user.bio : "Add a bio to complete your professional profile."}
-            </div>
-          </div>
-
-          <BasicInfoModal
-            show={showBasicInfoModal}
-            onHide={() => setShowBasicInfoModal(false)}
-            user={user}
-            onSaveBasicInfo={onSave}
-          />
-          <InterestsModal
-            show={showInterestsModal}
-            onHide={() => setShowInterestsModal(false)}
-            onSaveInterests={onSave}
-          />
-          <SettingsModal
-            show={showSettingsModal}
-            onHide={() => setShowSettingsModal(false)}
-            onShowChangePassword={() => setShowChangePassword(true)}
-            onLogout={onLogout}
-          />
-
-          <ChangePasswordModal
-            show={onShowChangePassword}
-            onHide={() => setShowChangePassword(false)}
-            onChangePassword={onChangePassword}
-          />
-        
-        </Modal.Body>
-      </Modal>
-
-      <style jsx>{`
-        /* Core Dark Theme */
-        :global(.modal-content) { background: transparent; border: none; }
-        .bg-prof-dark { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 16px; overflow: hidden; }
-        
-        .prof-icon-btn { background: none; border: none; color: #555; transition: 0.2s; cursor: pointer; }
-        .prof-icon-btn:hover { color: #fff; }
-
-        /* Identity */
-        .prof-hero { background: linear-gradient(180deg, #141414 0%, #0d0d0d 100%); }
-        .prof-avatar-wrapper { width: 90px; height: 90px; border-radius: 50%; position: relative; border: 1px solid #222; padding: 4px; }
-        .prof-avatar-wrapper img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .prof-avatar-overlay { 
-          position: absolute; inset: 4px; background: rgba(0,0,0,0.4); 
-          border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-          color: #fff; opacity: 0; transition: 0.2s; cursor: pointer;
-        }
-        .prof-avatar-wrapper:hover .prof-avatar-overlay { opacity: 1; }
-        
-        .prof-user-name { font-size: 1rem; color: #fff; font-weight: 400; margin-top: 8px; }
-        .prof-user-email { font-size: 0.75rem; color: #555; letter-spacing: 0.2px; }
-
-        /* Modern Segmented Stepper */
-        .prof-section-label { font-size: 0.65rem; color: #444; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-        
-        .prof-stepper-grid { display: flex; gap: 10px; margin-bottom: 20px; }
-        .prof-step-item { 
-          flex: 1; background: #141414; border: 1px solid #1f1f1f; 
-          padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s;
-        }
-        .prof-step-item:hover { border-color: #333; background: #181818; }
-        
-        .prof-step-indicator { height: 3px; background: #222; border-radius: 2px; margin-bottom: 8px; }
-        .prof-step-item.completed .prof-step-indicator { background: #fff; }
-        
-        .prof-step-content { display: flex; justify-content: space-between; align-items: center; }
-        .prof-step-content span { font-size: 0.75rem; color: #888; }
-        .prof-step-item.completed span { color: #fff; }
-        .prof-arrow { color: #333; }
-
-        /* Bio */
-        .prof-bio-box { 
-          background: #141414; border: 1px solid #1f1f1f; padding: 12px; 
-          border-radius: 8px; font-size: 0.8rem; color: #777; line-height: 1.5;
-        }
-
-        /* Removes default bootstrap modal backdrop blur/tint if desired */
-.modal-backdrop {
-  background-color: rgba(0, 0, 0, 0.8) !important;
 }
-
-/* Custom focus state for all inputs */
-.focus-dark:focus {
-  background-color: #1e1e1e !important;
-  border-color: #888 !important; /* Lighter grey on focus */
-  color: white !important;
-  box-shadow: none !important;
-}
-
-/* Slim scrollbar for the Interests Modal */
-.interest-selection-container::-webkit-scrollbar {
-  width: 4px;
-}
-.interest-selection-container::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 10px;
-}
-      `}</style>
-
-      {/* BasicInfo, Interests, and Settings Modals follow same style as previous components */}
-    </>
-  );
-};
-
-export default EditProfile;

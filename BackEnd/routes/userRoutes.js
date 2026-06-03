@@ -3,22 +3,43 @@ const router = express.Router();
 const User = require("../Modules/Muser");
 const auth = require("./verifyToken");
 const relations = require("../Modules/relationships");
+const verifyToken = require("./verifyToken");
 router.get("/search", auth, async (req, res) => {
   try {
+
     const q = req.query.q?.trim();
+
     if (!q) {
       return res.json([]);
     }
+
     const users = await User.find({
-      userName: { $regex: q, $options: "i" },
-      _id: { $ne: req.decoded.userId }
+      userName: {
+        $regex: q,
+        $options: "i",
+      },
+
+      _id: {
+        $ne: req.decoded.userId,
+      },
     })
-      .select("_id userName profilePicture")
+      .select(
+        "_id userName profilePicture publicKey"
+      )
       .limit(10);
+
     res.json(users);
+
   } catch (err) {
-    console.error("User search error:", err);
-    res.status(500).json({ message: "Server error" });
+
+    console.error(
+      "User search error:",
+      err
+    );
+
+    res.status(500).json({
+      message: "Server error",
+    });
   }
 });
 
@@ -75,5 +96,6 @@ router.get("/friends", auth, async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

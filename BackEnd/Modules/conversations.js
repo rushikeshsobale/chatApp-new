@@ -10,26 +10,7 @@ const conversationSchema = new mongoose.Schema(
     }
   ],
 
-  isGroup: {
-    type: Boolean,
-    default: false
-  },
-
-  groupName: {
-    type: String
-  },
- groupCaption: {
-    type: String
-  },  
-  groupAdmin: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Muser"
-  },
- 
-  groupAvatar:{
-    type: String, 
-    default: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
-  },
+  
   lastMessageAt: {
     type: Date
   },

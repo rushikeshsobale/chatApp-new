@@ -32,7 +32,7 @@ export const register = async (userData) => {
   }
 };
 export const getMe = async () => {
-  try {    const response = await api.get('auth/me');
+  try {    const response = await api.get('auth/getUser');
     return response.data;
   } catch (error) {
     throw error.response?.data?.error || 'Failed to fetch user data';
@@ -63,81 +63,24 @@ export const sendVerification = async (email) => {
     throw error.response?.data?.error || 'Failed to send verification code';
   }
 };
-export const completeProfile = async (userId, profileData) => {
+export const completeProfile = async (formData) => {
   try {
-    const formData = new FormData();
+    const response = await api.put(
+      "/auth/complete-profile",
+      formData
     
-    // Handle profile picture
-    if (profileData.profilePic) {
-      // Convert base64 to blob if it's a base64 string
-      if (typeof profileData.profilePic === 'string' && profileData.profilePic.startsWith('data:')) {
-        const response = await fetch(profileData.profilePic);
-        const blob = await response.blob();
-        formData.append('profilePicture', blob, 'profile.jpg');
-      } else if (profileData.profilePic instanceof File) {
-        formData.append('profilePicture', profileData.profilePic);
-      }
-    }
-
-    // Handle bio
-    if (profileData.bio) {
-      formData.append('bio', profileData.bio);
-    }
-
-    // Handle basic info
-    if (profileData.basicInfo) {
-      Object.keys(profileData.basicInfo).forEach(key => {
-        formData.append(`basicInfo[${key}]`, profileData.basicInfo[key]);
-      });
-    }
-
-    // Handle interests
-    if (profileData.interests) {
-      Object.keys(profileData.interests).forEach(category => {
-        if (Array.isArray(profileData.interests[category])) {
-          formData.append(`interests[${category}]`, JSON.stringify(profileData.interests[category]));
-        }
-      });
-    }
-
-    // Handle favorites
-    if (profileData.favorites) {
-      Object.keys(profileData.favorites).forEach(key => {
-        formData.append(`favorites[${key}]`, profileData.favorites[key]);
-      });
-    }
-
-    // Handle professional info
-    if (profileData.professional) {
-      Object.keys(profileData.professional).forEach(key => {
-        if (Array.isArray(profileData.professional[key])) {
-          formData.append(`professional[${key}]`, JSON.stringify(profileData.professional[key]));
-        } else {
-          formData.append(`professional[${key}]`, profileData.professional[key]);
-        }
-      });
-    }
-
-    // Handle social links
-    if (profileData.social) {
-      Object.keys(profileData.social).forEach(key => {
-        formData.append(`social[${key}]`, profileData.social[key]);
-      });
-    }
-
-    const response = await api.put(`auth/complete-profile/${userId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    );
 
     return response.data;
   } catch (error) {
-    console.error('Profile completion error:', error);
-    throw error.response?.data?.error || 'Profile completion failed';
+    console.error("Complete profile error:", error);
+
+    throw (
+      error?.response?.data?.error ||
+      "Profile completion failed"
+    );
   }
 };
-
 export const refreshToken = async () => {
   try {
     const refreshToken = getRefreshToken();

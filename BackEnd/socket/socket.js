@@ -1,197 +1,595 @@
-const Messages = require("../Modules/Messages.js");
-let onlineFriends = [];
-let onlineUsers = new Map();
-let userFriendsMap = new Map();
+const Message = require("../Modules/Messages");
+const Conversation = require("../Modules/conversations");
+// userId -> socketId
+const onlineUsers = new Map();
+
 module.exports = (io) => {
     io.on("connection", (socket) => {
-        socket.on("joinRoom", (data) => {
-            const { userId, friends } = data;
+
+        socket.on("user:init", (userId) => {
+            if (!userId) return;
+
+            socket.userId = userId;
+
             onlineUsers.set(userId, socket.id);
+
             socket.join(userId);
-            try {
-                io.emit('status', { userId });
-                io.to(userId).emit('restatus', Array.from(onlineUsers.keys()));
-            } catch (error) {
-                console.error('Error in joinRoom:', error);
-            }
-        });
-
-        socket.on("call-user", (data) => {
-            if (!data || !data.to) {
-                // Note: In a real app, you would check if the user is online here.
-                return console.log("Call user request missing data or recipient.");
-            }
-            io.to(data.to).emit("incoming-call", {
-                offer: data.offer,
-                from: data.from._id, // Sender's user ID
-                fromName: data.from.userName || 'Unknown User', // Added fromName for better context in incomingCall.js
+            socket.emit(
+                "online_users",
+                Array.from(onlineUsers.keys()).map(id => ({
+                    userId: id,
+                    status: "online"
+                }))
+            );
+            // Notify everyone else
+            socket.broadcast.emit("user:status_changed", {
+                userId,
+                status: "online",
             });
-            console.log(`Call offered: ${socket.id} -> ${data.to}`);
         });
 
-        // --- 2. INITIAL CALL HANDSHAKE (Answer) ---
-        // LISTENS: The incoming receiver accepts and sends back the Answer.
-        // NOTE: The listener is changed from "answer-call" to "answer" to match the event name used in incomingCall.js
-        // EMITS: Sends the Answer back to the original caller.
-        socket.on("answer", (data) => {
-            if (!data || !data.to) return console.warn('Answer received but missing recipient.');
-            console.log(`Answer received from ${socket.id} for ${data.to}`);
-            io.to(data.to).emit("call-answered", {
-                answer: data.answer,
+
+        // socket.on("user:get_status", (targetUserId, callback) => {
+        //     const isOnline = onlineUsers.has(targetUserId);
+
+        //     if (callback) {
+        //         callback({
+        //             status: isOnline ? "online" : "offline",
+        //         });
+        //     }
+        // });
+
+        // ==================================================
+        // TYPING INDICATORS
+        // ==================================================
+
+        socket.on("message:typing", ({ receiverId }) => {
+            if (!receiverId) return;
+
+            io.to(receiverId).emit("message:typing_received", {
+                senderId: socket.userId,
             });
-            console.log(`Answer relayed: ${socket.id} -> ${data.to}`);
         });
 
-        // --- 3. UNIFIED SIGNALING CHANNEL (ICE Candidates) ---
-        // This handler replaces the confusing 'ice-candidate-inComing' and 'ice-candidate-outGoing' handlers.
-        // It is used by both the Caller and the Receiver to send ICE candidates to the opposite peer.
-        // LISTENS: Both peers use 'send-signal' to transmit candidates.
-        // EMITS: 'receive-signal' is sent to the target, containing the sender's ID and the candidate payload.
-        // 1. Fixed 'send-signal' listener
-        socket.on('send-signal', (data) => {
-            if (!data || !data.to || data.type !== 'ice-candidate') {
-                return console.warn("Invalid signal data received:", data);
-            }
+        socket.on("message:typing_stop", ({ receiverId }) => {
+            if (!receiverId) return;
 
-            io.to(data.to).emit('receive-signal', {
-                from: socket.id,
-                type: data.type,
-                candidate: data.candidate,
+            io.to(receiverId).emit("message:typing_stop_received", {
+                senderId: socket.userId,
             });
-        }); // <--- Make sure this is closed properly
-
-        // 2. Separate 'cancel-call' listener
-        socket.on("cancel-call", (data) => {
-            if (data && data.to) {
-                io.to(data.to).emit("call-canceled", { from: socket.id });
-            }
-            console.log(`Call canceled by ${socket.id}`);
         });
-        socket.on("end-call", (data) => {
-            if (data && data.to) {
-                io.to(data.to).emit("call-ended", { from: socket.id });
-            }
-            console.log(`Call ended by ${socket.id}`);
-        });
-        socket.on('sendMessage', (data) => {
 
-            const { receiverId } = data;
-            try {
-                io.to(receiverId).emit('recievedMessage', data);
-                io.to(receiverId).emit('checkit')
-            } catch (err) {
-                console.error('Error sending message:', err.message);
-            }
-        })
+        // ==================================================
+        // MESSAGE DELIVERY
+        // ==================================================
 
-        socket.on('updateMessageStatus', async (data) => {
-            const { friend, messageIds } = data;
-        })
-        socket.on('setDoubleCheck', async (data) => {
-            const { friendId, chatId, message } = data;
-            try {
-                const messages = await Messages.find({ chatId })
-                    .sort({ createdAt: -1 })
-                    .skip((1 - 1) * 15)
-                    .limit(15);
-                const messageIds = messages.map((msg) => msg._id);
-                await Messages.updateMany(
-                    { _id: { $in: messageIds } },
-                    { $set: { status: "read" } }
-                )
-                const updatedMessage = {
-                    ...message,
-                    status: "read",
-                    timestamp: new Date().toISOString()
+        socket.on(
+            "message:send",
+            async ({ receiverId, message }) => {
+                if (!receiverId || !message)
+                    return;
+                io.to(receiverId).emit("message:received", message);
+                io.to(receiverId).emit("message:delivered", {
+                    messageId: message._id,
+                });
+                const conversation =
+                    await Conversation.findById(
+                        message.conversationId
+                    );
+                if (!conversation)
+                    return;
+                const currentUnread =
+                    conversation.unreadCount.get(
+                        receiverId.toString()
+                    ) || 0;
+
+                conversation.unreadCount.set(
+                    receiverId.toString(),
+                    currentUnread,
+                );
+                conversation.lastMessage =
+                    message._id;
+                conversation.lastMessageAt =
+                    new Date();
+
+                await conversation.save();
+
+                const payload = {
+                    conversationId:
+                        conversation._id,
+
+                    lastMessage: message,
+
+                    unreadCount:
+                        Object.fromEntries(
+                            conversation.unreadCount
+                        ),
                 };
 
-                io.to(friendId).emit('setDoubleCheckRecieved', updatedMessage);
-            } catch (err) {
-                console.error("Error updating message status:", err);
-            }
-        });
-        socket.on('checkUnseenMsg', async (data) => {
-            console.log(data, 'check  unseen')
-            try {
-                const { friendId, messageIds } = data;
-                // Update messages where status is 'sent'
-                const result = await Messages.updateMany(
-                    { _id: { $in: messageIds }, status: 'sent' },
-                    { $set: { status: 'read' } }
+                // receiver
+                io.to(receiverId).emit(
+                    "conversation:update",
+                    payload
                 );
-                io.to(friendId).emit('messagesRead', { messageIds });
-            } catch (error) {
-                console.error('Error updating unseen messages:', error);
-            }
-        });
 
-        socket.on("typing", ({ userId, myId }) => {
-            if (userId) {
-                io.to(userId).emit("typing", { myId });
+                // sender
+                io.to(socket.userId).emit(
+                    "conversation:update",
+                    payload
+                );
             }
-        });
-        socket.on("stopped_typing", ({ userId }) => {
-            if (userId) {
-                io.to(userId).emit("stopped_typing");
-            }
-        });
-        socket.on('recievedMsg', (data) => {
-            const { id, id2 } = data;
-            try {
-                io.to(id).emit('setStatus', { messageId: id2, userId: id });
-            } catch (err) {
-                console.error('Error in recievedMsg:', err);
-            }
-        });
-        socket.on('raisedRequest', ({ userId, senderId, message }) => {
-            const recipient = onlineFriends.find(member => member.userId === userId);
-            if (recipient) {
-                io.to(recipient.userId).emit('friendRequestNotification', { senderId, message });
-            } else {
-                console.log(`User with ID ${userId} is not currently connected`);
-            }
-        });
-        socket.on('emit_notification', (data) => {
-            const { recipient } = data;
+        );
 
-            // 1. If a recipient is specified, try to send it privately
-            if (recipient) {
-                const recipientSocketId = onlineUsers.get(recipient);
+        // ==================================================
+        // READ RECEIPTS
+        // ==================================================
 
-                if (recipientSocketId) {
-                    io.to(recipientSocketId).emit('got_a_notification', data);
-                } else {
-                    console.log(`Recipient ${recipient} is not online. Notification not sent.`);
+        socket.on(
+            "message:read",
+            async ({ receiverId, message }) => {
+
+                console.log(receiverId, 'then message', message)
+                const messageId = message._id;
+                if (!receiverId || !message)
+                    return;
+
+                try {
+
+                    const message =
+                        await Message.findByIdAndUpdate(
+                            messageId,
+                            {
+                                status: "read",
+                                readAt: new Date(),
+                            },
+                            { new: true }
+                        );
+
+                    if (!message) return;
+
+                    const conversation =
+                        await Conversation.findById(
+                            message.conversationId
+                        );
+
+                    if (conversation) {
+
+                        conversation.unreadCount.set(
+                            socket.userId.toString(),
+                            0
+                        );
+
+                        await conversation.save();
+
+                        const unreadCount =
+                            Object.fromEntries(
+                                conversation.unreadCount
+                            );
+
+                        io.to(socket.userId).emit(
+                            "conversation:update",
+                            {
+                                conversationId:
+                                    conversation._id,
+
+                                lastMessage: message,
+                                unreadCount,
+                            }
+                        );
+
+                        io.to(receiverId).emit(
+                            "conversation:update",
+                            {
+                                conversationId:
+                                    conversation._id,
+                                lastMessage: message,
+                                unreadCount,
+                            }
+                        );
+                    }
+
+                    io.to(receiverId).emit(
+                        "message:read_received",
+                        {
+                            messageId
+                        }
+                    );
+
+                } catch (err) {
+                    console.error(
+                        "Read receipt error:",
+                        err
+                    );
                 }
             }
-            // 2. If no recipient is provided in the data, broadcast to everyone
-            else {
-                io.emit('got_a_notification', data);
-                console.log("No recipient specified. Broadcasting to all users.");
+        );
+
+
+        socket.on(
+            "conversation:read",
+            async ({ conversationId, receiverId }) => {
+                try {
+                    const conversation =
+                        await Conversation.findById(conversationId);
+                    if (!conversation) return;
+                    conversation.unreadCount.set(
+                        String(socket.userId),
+                        0
+                    );
+                    await conversation.save();
+                    // mark messages as read
+                    await Message.updateMany(
+                        {
+                            conversationId,
+                            receiverId: socket.userId,
+                            status: { $ne: "read" }
+                        },
+                        {
+                            $set: {
+                                status: "read",
+                                readAt: new Date()
+                            }
+                        }
+                    );
+                    // notify sender
+                    io.to(receiverId).emit(
+                        "message:read_received",
+                        {
+                            conversationId,
+
+                        }
+                    );
+
+                    const lastMessage = await Message.findOne({
+                        conversationId
+                    })
+                        .sort({ createdAt: -1 })
+                        .lean();
+                    io.to(receiverId).emit(
+                        "conversation:update",
+                        {
+                            conversationId: conversation._id,
+                            lastMessage,
+                            unreadCount: Object.fromEntries(
+                                conversation.unreadCount
+                            ),
+                        }
+                    );
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+        );
+        // ==================================================
+        // REACTIONS
+        // ==================================================
+
+        socket.on(
+            "message:react",
+            async (
+                {
+                    messageId,
+                    receiverId,
+                    emoji,
+                    action = "add",
+                },
+                callback
+            ) => {
+                try {
+                    const message =
+                        await Message.findById(messageId);
+
+                    if (!message) {
+                        if (callback) {
+                            callback({
+                                status: "error",
+                                message: "Message not found",
+                            });
+                        }
+                        return;
+                    }
+
+                    message.reactions =
+                        message.reactions.filter(
+                            (reaction) =>
+                                reaction.userId !== socket.userId
+                        );
+
+                    if (action === "add") {
+                        message.reactions.push({
+                            userId: socket.userId,
+                            emoji,
+                        });
+                    }
+
+                    await message.save();
+
+                    io.to(receiverId).emit(
+                        "message:reacted",
+                        {
+                            messageId,
+                            reactions: message.reactions,
+                        }
+                    );
+
+                    if (callback) {
+                        callback({
+                            status: "ok",
+                            reactions: message.reactions,
+                        });
+                    }
+                } catch (err) {
+                    console.error(err);
+
+                    if (callback) {
+                        callback({
+                            status: "error",
+                        });
+                    }
+                }
+            }
+        );
+
+        // ==================================================
+        // CALL EVENTS
+        // ==================================================
+
+        const activeCalls = new Map();
+
+        socket.on("call:start", async ({ receiverId, callType, offer, conversationId }) => {
+
+            try {
+                let conversation;
+
+                // Find or create conversation
+                if (!conversationId) {
+                    conversation = await Conversation.findOne({
+                        participants: {
+                            $all: [
+                                socket.userId,
+                                receiverId,
+                            ],
+                        },
+                    });
+
+                    if (!conversation) {
+                        conversation =
+                            await Conversation.create({
+                                participants: [
+                                    socket.userId,
+                                    receiverId,
+                                ],
+                                unreadCount: {
+                                    [socket.userId]: 0,
+                                    [receiverId]: 0,
+                                },
+                            });
+                    }
+
+                    conversationId =
+                        conversation._id.toString();
+                } else {
+                    conversation =
+                        await Conversation.findById(
+                            conversationId
+                        );
+                }
+
+                const callMessage =
+                    await Message.create({
+                        conversationId: conversation._id,
+                        senderId: socket.userId,
+                        receiverId,
+                        messageType: "call_log",
+                        callDetails: {
+                            callType,
+                            callStatus: "ringing",
+                            duration: 0,
+                        },
+                    });
+
+                activeCalls.set(socket.userId, {
+                    callerId: socket.userId,
+                    receiverId,
+                    offer,
+                    callType,
+                    startedAt: Date.now(),
+                    conversationId: conversation._id,
+                });
+
+                io.to(receiverId).emit("call:incoming", {
+                    senderId: socket.userId,
+                    callType,
+                    offer,
+                    conversationId: conversation._id,
+                });
+
+            }
+            catch (err) {
+                console.error(
+                    "call:start error:",
+                    err
+                );
             }
         });
+
+        socket.on("call:offer", (data) => {
+            const { receiverId } = data;
+
+            io.to(receiverId).emit("call:offer", {
+                ...data,
+                senderId: socket.userId,
+            });
+        });
+
+        socket.on("call:answer", async (data) => {
+            try {
+                const { receiverId } = data;
+
+                const call = activeCalls.get(receiverId);
+
+                if (call) {
+                    call.acceptedAt = Date.now();
+
+                    const updatedMessage =
+                        await Message.findByIdAndUpdate(
+                            call.messageId,
+                            {
+                                $set: {
+                                    "callDetails.callStatus":
+                                        "accepted",
+                                },
+                            },
+                            { new: true }
+                        );
+                }
+
+                io.to(receiverId).emit("call:answer", {
+                    ...data,
+                    senderId: socket.userId,
+                });
+
+            }
+            catch (err) {
+                console.error(err);
+            }
+
+
+        });
+
+        socket.on("call:ice_candidate", (data) => {
+            const { receiverId } = data;
+
+            io.to(receiverId).emit(
+                "call:ice_candidate",
+                {
+                    ...data,
+                    senderId: socket.userId,
+                }
+            );
+        });
+
+        socket.on(
+            "call:end",
+            async ({ receiverId }) => {
+                try {
+                    const call =
+                        activeCalls.get(socket.userId) ||
+                        activeCalls.get(receiverId);
+
+                    if (!call) {
+                        io.to(receiverId).emit(
+                            "call:end"
+                        );
+                        return;
+                    }
+
+                    let callStatus = "cancelled";
+                    let duration = 0;
+
+                    if (call.acceptedAt) {
+                        callStatus = "completed";
+
+                        duration = Math.floor(
+                            (Date.now() -
+                                call.acceptedAt) /
+                            1000
+                        );
+                    }
+
+                    const updatedMessage =
+                        await Message.findByIdAndUpdate(
+                            call.messageId,
+                            {
+                                $set: {
+                                    "callDetails.callStatus":
+                                        callStatus,
+                                    "callDetails.duration":
+                                        duration,
+                                },
+                            },
+                            { new: true }
+                        );
+
+                    io.to(call.callerId).emit(
+                        "conversation:update",
+                        {
+                            conversationId:
+                                call.conversationId,
+                            lastMessage:
+                                updatedMessage,
+                        }
+                    );
+
+                    io.to(call.receiverId).emit(
+                        "conversation:update",
+                        {
+                            conversationId:
+                                call.conversationId,
+                            lastMessage:
+                                updatedMessage,
+                        }
+                    );
+
+                    io.to(receiverId).emit(
+                        "call:end"
+                    );
+
+                    activeCalls.delete(
+                        call.callerId
+                    );
+
+                } catch (err) {
+                    console.error(
+                        "call:end error:",
+                        err
+                    );
+                }
+            }
+        );
+        socket.on("call:reject", async (recieverId) => {
+            const call =
+                activeCalls.get(socket.userId) ||
+                activeCalls.get(receiverId);
+
+            if (call) {
+                const duration =
+                    call.acceptedAt
+                        ? Math.floor(
+                            (Date.now() - call.acceptedAt) / 1000
+                        )
+                        : 0
+                await Message.create({
+                    sender: call.callerId,
+                    receiver: call.receiverId,
+                    type: "call",
+                    callData: {
+                        callType,
+                        status: "rejected",
+                        duration: 0,
+                    }
+                });
+            }
+        });
+
+        // ==================================================
+        // DISCONNECT
+        // ==================================================
+
         socket.on("disconnect", () => {
-            const userId = socket.handshake.query.id;
-            if (userId) {
-                onlineUsers.delete(userId);
-                socket.broadcast.emit('userLeft', { userId });
+            if (socket.userId) {
+                onlineUsers.delete(socket.userId);
+
+                socket.broadcast.emit(
+                    "user:status_changed",
+                    {
+                        userId: socket.userId,
+                        status: "offline",
+                    }
+                );
+
             }
-        });
-        socket.on('error', (err) => {
-            console.error('Socket error:', err.message);
-        });
-        socket.on("joinGroup", (groupId) => {
-            console.log(`Joining group: ${groupId}`);
-            socket.join(groupId);
-        });
 
-        socket.on("leaveGroup", (groupId) => {
-            socket.leave(groupId);
-        });
-
-        socket.on("sendGroupMessage", (message) => {
-            const groupId = message.conversationId;
-            socket.to(groupId).emit("receiveGroupMessage", message);
         });
     });
 };

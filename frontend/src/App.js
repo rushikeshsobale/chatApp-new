@@ -39,13 +39,6 @@ import { setUser } from './store/action.js';
 const ManagedNavbar = () => {
   const location = useLocation();
   const { isLoggedIn, user } = useContext(UserContext);
- 
-  useEffect(() => {
-    console.log("ManagedNavbar evaluation path:", location.pathname, { isLoggedIn });
-
-
-  }, [location.pathname, isLoggedIn]);
- 
 
  if(location.pathname ==='/home' || location.pathname ==='/profile' ){
   return (
@@ -82,7 +75,7 @@ function App() {
     console.log("App component mounted, checking login status...");
     const loggedIn = JSON.parse(localStorage.getItem('user'));
     if (loggedIn) {
-      console.log("User is logged in: ", loggedIn);
+    
       setUser(loggedIn); // Ensure we populate the global user state on app load
     } else {
       console.log("User is not logged in.");
@@ -133,7 +126,7 @@ function App() {
   }, []);
 
   return (
-    <div className={`App bg-dark ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} pt-1`}>
+    <div className={`App  ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} pt-1`}>
       {incomingCall && (
         <IncomingCall
           show={showIncoming}

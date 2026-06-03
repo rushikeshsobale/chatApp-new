@@ -62,17 +62,7 @@ const UserSearchBox = ({ onUserSelect, isDark = true }) => {
             {/* Input Container Wrapper */}
             <div className="d-flex align-items-center position-relative w-100">
                 {/* Search Glass Icon */}
-                <svg 
-                    className="position-absolute" 
-                    style={{ left: "12px", width: "18px", height: "18px", color: isDark ? "#666" : "#999", zIndex: 2 }} 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2"
-                >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                </svg>
+                
 
                 {/* Form Control */}
                 <input
