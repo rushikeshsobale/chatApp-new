@@ -4,13 +4,14 @@
  * Handles Asymmetric RSA-OAEP Keypairs, Ephemeral Symmetric AES-GCM Session Streams, 
  * Group Conversions, and Secure Browser-Level IndexedDB Ledger Management.
  */
-
+const user = JSON.parse(localStorage.getItem("user"));
+const userId = user?._id;
+ console.log("Initializing CryptoUtils with user ID:", userId);
+const KEY_ALIAS = `private-key-${userId}`;
 const DB_NAME = "KeyStorage";
 const STORE_NAME = "PrivateKeys";
-const KEY_ALIAS = "user-main-private-key";
 
 const CryptoUtils = {
-
   // ==========================================
   // 1. DATA CONVERSION TRANSFORMS
   // ==========================================
