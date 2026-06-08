@@ -4,12 +4,19 @@
  * Handles Asymmetric RSA-OAEP Keypairs, Ephemeral Symmetric AES-GCM Session Streams, 
  * Group Conversions, and Secure Browser-Level IndexedDB Ledger Management.
  */
-const user = JSON.parse(localStorage.getItem("user"));
-const userId = user?._id;
- console.log("Initializing CryptoUtils with user ID:", userId);
-const KEY_ALIAS = `private-key-${userId}`;
+
 const DB_NAME = "KeyStorage";
 const STORE_NAME = "PrivateKeys";
+
+const getUserId = () => {
+ 
+  const userId = localStorage.getItem("userId");
+  return userId;
+};
+
+const getKeyAlias = () => {
+  return `private-key-${getUserId()}`;
+};
 
 const CryptoUtils = {
   // ==========================================
@@ -99,7 +106,7 @@ async saveKeyLocally(privateKey) {
   const db = await this._openDB();
   const transaction = db.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
-  
+  const KEY_ALIAS = getKeyAlias();
   // Important: IndexedDB can store CryptoKey objects directly in most modern browsers!
   store.put(privateKey, KEY_ALIAS);
 },
@@ -110,6 +117,7 @@ async saveKeyLocally(privateKey) {
       return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, "readonly");
         const store = transaction.objectStore(STORE_NAME);
+        const KEY_ALIAS = getKeyAlias();
         const request = store.get(KEY_ALIAS);
         request.onsuccess = () => resolve(request.result || null);
         request.onerror = () => {
