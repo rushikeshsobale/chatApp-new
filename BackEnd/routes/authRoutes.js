@@ -97,7 +97,7 @@ router.get('/google/callback',
       if (req.user.onboardingComplete) {
         // Old User -> Send straight to auth-success to mount chat keys
         const frontendUrl = `${process.env.FRONTEND_URL}/auth-success`;
-        const queryParams = `?auth_status=success&username=${req.user.userName}&seed=${symmetricSeed}`;
+        const queryParams = `?auth_status=success&userId=${req.user._id}&username=${req.user.userName}&seed=${symmetricSeed}`;
         return res.redirect(frontendUrl + queryParams);
       } else {
         // New User -> Redirect them to onboarding first, passing the tracking parameters
@@ -464,9 +464,6 @@ router.put(
   async (req, res) => {
     try {
       const userId = req.decoded.userId;
-
-      console.log("reqbody", req.body);
-
       const user = await Muser.findById(userId);
 
       if (!user) {

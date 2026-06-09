@@ -31,7 +31,7 @@ const FOOD_CUISINES = [
 export default function Onboarding() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
+console.log(searchParams.get("userId"), 'searchParams')
   // Fallback state context calculation 
   const targetUserId = localStorage.getItem("userId") || searchParams.get("userId");
   const initialUsername = searchParams.get("username") || "";
@@ -54,6 +54,7 @@ export default function Onboarding() {
     if (initialUsername && !userName) {
       setUserName(initialUsername.toLowerCase().replace(/[^a-z0-9_]/g, ""));
     }
+     localStorage.setItem('userId', searchParams.get('userId'))
   }, [initialUsername]);
 
   // State update handler
@@ -76,6 +77,7 @@ export default function Onboarding() {
   const handleUsernameChange = (e) => {
     const sanitizedValue = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
     setUserName(sanitizedValue);
+   
   };
 
   const handleFormSubmission = async () => {
