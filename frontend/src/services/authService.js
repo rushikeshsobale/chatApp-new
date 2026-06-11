@@ -39,12 +39,14 @@ export const getMe = async () => {
   } 
 };
 export const login = async (credentials) => {
-  console.log(credentials, 'credentials')
   try {
     const response = await api.post('auth/login', credentials);
     return response.data;
   } catch (error) {
-    throw error.response?.data?.error || 'Login failed';
+    const errData = error.response?.data;
+    const err = new Error(errData?.message || 'Login failed');
+    err.code = errData?.code;
+    throw err;
   }
 };
 export const verifyEmail = async ({ email, code }) => {

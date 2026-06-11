@@ -126,7 +126,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
         setMessages(prev =>
           prev.map(msg => {
             if (
-              msg.conversationId === conversation._id &&
+              msg.conversationId === conversation?._id &&
               msg.senderId === user._id &&
               msg.status !== "read"
             ) {

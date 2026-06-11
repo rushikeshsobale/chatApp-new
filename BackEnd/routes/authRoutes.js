@@ -124,7 +124,9 @@ router.get("/getUser", verifyToken, async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        error: "User profile not found",
+        success: false,
+        code: "ACCOUNT_NOT_FOUND",
+        message: "User not found.",
       });
     }
 
@@ -134,7 +136,9 @@ router.get("/getUser", verifyToken, async (req, res) => {
     console.error(err);
 
     res.status(500).json({
-      error: "Internal processing error",
+      success: false,
+      code: "SERVER_ERROR",
+      message: "Something went wrong. Please try again.",
     });
   }
 });
@@ -146,14 +150,16 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
     if (!email || !password || !username) {
       return res.status(400).json({
         success: false,
-        error: "Email, password, and username are required.",
+        code: "MISSING_FIELDS",
+        message: "Email, password, and username are required.",
       });
     }
     const existingUser = await Muser.findOne({ email });
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        error: "User with this email already exists.",
+        code: "EMAIL_ALREADY_EXISTS",
+        message: "An account with this email already exists.",
       });
     }
     // Hash the password cleanly using standard bcrypt layers
@@ -177,7 +183,7 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Something went wrong. Please try again." });
   }
 });
 
@@ -188,7 +194,7 @@ router.post("/login", async (req, res) => {
     const user = await Muser
       .findOne({ email })
       .select("+password");
-    console.log("Login attempt for email:", email);
+   
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -263,8 +269,7 @@ router.post("/login", async (req, res) => {
     return res.status(500).json({
       success: false,
       code: "SERVER_ERROR",
-      message:
-        "Internal server error",
+      message: "Something went wrong. Please try again.",
     });
   }
 });
@@ -291,7 +296,7 @@ router.post('/upload-keys', verifyToken, async (req, res) => {
     const { encryptedMasterKey, salt, iv } = req.body;
 
     if (!encryptedMasterKey || !salt || !iv) {
-      return res.status(400).json({ error: 'Incomplete symmetric payload data provided' });
+      return res.status(400).json({ success: false, code: "MISSING_FIELDS", message: "Incomplete key data. Please try again." });
     }
 
     // Persist as strings directly to prevent buffer conversion compilation breaks
@@ -311,7 +316,7 @@ router.post('/upload-keys', verifyToken, async (req, res) => {
     res.status(200).json({ message: 'Symmetric backup payload synchronized successfully' });
   } catch (error) {
     console.error('Keys upload error:', error);
-    res.status(500).json({ error: 'Internal server error during key payload backup' });
+    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Couldn't save your keys. Please try again." });
   }
 });
 
@@ -320,12 +325,12 @@ router.get('/user-keys', verifyToken, async (req, res) => {
     const userId = req.decoded.userId;
     const keys = await KeysModel.findOne({ userId });
     if (!keys) {
-      return res.status(404).json({ error: 'Symmetric backup data records not found for this profile' });
+      return res.status(404).json({ success: false, code: "NOT_FOUND", message: "No keys found for this account." });
     }
     res.status(200).json(keys);
   } catch (error) {
     console.error('Failed to fetch user keys:', error);
-    res.status(500).json({ error: 'Internal server network processing failure' });
+    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Couldn't retrieve your keys. Please try again." });
   }
 });
 
@@ -336,7 +341,7 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const user = await Muser.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'User with this email does not exist' });
+      return res.status(400).json({ success: false, code: "ACCOUNT_NOT_FOUND", message: "No account found with that email address." });
     }
 
     const token = jwt.sign({ userId: user._id }, secretKey, { expiresIn: '1h' });
@@ -346,7 +351,7 @@ router.post('/forgot-password', async (req, res) => {
     res.status(200).json({ message: 'Password reset link sent to your email' });
   } catch (error) {
     console.error('Forgot Password Error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Couldn't send the reset email. Please try again." });
   }
 });
 
@@ -356,7 +361,7 @@ router.post('/reset-password', verifyToken, async (req, res) => {
     const userId = req.decoded.userId; // Pull directly from safe verified middleware context
     const user = await Muser.findById(userId);
 
-    if (!user) return res.status(404).json({ error: 'User target profile mapping not found' });
+    if (!user) return res.status(404).json({ success: false, code: "ACCOUNT_NOT_FOUND", message: "Account not found." });
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
@@ -364,7 +369,7 @@ router.post('/reset-password', verifyToken, async (req, res) => {
     res.status(200).json({ message: 'Password reset execution successful' });
   } catch (err) {
     console.error('Reset Password Error:', err);
-    return res.status(401).json({ error: 'Invalid or expired processing session context' });
+    return res.status(401).json({ success: false, code: "INVALID_TOKEN", message: "Your reset link has expired. Please request a new one." });
   }
 });
 
@@ -372,25 +377,41 @@ router.post('/reset-password', verifyToken, async (req, res) => {
 router.post("/send-verification", async (req, res) => {
   try {
     const { email } = req.body;
-    const existingUser = await Muser.findOne({ email });
-    if (existingUser) return res.status(400).json({ error: "Email target already claimed" });
-    res.status(201).json({ message: "Verification processing request scheduled", email, nextStep: "verify-email" });
+    if (!email) {
+      return res.status(400).json({ success: false, code: "MISSING_FIELDS", message: "Email is required." });
+    }
+    const existingUser = await Muser.findOne({ email, onboardingComplete: true });
+    if (existingUser) {
+      return res.status(400).json({ success: false, code: "EMAIL_ALREADY_EXISTS", message: "An account with this email already exists." });
+    }
+    // TODO: generate and send OTP via sendVerificationEmail()
+    res.status(200).json({ success: true, message: "Verification code sent.", email, nextStep: "verify-email" });
   } catch (error) {
-    res.status(500).json({ error: "Internal server handling breakdown" });
+    console.error("Send verification error:", error);
+    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Couldn't send the verification email. Please try again." });
   }
 });
 
 router.post("/verify-email", async (req, res) => {
   try {
     const { email, code } = req.body;
-    // Verify OTP here
-    const isValidCode = true;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        code: "MISSING_FIELDS",
+        message: "Email and verification code are required.",
+      });
+    }
+
+    // TODO: Replace with real OTP lookup (e.g. check OTP stored in DB/Redis)
+    const isValidCode = true; // Replace with: await OtpModel.verify(email, code)
 
     if (!isValidCode) {
       return res.status(400).json({
         success: false,
         code: "INVALID_VERIFICATION_CODE",
-        message: "Invalid verification code.",
+        message: "That code doesn't match. Please check your email or request a new code.",
       });
     }
 
@@ -436,9 +457,8 @@ router.post("/verify-email", async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message:
-        "Email verified successfully.",
-      redirectTo: "/onboarding",
+      message:"Email verified successfully.",
+      redirectTo:`/onboarding?userId=${user._id}&userName=${user.userName}`,
       userId: user._id,
     });
 
@@ -449,8 +469,7 @@ router.post("/verify-email", async (req, res) => {
     return res.status(500).json({
       success: false,
       code: "SERVER_ERROR",
-      message:
-        "Verification failed.",
+      message: "Something went wrong during verification. Please try again.",
     });
   }
 });
@@ -470,7 +489,7 @@ router.put(
         return res.status(404).json({
           success: false,
           code: "ACCOUNT_NOT_FOUND",
-          message: "Account does not exist. Please sign up.",
+          message: "Account not found. Please sign up again.",
         });
       }
 
@@ -640,7 +659,8 @@ router.put(
 
       return res.status(500).json({
         success: false,
-        error: "Internal profile mapping exception",
+        code: "SERVER_ERROR",
+        message: "Couldn't save your profile. Please try again.",
       });
     }
   }
@@ -671,7 +691,8 @@ router.patch("/public-key", verifyToken, async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      error: "Internal profile mapping exception",
+      code: "SERVER_ERROR",
+      message: "Couldn't update your key. Please try again.",
     });
   }
 

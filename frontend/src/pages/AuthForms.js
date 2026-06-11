@@ -62,12 +62,17 @@ const AuthPage = () => {
   const validate = () => {
     const newErrors = {};
     if (!formData.email) {
-      newErrors.email = "Email is required";
+      newErrors.email = "Please enter your email address.";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
+      newErrors.email = "That doesn't look like a valid email address.";
     }
     if (isLogin && !formData.password) {
-      newErrors.password = "Password is required";
+      newErrors.password = "Please enter your password.";
+    }
+    if (authStep === 3) {
+      if (!formData.username) newErrors.username = "Please choose a username.";
+      if (!formData.password) newErrors.password = "Please set a password.";
+      else if (formData.password.length < 8) newErrors.password = "Password must be at least 8 characters.";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -96,6 +101,11 @@ const AuthPage = () => {
           await sendVerification(formData.email);
           setAuthStep(2);
         } else if (authStep === 2) {
+          if (!verificationCode || verificationCode.length < 6) {
+            setErrors({ form: "Please enter the 6-digit code sent to your email." });
+            setLoading(false);
+            return;
+          }
 
           const response =
             await verifyEmail({
@@ -104,13 +114,7 @@ const AuthPage = () => {
             });
 
           if (response.success) {
-
-            if (response.userId) {
-              localStorage.setItem(
-                "userId",
-                response.userId
-              );
-            }
+            console.log("Email verified successfully. Proceeding to complete profile.", response);
 
             navigate(
               response.redirectTo ||
@@ -120,16 +124,40 @@ const AuthPage = () => {
         }
       }
     } catch (error) {
-      console.error("Authentication system failure:", error);
-      setErrors({
-        ...errors,
-        form:
-          error?.response?.data?.message ||
-          error.message ||
-          "Authentication process failed.",
-      });
+      console.error("Authentication error:", error);
+      const code = error?.code;
+      const serverMessage = error?.message;
+      const friendlyErrors = {
+        ACCOUNT_NOT_FOUND: { form: "No account found with that email. Want to sign up instead?" },
+        INVALID_CREDENTIALS: { password: "Incorrect password. Please try again." },
+        PASSWORD_NOT_SET: { form: "This account was created with Google. Please use 'Continue with Google' below." },
+        EMAIL_ALREADY_EXISTS: { email: "An account with this email already exists. Try logging in." },
+        INVALID_VERIFICATION_CODE: { form: "That code doesn't match. Please check your email and try again." },
+        EXPIRED_VERIFICATION_CODE: { form: "That code has expired. Please request a new one." },
+        SERVER_ERROR: { form: "Something went wrong on our end. Please try again in a moment." },
+      };
+     
+      const mapped = friendlyErrors[code];
+      
+      if (mapped) {
+        setErrors(mapped);
+      } else {
+        setErrors({
+          form: serverMessage || "Something went wrong. Please try again.",
+        });
+      }
     } finally {
-       setLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    try {
+      setErrors({});
+      await sendVerification(formData.email);
+      setErrors({ form: "✓ A new code has been sent to your email." });
+    } catch {
+      setErrors({ form: "Couldn't resend the code. Please try again." });
     }
   };
 
@@ -170,7 +198,11 @@ const AuthPage = () => {
           </p>
         </div>
 
-        {errors.form && <div className="alert alert-danger py-2.5 px-3 small border-0 rounded-3 text-center mb-3">{errors.form}</div>}
+        {errors.form && (
+          <div className={`alert py-2 px-3 small border-0 rounded-3 text-center mb-3 ${errors.form.startsWith("✓") ? "alert-success" : "alert-danger"}`}>
+            {errors.form}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
           {authStep === 1 && (
@@ -242,7 +274,7 @@ const AuthPage = () => {
                 <button type="button" className="btn btn-link p-0 text-info text-decoration-none small fw-medium" onClick={() => setAuthStep(1)}>
                   Change Email
                 </button>
-                <button type="button" className="btn btn-link p-0 text-muted text-decoration-none small fw-medium" onClick={() => console.log("Resend code trigger")}>
+                <button type="button" className="btn btn-link p-0 text-muted text-decoration-none small fw-medium" onClick={handleResendCode}>
                   Resend Code
                 </button>
               </div>
@@ -341,13 +373,13 @@ const AuthPage = () => {
             {loading ? (
               <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             ) : isLogin ? (
-              "Access System Account"
+              "Sign In"
             ) : authStep === 1 ? (
-              "Continue Processing"
+              "Send Verification Code"
             ) : authStep === 2 ? (
-              "Confirm Validation Code"
+              "Verify Email"
             ) : (
-              "Finalize & Enter Onboarding"
+              "Create Account"
             )}
           </button>
 

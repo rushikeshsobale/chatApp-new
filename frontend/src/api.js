@@ -1,47 +1,56 @@
 // src/api.js
 import axios from 'axios';
 
+// Routes where errors should be handled locally (forms show inline messages)
+const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/verify-email', '/auth/send-verification', '/auth/forgot-password', '/auth/reset-password'];
+
+const isAuthRoute = (url = '') => AUTH_ROUTES.some(route => url.includes(route));
+
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL,
-  timeout: 10000, // 10 seconds
+  timeout: 10000,
   withCredentials: true,
 });
 
-// Add request interceptor for auth tokens if needed
 api.interceptors.request.use(
   (config) => config,
   (error) => Promise.reject(error)
 );
 
-// Add response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const url = error.config?.url || '';
+    const status = error.response?.status;
+
+    // Let auth routes handle their own errors inline — don't redirect
+    if (isAuthRoute(url)) {
+      return Promise.reject(error);
+    }
+
     if (error.response) {
-      switch (error.response.status) {
+      switch (status) {
         case 401:
-          // Token expired or unauthenticated -> dump to login
+          // Session expired mid-app (not during login) -> back to login
           window.location.href = '/login';
           break;
         case 403:
-          // Forbidden resource
-          console.error('Forbidden access');
+          console.error('Forbidden:', error.response.data);
           break;
         case 404:
-          // Backend route/resource not found -> send to 404 client page
           window.location.href = '/not-found';
           break;
         case 500:
         default:
-          // System crashes / unhandled server errors -> general error page
-          window.location.href = '/error';
           console.error('API Error:', error.response.data);
+          // window.location.href = '/error';
       }
     } else {
-      // Network issues / server down completely
-      window.location.href = '/error';
+      // Network down / server unreachable
       console.error('Network Error:', error.message);
+      window.location.href = '/error';
     }
+
     return Promise.reject(error);
   }
 );
