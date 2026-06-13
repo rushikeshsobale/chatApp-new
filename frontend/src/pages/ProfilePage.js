@@ -609,7 +609,7 @@ const ProfilePage = () => {
   return (
     <div style={s.page}>
       {showProfileModal && user && (
-        <EditProfile show={showProfileModal} onHide={() => setShowProfileModal(false)} user={user} onSave={handleSave}
+        <EditProfile setShowProfileModal={setShowProfileModal} show={showProfileModal} onHide={() => setShowProfileModal(false)} user={user} onSave={handleSave}
           onSettings={() => { navigate("/settings"); setShowProfileModal(false); }} onLogout={logOut} theme={d ? "dark" : "light"} />
       )}
 
@@ -652,7 +652,7 @@ const ProfilePage = () => {
       
           <button onClick={() => setShowProfileModal(true)} style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0 }} title="Edit profile">
            <FaUserEdit style={{ marginRight: 6 }} />
-         
+
           </button>
          <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
         <button onClick={() => setShowCreateStory(true)} title="Create story" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0 }}>
@@ -663,9 +663,7 @@ const ProfilePage = () => {
           <FaPencilAlt />
         </button>
         <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
-        <button onClick={() => setShowProfileModal(true)} title="Edit profile" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 19, padding: 0 }}>
-          <FaUserCog />
-        </button>
+    
         {unreadCount > 0 && (
           <>
             <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />

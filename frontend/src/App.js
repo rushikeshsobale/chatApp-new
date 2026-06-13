@@ -126,7 +126,7 @@ function App() {
   }, []);
 
   return (
-    <div className={`App  ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} `}>
+    <div className={`App  ${isDark ? 'text-light' : 'bg-light text-dark'} `}>
       {incomingCall && (
         <IncomingCall
           show={showIncoming}

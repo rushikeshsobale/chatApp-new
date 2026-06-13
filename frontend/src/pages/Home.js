@@ -393,8 +393,8 @@ const HomePage = ({ socket }) => {
 
   // Theme — memoised so it doesn't rebuild every render
   const theme = useMemo(() => ({
-    bg: isDark ? 'bg-dark text-light' : 'bg-light text-dark',
-    card: isDark ? ' bg-black border-secondary  text-light' : 'card bg-white border-light-subtle  text-dark',
+    bg: isDark ? ' text-light' : 'bg-light text-dark',
+    card: isDark ? '  border-secondary  text-light' : 'card bg-white border-light-subtle  text-dark',
     border: isDark ? 'border-secondary' : 'border-light-subtle',
     input: isDark ? 'form-control bg-dark border-secondary text-light shadow-none' : 'form-control bg-white border-light-subtle text-dark shadow-none',
     subtext: isDark ? 'text-muted' : 'text-secondary',
@@ -429,7 +429,7 @@ const HomePage = ({ socket }) => {
   };
 
   return (
-    <div className={` min-vh-100 ${theme.bg} m-1`}>
+    <div className={` ${theme.bg} m-1`}>
 
       {/* Toast notifications */}
       <ToastContainer position="bottom-center" className="mb-3">
@@ -545,16 +545,7 @@ const HomePage = ({ socket }) => {
             </div>
 
             {/* Search */}
-            <div className="mb-3">
-              <input
-                type="search"
-                className={`${theme.input} rounded-pill`}
-                placeholder="Search posts or people…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                aria-label="Search posts"
-              />
-            </div>
+
 
             {/* Feed */}
             {loading && filteredPosts.length === 0 ? (
@@ -592,22 +583,19 @@ const HomePage = ({ socket }) => {
 
           {/* ===== RIGHT RAIL ===== */}
           <div className="col-lg-3 d-none d-lg-block position-sticky" style={{ top: 80, height: 'fit-content' }}>
-            <div
-              className={` border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
-              style={{ background: isDark ? '#1f2833' : '#ffffff' }}
-            >
+           
               <FriendSuggestion theme={theme} />
-            </div>
+         
 
             <div className={`${theme.card} p-3 rounded-3 mb-4`}>
-              <h2 className="h6 fw-bold mb-3 d-flex align-items-center gap-2">
+              <h2 className="h6 mb-3 d-flex align-items-center gap-2">
                 <FaHashtag className="text-primary" aria-hidden="true" /> Trending
               </h2>
               <p className={`small ${theme.subtext} m-0`}>No trending topics right now.</p>
             </div>
 
             <div className={`${theme.card} p-3 rounded-3`}>
-              <h2 className="h6 fw-bold mb-3 d-flex align-items-center gap-2">
+              <h2 className="h6 mb-3 d-flex align-items-center gap-2">
                 <FaCalendarAlt className="text-primary" aria-hidden="true" /> Events
               </h2>
               <p className={`small ${theme.subtext} m-0`}>No upcoming events.</p>

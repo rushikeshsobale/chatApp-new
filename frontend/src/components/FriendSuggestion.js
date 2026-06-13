@@ -157,7 +157,7 @@ const FriendSuggestion = ({ loadData }) => {
   const DesktopList = () => (
     <div>
       {/* header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, padding: "0 4px" }}>
         <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.7px", textTransform: "uppercase", color: t.textMuted(dark) }}>
           Suggested for you
         </span>
