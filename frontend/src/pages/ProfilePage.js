@@ -1,957 +1,714 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
-import "bootstrap/dist/css/bootstrap.min.css";
-import { FaUserEdit, FaUserFriends, FaPlus, FaSearch, FaBell, FaHome, FaCompass, FaVideo, FaStore, FaGamepad, FaBookmark, FaPen, FaAmazon, FaCamera } from "react-icons/fa";
-import { IoMdNotifications } from "react-icons/io";
-import { RiMessengerLine } from "react-icons/ri";
-import EditProfile from "../components/EditProfile";
-import CustomModal from "../components/customModal";
-import PostDetail from "../components/PostDetail";
-import { useParams, useLocation } from "react-router-dom";
-import { ThemeContext } from "../contexts/ThemeContext";
+import { FaCamera, FaBookmark, FaUserEdit, FaBell, FaPencilAlt, FaUserCog} from "react-icons/fa";
 import { IoGridSharp } from "react-icons/io5";
 import { PiSlideshowFill } from "react-icons/pi";
 import { GiSouthAfricaFlag } from "react-icons/gi";
-import "bootstrap-icons/font/bootstrap-icons.css";
-import { useNavigate } from "react-router-dom";
-import "swiper/css";
-import "swiper/css/pagination";
-import "swiper/css/navigation";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { ThemeContext } from "../contexts/ThemeContext";
+import { UserContext } from "../contexts/UserContext";
+import moment from "moment";
 
-
+import EditProfile from "../components/EditProfile";
+import CustomModal from "../components/customModal";
+import PostDetail from "../components/PostDetail";
 import StoryViewer from "../components/StoryViewer";
 import FriendSuggestion from "../components/FriendSuggestion";
-import { fetchSuggestions, getPostById } from "../services/profileService";
 import FollowModal from "../components/FollowModal";
 import CreateStory from "../components/CreateStory";
-import { createNotification, getNotifications, updateNotification } from "../services/notificationService";
-import { UserContext } from "../contexts/UserContext";
 import BirthdaysCard from "../components/BirthdaysCard";
-import { getuser, getProfileuser, getUserPosts, getNotifications as getProfileNotifications, getStories, getTrendingTopics, getEvents, createStory, updateUserProfile, likePost, unlikePost, sharePost, savePost, followUser, unfollowUser, addComment, deleteComment, } from "../services/profileService";
-import Loader from '../components/Loader';
-import NotificationModal from '../components/Notification';
+import Loader from "../components/Loader";
 import SavedPosts from "./SavedPosts";
-import { getFollowers, getFollowing, } from '../services/relationships'
-import ResponsiveStoryCarousel from "../components/ResponsiveStoryCarousel";
-import { getMe } from "../services/authService";
-import Navbar from "../components/Nav";
-import moment from "moment";
+
+import {
+  getPostById,
+  fetchSuggestions,
+  getuser,
+  getUserPosts,
+  getNotifications as getProfileNotifications,
+  getStories,
+  getTrendingTopics,
+  getEvents,
+  createStory,
+  updateUserProfile,
+  likePost,
+  unlikePost,
+  sharePost,
+  savePost,
+  followUser,
+  unfollowUser,
+  addComment,
+  deleteComment,
+} from "../services/profileService";
+import { createNotification, updateNotification } from "../services/notificationService";
+import { getFollowers, getFollowing } from "../services/relationships";
+
+/* ─── design tokens ──────────────────────────────────────────────── */
+const tokens = {
+  radius: { md: "8px", lg: "12px", xl: "16px", full: "9999px" },
+  border: (dark) => `0.5px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)"}`,
+  surface: (dark) => (dark ? "#111111" : "#ffffff"),
+  page: (dark) => (dark ? "#000000" : "#f4f6f8"),
+  surfaceAlt: (dark) => (dark ? "#1a1a1a" : "#f8f9fa"),
+  text: (dark) => (dark ? "#f0f0f0" : "#111111"),
+  textMuted: (dark) => (dark ? "#888888" : "#6b7280"),
+  accent: "#378ADD",
+  accentBg: (dark) => (dark ? "#0C447C22" : "#E6F1FB"),
+  accentText: (dark) => (dark ? "#85B7EB" : "#185FA5"),
+  danger: "#E24B4A",
+  success: "#1D9E75",
+  warning: "#EF9F27",
+};
+
+/* ─── tiny reusable atoms ────────────────────────────────────────── */
+const Avatar = ({ src, name, size = 40, ring = false, dark }) => {
+  const initials = name?.charAt(0)?.toUpperCase() || "?";
+  const base = {
+    width: size,
+    height: size,
+    borderRadius: "50%",
+    flexShrink: 0,
+    objectFit: "cover",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 500,
+    fontSize: size * 0.35,
+    background: tokens.accentBg(dark),
+    color: tokens.accentText(dark),
+    border: ring ? `2px solid ${tokens.accent}` : "none",
+  };
+  return src ? (
+    <img src={src} alt={name} style={{ ...base, padding: ring ? 2 : 0 }} />
+  ) : (
+    <div style={base}>{initials}</div>
+  );
+};
+
+const Divider = ({ dark }) => (
+  <div style={{ height: "0.5px", background: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", margin: "14px 0" }} />
+);
+
+const SectionLabel = ({ children, dark }) => (
+  <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.8px", textTransform: "uppercase", color: tokens.textMuted(dark), margin: "0 0 10px" }}>
+    {children}
+  </p>
+);
+
+const IconBtn = ({ icon, onClick, dark, label }) => (
+  <button
+    aria-label={label}
+    onClick={onClick}
+    style={{
+      background: "transparent",
+      border: tokens.border(dark),
+      borderRadius: tokens.radius.md,
+      padding: "7px 10px",
+      cursor: "pointer",
+      color: tokens.textMuted(dark),
+      fontSize: 15,
+      lineHeight: 1,
+      display: "flex",
+      alignItems: "center",
+    }}
+  >
+    {icon}
+  </button>
+);
+
+/* ─── main component ─────────────────────────────────────────────── */
 const ProfilePage = () => {
-  const [isVisible, setIsVisible] = useState(true);
   const { isDark } = useContext(ThemeContext);
-  const [followers, setFollowers] = useState([]);
-  const [following, setFollowing] = useState([]);
-  const [newPost, setNewPost] = useState("");
-  const [media, setMedia] = useState(null);
+  const { socket, unseenMessages, setFlag, setUserId } = useContext(UserContext);
+  const { user } = useContext(UserContext);
+  const userId = user?._id;
+
   const { userProfileId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
   const [friends, setFriends] = useState([]);
   const [posts, setPosts] = useState([]);
-  const [selectedPostId, setSelectedPostId] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState("slideshow");
   const [stories, setStories] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [trendingTopics, setTrendingTopics] = useState([]);
-  const [events, setEvents] = useState([]);
-
+  const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [storyGroups, setStoryGroups] = useState([]);
+
+  const [activeTab, setActiveTab] = useState("grid");
+  const [commentInputs, setCommentInputs] = useState({});
+  const [showCommentInputs, setShowCommentInputs] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [showModal, setShowModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
-  const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
-  const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
+  const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
   const [showPostDetail, setShowPostDetail] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
   const token = localStorage.getItem("token");
   const apiUrl = process.env.REACT_APP_API_URL;
-  const navigate = useNavigate();
-  const { socket, setFlag, unseenMessages, setUserId } = useContext(UserContext);
-  const [loadingUser, setLoadingUser] = useState(false);
-  const [loadingPosts, setLoadingPosts] = useState(false);
-  const [loadingStories, setLoadingStories] = useState(false);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [loadingNotifications, setLoadingNotifications] = useState(false);
-  const [commentInputs, setCommentInputs] = useState({});
-  const [showCommentInputs, setShowCommentInputs] = useState({});
-  const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
-  const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const { user } = useContext(UserContext)
-  const userId = user?._id;
-  const loadData = async () => {
 
-    const res = await getFollowers(userId);
+  const d = isDark; // shorthand
+
+  /* ── data loading ── */
+  const loadFollowData = async () => {
+    if (!userId) return;
+    const [res, res1] = await Promise.all([getFollowers(userId), getFollowing(userId)]);
     setFollowers(res);
-    const res1 = await getFollowing(userId);
     setFollowing(res1);
-  }
-  useEffect(() => {
-    console.log("Checking login status on ProfilePage mount...");
-    const loggedIn = JSON.parse(localStorage.getItem('user'));
-    if (!loggedIn) {
-      console.log("User is not logged in: going to login", loggedIn);
-      navigate('/login')
-    }
-  }, []);
-  useEffect(() => {
-
-    if (userId) {
-      loadData()
-    }
-
-  }, [userId])
-  // ... inside your component
-  const lastScrollY = useRef(0); // Create the ref
-  const scrollContainerRef = useRef(null);
-
-
-  // Fetch User Data
-  useEffect(() => {
-
-    if (location.pathname === "/profile" || location.pathname === "/") {
-      fetchuser();
-    } else {
-    }
-    fetchPosts()
-  }, [location.pathname]);
-
-
-  useEffect(() => {
-    if (user !== null) {
-      fetchNotifications(user);
-    }
-  }, [])
-
-  const fetchuser = async () => {
-    console.log('')
   };
 
   const fetchPosts = async () => {
     if (!userId) return;
-
     try {
       const data = await getUserPosts(userId);
       setPosts(data.posts);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
+    } catch (e) {
+      console.error("Error fetching posts:", e);
     }
-
   };
+
   const fetchPostById = async (postId, dataType) => {
     const response = await getPostById(postId);
     const currentPost = response.post;
-    setPosts(prevPosts =>
-      prevPosts?.map(post => {
-        if (post._id !== currentPost._id) return post; // unchanged posts
+    setPosts((prev) =>
+      prev?.map((post) => {
+        if (post._id !== currentPost._id) return post;
         if (dataType === "comment") {
-          const latestComment =
-            currentPost.comments[currentPost.comments.length - 1];
-          return {
-            ...post,
-            latestComment,
-            comments: currentPost.comments, // optional if you also want full comments updated
-          };
+          return { ...post, latestComment: currentPost.comments[currentPost.comments.length - 1], comments: currentPost.comments };
         }
-
-        if (dataType === "like") {
-          return {
-            ...post,
-            likes: currentPost.likes, // or `likeCount` depending on your schema
-          };
-        }
-        // default → full replace
+        if (dataType === "like") return { ...post, likes: currentPost.likes };
         return { ...currentPost };
       })
     );
   };
 
   const fetchNotifications = async () => {
-
     if (!user) return;
-    setLoadingNotifications(true);
     try {
-      const notifications = await getProfileNotifications(user?._id);
-      setNotifications(notifications || []);
-      setUnreadCount(notifications?.filter(notification => !notification.read).length || 0);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    }
-    setLoadingNotifications(false);
-  };
-  const [storyGroups, setStoryGroups] = useState([]); // Initialize as empty array
-
-
-  const fetchTrendingTopics = async () => {
-    try {
-      const data = await getTrendingTopics();
-      setTrendingTopics(data.topics);
-    } catch (error) {
-      console.error("Error fetching trending topics:", error);
+      const notifs = await getProfileNotifications(user?._id);
+      setNotifications(notifs || []);
+      setUnreadCount(notifs?.filter((n) => !n.read).length || 0);
+    } catch (e) {
+      console.error("Error fetching notifications:", e);
     }
   };
+
+  useEffect(() => {
+    const loggedIn = JSON.parse(localStorage.getItem("user"));
+    if (!loggedIn) navigate("/login");
+  }, []);
+
+  useEffect(() => {
+    if (userId) loadFollowData();
+  }, [userId]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [userId]);
+
+  useEffect(() => {
+    if (user) fetchNotifications();
+  }, []);
+
   useEffect(() => {
     if (!socket) return;
-    socket.on('got_a_notification', (data) => {
-
+    socket.on("got_a_notification", (data) => {
       fetchNotifications();
-      if (data.type == 'comment') {
-        fetchPostById(data.postId, data.type)
-      }
-      else if (data.type == 'like') {
-        fetchPostById(data.postId, data.type)
-      }
-
+      if (data.type === "comment" || data.type === "like") fetchPostById(data.postId, data.type);
     });
-    // Optional: Cleanup listener on unmount
-    return () => {
-      socket.off('got_a_notification');
-    };
+    return () => socket.off("got_a_notification");
   }, [socket]);
-  const fetchEvents = async () => {
-    try {
-      const data = await getEvents();
-      setEvents(data.events);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-    }
-  };
-  const handleMediaUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setMedia({ url, type: file.type, file });
-    }
-  };
-  const handleRemoveMedia = () => {
-    setMedia(null);
-  };
-  const handleAddPost = async (text, media) => {
-    try {
-      // This API is not in profileService, so keep as is or move if needed
-      const userId = user?._id;
-      const formData = new FormData();
-      formData.append("userId", userId)
-      if (text) {
-        formData.append("text", text)
-      }
-      if (media) {
-        formData.append("media", media.file);
-      }
-      const response = await fetch(`${apiUrl}/post/mediaPost`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      if (data.success) {
-        console.log(posts, 'posts before adding new one');
-        setPosts((prevPosts) => [...(prevPosts || []), data.post]);
-        setNewPost("");
-        setMedia(null);
-        setShowModal(false);
-      } else {
-        console.error("Failed to post:", data.message);
-      }
-    } catch (error) {
-      console.error("Error adding post:", error);
-    }
-  };
 
-
+  /* ── handlers ── */
   const handleToggleLike = async (index, post, isLiked) => {
-    const postId = post._id
-
     try {
-      if (isLiked) {
-        await unlikePost(postId);
-      } else {
-        await likePost(postId);
-      }
-      const updatedPosts = setPosts(prevPosts => prevPosts?.map((post, i) =>
-        i === index ? { ...post, likes: isLiked ? post.likes.filter(like => like.userId._id !== user?._id) : [...post.likes, { userId: { _id: user?._id } }] } : post
-      ));
-      // // const notificationData = {
-      // //   recipient: post.userId._id,
-      // //   sender: userId,
-      // //   type: 'like',
-      // //   message: `${user?.userName || 'Someone'} liked your post`,
-      // //   createdAt: new Date().toISOString(),
-      // //   read: false
-      // };
-      // if (isLiked) {
-      //   await createNotification(notificationData);
-      //   socket.emit('emit_notification', notificationData)
-      // }
-
-    } catch (error) {
-      console.error("Error toggling like:", error);
-    }
-
-  };
-  const handleAddComment = async (post, commentText) => {
-    const postId = post._id;
-    try {
-      const response = await addComment(postId, commentText); // returns { success, comment }
-      const newComment = response.comment;
-
-      // Clear input and hide box
-      setCommentInputs(prev => ({
-        ...prev,
-        [postId]: ''
-      }));
-      setShowCommentInputs(prev => ({
-        ...prev,
-        [postId]: false
-      }));
-
-      // Update only the matching post's comments
-      setPosts(prevPosts =>
-        prevPosts?.map(post =>
-          post._id === postId
-            ? { ...post, comments: [...post.comments, newComment] }
-            : post
+      isLiked ? await unlikePost(post._id) : await likePost(post._id);
+      setPosts((prev) =>
+        prev?.map((p, i) =>
+          i === index
+            ? { ...p, likes: isLiked ? p.likes.filter((l) => l.userId._id !== userId) : [...p.likes, { userId: { _id: userId } }] }
+            : p
         )
       );
-
-      // const notificationData = {
-      //   recipient: postId,
-      //   sender: user._id,
-      //   type: 'comment',
-      //   message: `${user.userName} has commented on you post `,
-      //   createdAt: new Date().toISOString(),
-      //   read: false
-      // };
-      // await createNotification(notificationData);
-      // socket.emit('emit_notification', notificationData)
-    } catch (error) {
-      console.error("Error adding comment:", error);
+    } catch (e) {
+      console.error("Error toggling like:", e);
     }
   };
 
+  const handleAddComment = async (post, commentText) => {
+    try {
+      const response = await addComment(post._id, commentText);
+      setCommentInputs((prev) => ({ ...prev, [post._id]: "" }));
+      setShowCommentInputs((prev) => ({ ...prev, [post._id]: false }));
+      setPosts((prev) =>
+        prev?.map((p) => (p._id === post._id ? { ...p, comments: [...p.comments, response.comment] } : p))
+      );
+    } catch (e) {
+      console.error("Error adding comment:", e);
+    }
+  };
 
   const handleDeleteComment = async (postId, commentId) => {
     try {
       await deleteComment(postId, commentId);
-
-      // Update posts state locally without refetching
-      setPosts(prevPosts =>
-        prevPosts.map(post =>
-          post._id === postId
-            ? {
-              ...post,
-              comments: post.comments.filter(comment => comment._id !== commentId)
-            }
-            : post
-        )
+      setPosts((prev) =>
+        prev.map((p) => (p._id === postId ? { ...p, comments: p.comments.filter((c) => c._id !== commentId) } : p))
       );
-
-    } catch (error) {
-      console.error("Error deleting comment:", error);
+    } catch (e) {
+      console.error("Error deleting comment:", e);
     }
   };
 
-  const handleCommentInputChange = (postId, value) => {
-    setCommentInputs(prev => ({
-      ...prev,
-      [postId]: value
-    }));
-  };
-
-  const handleShowCommentInput = (postId) => {
-    setShowCommentInputs(prev => ({
-      ...prev,
-      [postId]: !prev[postId]
-    }));
-  };
-
-  const handleSubmitComment = (post) => {
-    const commentText = commentInputs[post._id]?.trim();
-    if (commentText) {
-      handleAddComment(post, commentText);
-    }
-  };
-
-  const handleSharePost = async (postId) => {
-    try {
-      await sharePost(postId);
-      // Handle successful share
-    } catch (error) {
-      console.error("Error sharing post:", error);
-    }
-  };
-
-  const handleSavePost = async (postId) => {
-    try {
-      await savePost(postId);
-      // Handle successful save
-    } catch (error) {
-      console.error("Error saving post:", error);
-    }
-  };
-
-  const handleFollowUser = async (userId) => {
-    try {
-      await followUser(userId);
-      fetchuser(); // Refresh user data
-    } catch (error) {
-      console.error("Error following user:", error);
-    }
-  };
+  const handleSharePost = async (postId) => { try { await sharePost(postId); } catch (e) { console.error(e); } };
+  const handleSavePost = async (postId) => { try { await savePost(postId); } catch (e) { console.error(e); } };
+  const handleFollowUser = async (uid) => { try { await followUser(uid); loadFollowData(); } catch (e) { console.error(e); } };
+  const handleUnfollowUser = async (uid) => { try { await unfollowUser(uid); loadFollowData(); } catch (e) { console.error(e); } };
 
   const handleMarkNotificationAsRead = async (notificationId) => {
     try {
       await updateNotification(notificationId, true);
-      setNotifications(prevNotifications =>
-        prevNotifications?.map(notification =>
-          notification._id === notificationId
-            ? { ...notification, read: true }
-            : notification
-        )
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-    }
+      setNotifications((prev) => prev?.map((n) => (n._id === notificationId ? { ...n, read: true } : n)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (e) { console.error(e); }
   };
 
   const handleDeleteNotification = async (notificationId) => {
     try {
-      const response = await fetch(`${apiUrl}/notifications/${notificationId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        setNotifications(prevNotifications =>
-          prevNotifications.filter(notification => notification._id !== notificationId)
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
-    } catch (error) {
-      console.error("Error deleting notification:", error);
-    }
-  };
-  const handleShowFollowers = () => {
-    setShowFollowersModal(true);
-  };
-  const handleShowFollowing = () => {
-    setShowFollowingModal(true);
-  };
-  const handleUnfollowUser = async (userId) => {
-    try {
-      await unfollowUser(userId);
-      fetchuser(); // Refresh user data
-    } catch (error) {
-      console.error("Error unfollowing user:", error);
-    }
-  };
-  const filteredPosts = posts?.filter(
-    (post) =>
-      post?.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      post?.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const filteredFriends = friends?.filter(
-    (friend) =>
-      `${friend?.friendId.firstName} ${friend?.friendId.lastName}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      friend.friendId.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const tabs = [
-    { id: "slideshow", label: "Slideshow", icon: <PiSlideshowFill size={16} /> },
-    { id: "grid", label: "Grid", icon: <IoGridSharp size={16} /> },
-    { id: "saved", label: "Saved", icon: <GiSouthAfricaFlag size={16} /> },
-  ];
-  const handlePostClick = (postId) => {
-    navigate(`/postDetails/${postId}`);
-  };
-  const handleCreateStory = async (storyData) => {
-    try {
-      const data = await createStory(storyData);
-      setStories(prev => [data.story, ...prev]);
-      setShowCreateStory(false)
-      const notificationData = {
-        sender: user?._id,
-        type: 'story',
-        message: `${user?.userName} has added story`,
-        createdAt: new Date().toISOString(),
-        read: false
-      };
-
-      if (data) {
-
-        socket.emit('emit_notification', notificationData)
-      }
-    } catch (error) {
-      console.error('Error creating story:', error);
-    }
-  };
-
-  const [selectedUserId, setSelectedUserId] = useState(null);
-  const handleStoryClick = (userId) => {
-    setSelectedUserId(userId);
-    setShowStoryViewer(true);
-  };
-
-  const handleScroll = (e) => {
-    const currentScrollY = e.target.scrollTop;
-    if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
-      setIsVisible(false); // scrolling down → hide
-    } else {
-      setIsVisible(true); // scrolling up → show
-    }
-    lastScrollY.current = currentScrollY;
+      await fetch(`${apiUrl}/notifications/${notificationId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (e) { console.error(e); }
   };
 
   const handleSave = async (profileData) => {
     try {
-      const userId = user?._id;
-      const updatedUser = await updateUserProfile(userId, profileData);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setShowEditProfile(false);
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
+      const updated = await updateUserProfile(userId, profileData);
+      localStorage.setItem("user", JSON.stringify(updated));
+      setShowProfileModal(false);
+    } catch (e) { console.error(e); }
   };
+
+  const handleCreateStory = async (storyData) => {
+    try {
+      const data = await createStory(storyData);
+      setStories((prev) => [data.story, ...prev]);
+      setShowCreateStory(false);
+      socket.emit("emit_notification", { sender: userId, type: "story", message: `${user?.userName} added a story`, createdAt: new Date().toISOString(), read: false });
+    } catch (e) { console.error(e); }
+  };
+
   const logOut = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   };
 
+  const handleScroll = (e) => {
+    const cur = e.target.scrollTop;
+    setIsNavVisible(cur <= lastScrollY.current || cur <= 50);
+    lastScrollY.current = cur;
+  };
 
-  return (
-    <div
-      className={`profile-page min-vh-100 ${isDark ? ' bg-dark text-light' : 'text-dark'}`}
-      style={{
-        fontFamily: "'Poppins', sans-serif",
-        background: isDark ? '#000000' : '#f4f6f9',
-        transition: 'background 0.3s ease, color 0.3s ease'
-      }}
-    >
-      {showProfileModal && user && (
-        <EditProfile show={showProfileModal} onHide={() => setShowProfileModal(false)} user={user} onSave={handleSave} onSettings={() => { navigate('/settings'); setShowProfileModal(false); }} onLogout={logOut} theme={isDark ? 'dark' : 'light'} />
+  const filteredPosts = posts?.filter(
+    (p) => p?.text?.toLowerCase().includes(searchTerm.toLowerCase()) || p?.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const tabs = [
+    { id: "grid", label: "Posts", icon: <IoGridSharp size={14} /> },
+    { id: "slideshow", label: "Reels", icon: <PiSlideshowFill size={14} /> },
+    { id: "saved", label: "Saved", icon: <FaBookmark size={13} /> },
+  ];
+
+  /* ── styles ── */
+  const s = {
+    page: { minHeight: "100vh", background: tokens.page(d), fontFamily: "'Inter', 'Poppins', sans-serif", color: tokens.text(d), transition: "background 0.3s, color 0.3s" },
+    layout: { display: "grid", gridTemplateColumns: "260px 1fr 240px", gap: 0, maxWidth: 1200, margin: "0 auto",  },
+    sidebar: { padding: "20px 16px", position: "sticky", height: "calc(100vh - 70px)", overflowY: "auto", scrollbarWidth: "none" },
+    sidebarBorder: (side) => ({ borderRight: side === "left" ? tokens.border(d) : "none", borderLeft: side === "right" ? tokens.border(d) : "none" }),
+    main: { borderLeft: tokens.border(d), borderRight: tokens.border(d) },
+    card: { background: tokens.surface(d), border: tokens.border(d), borderRadius: tokens.radius.lg },
+  };
+
+  /* ── left sidebar ── */
+  const LeftSidebar = () => (
+    <div style={{ ...s.sidebar, ...s.sidebarBorder("left") }} className="d-none d-md-block">
+      <SectionLabel dark={d}>Contacts</SectionLabel>
+      {(friends?.length ? friends.slice(0, 5) : []).map((friend) => (
+        <a key={friend._id} href={`/profile/${friend.friendId._id}`} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: tokens.border(d), cursor: "pointer" }}>
+          <Avatar src={friend.friendId.profilePicture} name={friend.friendId.firstName} size={34} dark={d} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: tokens.text(d), fontWeight: 400 }}>{friend.friendId.firstName} {friend.friendId.lastName}</div>
+            <div style={{ fontSize: 11, color: tokens.textMuted(d) }}>{friend.friendId.email}</div>
+          </div>
+        </a>
+      ))}
+      {friends?.length === 0 && <p style={{ fontSize: 13, color: tokens.textMuted(d) }}>No contacts yet</p>}
+
+      <Divider dark={d} />
+
+      <SectionLabel dark={d}>Suggested</SectionLabel>
+      {suggestions?.slice(0, 3).map((s_) => (
+        <div key={s_._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+          <Avatar src={s_.profilePicture} name={s_.userName} size={36} dark={d} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: tokens.text(d), fontWeight: 400 }}>{s_.userName}</div>
+            <div style={{ fontSize: 11, color: tokens.textMuted(d) }}>Suggested</div>
+          </div>
+          <button onClick={() => handleFollowUser(s_._id)} style={{ fontSize: 12, fontWeight: 500, color: tokens.accent, background: "none", border: `0.5px solid ${tokens.accent}44`, borderRadius: tokens.radius.md, padding: "4px 10px", cursor: "pointer" }}>
+            Follow
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ── right sidebar ── */
+  const RightSidebar = () => (
+    <div style={{ ...s.sidebar, ...s.sidebarBorder("right") }} className="d-none d-md-block">
+      <SectionLabel dark={d}>Birthdays</SectionLabel>
+      <BirthdaysCard userId={userId} theme={d ? "dark" : "light"} />
+
+      <Divider dark={d} />
+
+      <SectionLabel dark={d}>Trending</SectionLabel>
+      {trendingTopics?.slice(0, 4).map((topic, i) => (
+        <div key={i} style={{ padding: "8px 0", borderBottom: i < 3 ? tokens.border(d) : "none" }}>
+          <div style={{ fontSize: 11, color: tokens.textMuted(d) }}>#{topic.category || "Trending"}</div>
+          <div style={{ fontSize: 13, color: tokens.text(d), fontWeight: 500, marginTop: 2 }}>{topic.title || topic.name}</div>
+          <div style={{ fontSize: 11, color: tokens.textMuted(d), marginTop: 2 }}>{topic.postCount || "—"} posts</div>
+        </div>
+      ))}
+      {trendingTopics?.length === 0 && (
+        <p style={{ fontSize: 13, color: tokens.textMuted(d) }}>Nothing trending right now</p>
       )}
+    </div>
+  );
 
+  /* ── profile header ── */
+  const ProfileHeader = () => (
+    <div style={{ background: tokens.surface(d), borderBottom: tokens.border(d), padding: "24px 28px 0" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
+        {/* avatar with story ring */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <div style={{ width: 80, height: 80, borderRadius: "50%", padding: 3, border: `2px solid ${tokens.accent}`, background: tokens.surface(d) }}>
+            <Avatar src={user?.profilePicture} name={user?.userName} size={74} dark={d} />
+          </div>
+        </div>
 
-      {/* Main Content */}
-      <div className="container-fluid pt-3">
-        <div className="row g-4">
+        {/* meta */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 20, fontWeight: 500, color: tokens.text(d), letterSpacing: "-0.3px" }}>{user?.userName}</div>
+          <div style={{ fontSize: 13, color: tokens.textMuted(d), marginTop: 2 }}>{user?.firstName} {user?.lastName}</div>
+          <p style={{ fontSize: 13, color: tokens.textMuted(d), marginTop: 8, lineHeight: 1.55, maxWidth: 360 }}>{user?.bio || "No bio yet."}</p>
+        </div>
 
-          {/* Left Sidebar */}
-          <div className="col-lg-3 d-none d-lg-block">
-            <div className="sticky-top" style={{ top: "85px" }}>
+        {/* actions */}
+        
+      </div>
+      
+      {/* stats row */}
+      <div style={{ display: "flex", gap: 20, marginTop: 20, paddingBottom: 20, textAlign: "center", borderBottom: tokens.border(d) }}>
+        <div style={{ cursor: "default" }}>
+          <div style={{ fontSize: 17, fontWeight: 500, color: tokens.text(d) }}>{posts?.length || 0}</div>
+          <div style={{ fontSize: 12, color: tokens.textMuted(d), marginTop: 1 }}>Posts</div>
+        </div>
+        <div style={{ cursor: "pointer" }} onClick={() => setShowFollowersModal(true)}>
+          <div style={{ fontSize: 17, fontWeight: 500, color: tokens.text(d) }}>{followers?.length || 0}</div>
+          <div style={{ fontSize: 12, color: tokens.textMuted(d), marginTop: 1 }}>Followers</div>
+        </div>
+        <div style={{ cursor: "pointer" }} onClick={() => setShowFollowingModal(true)}>
+          <div style={{ fontSize: 17, fontWeight: 500, color: tokens.text(d) }}>{following?.length || 0}</div>
+          <div style={{ fontSize: 12, color: tokens.textMuted(d), marginTop: 1 }}>Following</div>
+        </div>
+      </div>
+    </div>
+  );
 
-              {/* Contacts Card */}
-              <div className={`card border ${isDark ? 'border-secondary' : 'border-light-subtle'} mb-3`} style={{ background: isDark ? '#1f2833' : '#ffffff' }}>
-                <div className={`card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3 ${isDark ? 'border-secondary' : 'border-light-subtle'}`}>
-                  <h6 className={`mb-0 fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>Contacts</h6>
-                  <div>
-                    <button className={`btn btn-sm p-0 me-2 ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}><i className="bi bi-search"></i></button>
-                    <button className={`btn btn-sm p-0 ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}><i className="bi bi-three-dots"></i></button>
-                  </div>
-                </div>
-                <div className="card-body p-0" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  <ul className="list-unstyled mb-0">
-                    {friends?.slice(0, 5).map((friend) => (
-                      <li key={friend._id} className={`p-3 border-bottom highlight-row ${isDark ? 'border-secondary-subtle' : 'border-light-subtle'}`}>
-                        <a href={`/profile/${friend.friendId._id}`} className="d-flex align-items-center text-decoration-none">
-                          {friend.friendId.profilePicture ? (
-                            <img
-                              src={friend.friendId.profilePicture}
-                              alt="Profile"
-                              className="rounded-circle me-3"
-                              style={{ width: "35px", height: "35px", objectFit: "cover" }}
-                            />
-                          ) : (
-                            <div
-                              className="rounded-circle me-3 d-flex align-items-center justify-content-center"
-                              style={{
-                                width: "35px",
-                                height: "35px",
-                                backgroundColor: isDark ? "#45f3ff" : "#008080",
-                                color: isDark ? '#0b0c10' : '#ffffff',
-                                fontWeight: "bold",
-                                fontSize: "14px",
-                              }}
-                            >
-                              {friend.friendId.firstName?.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <span className={`small fw-medium ${isDark ? 'text-light' : 'text-dark'}`}>{friend.friendId.firstName} {friend.friendId.lastName}</span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+  /* ── story bar ── */
+  const StoryBar = () => (
+    <div style={{ display: "flex", gap: 14, padding: "14px 28px", borderBottom: tokens.border(d), background: tokens.surface(d), overflowX: "auto", scrollbarWidth: "none" }}>
+      {/* add story */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, cursor: "pointer", flexShrink: 0 }} onClick={() => setShowCreateStory(true)}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", border: tokens.border(d), background: tokens.surfaceAlt(d), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: tokens.textMuted(d) }}>+</div>
+        <span style={{ fontSize: 10, color: tokens.textMuted(d), whiteSpace: "nowrap" }}>Your story</span>
+      </div>
 
-              {/* Notifications Card Area */}
+      {/* existing stories */}
+      {stories?.map((story, i) => (
+        <div key={story._id || i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, cursor: "pointer", flexShrink: 0 }}
+          onClick={() => { setSelectedStoryGroup(story); setIsStoryViewerOpen(true); }}>
+          <div style={{ width: 52, height: 52, borderRadius: "50%", padding: 2, border: `2px solid ${tokens.accent}`, background: tokens.surface(d) }}>
+            <Avatar src={story.userId?.profilePicture} name={story.userId?.userName || "?"} size={44} dark={d} />
+          </div>
+          <span style={{ fontSize: 10, color: tokens.textMuted(d), maxWidth: 52, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {story.userId?.firstName || "User"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 
+  /* ── tab bar ── */
+  const TabBar = () => (
+    <div style={{ display: "flex",justifyContent: "space-between", background: tokens.surface(d), borderBottom: tokens.border(d), padding: "0 28px" }}>
+      {tabs.map((tab) => (
+        <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+          display: "flex", alignItems: "center", gap: 6, padding: "12px 0", marginRight: 28, background: "none", border: "none", borderBottom: `2px solid ${activeTab === tab.id ? tokens.text(d) : "transparent"}`, fontSize: 11, fontWeight: 500, letterSpacing: "0.6px", textTransform: "uppercase", color: activeTab === tab.id ? tokens.text(d) : tokens.textMuted(d), cursor: "pointer", transition: "color 0.15s",
+        }}>
+          {tab.icon} {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  /* ── post grid ── */
+  const PostGrid = () => (
+    <div style={{ padding: "3px", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
+      {filteredPosts?.slice().reverse().map((post) => (
+        <div key={post._id} onClick={() => navigate(`/postDetails/${post._id}`)} style={{ aspectRatio: "1/1", background: tokens.surfaceAlt(d), borderRadius: 2, overflow: "hidden", cursor: "pointer", position: "relative" }}>
+          {post.media ? (
+            <img src={post.media} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: tokens.textMuted(d) }}>
+              <i className="bi bi-image" />
             </div>
+          )}
+          <div className="tile-overlay" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", opacity: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 16, color: "#fff", fontSize: 13, fontWeight: 500, transition: "opacity 0.15s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)} onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><i className="bi bi-heart-fill" /> {post.likes?.length || 0}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><i className="bi bi-chat-fill" /> {post.comments?.length || 0}</span>
+          </div>
+        </div>
+      ))}
+      {(!filteredPosts || filteredPosts.length === 0) && (
+        <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 20px", color: tokens.textMuted(d) }}>
+          <i className="bi bi-camera" style={{ fontSize: 40, display: "block", marginBottom: 12 }} />
+          <div style={{ fontWeight: 500, fontSize: 15, color: tokens.text(d), marginBottom: 6 }}>No posts yet</div>
+          <div style={{ fontSize: 13 }}>Share your first post to get started.</div>
+          <button onClick={() => setShowModal(true)} style={{ marginTop: 16, background: tokens.text(d), color: tokens.surface(d), border: "none", borderRadius: tokens.radius.full, padding: "9px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+            Create post
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ── slideshow / feed ── */
+  const PostFeed = () => (
+    <div style={{ padding: "16px 16px" }}>
+      {filteredPosts?.slice().reverse().map((post, index) => (
+        <div key={post._id} style={{ ...s.card, marginBottom: 16, overflow: "hidden" }}>
+          {/* post header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: tokens.border(d) }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Avatar src={post.userId?.profilePicture} name={post.userId?.userName} size={40} dark={d} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: tokens.text(d) }}>{post.userId?.userName}</div>
+                <div style={{ fontSize: 11, color: tokens.textMuted(d) }}>{moment(post.createdAt).fromNow()}</div>
+              </div>
+            </div>
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 16 }}>
+              <i className="bi bi-three-dots" />
+            </button>
           </div>
 
-          {/* Main Content Area */}
-          <div className="col-lg-6 col-12"
-            onScroll={handleScroll}
-            style={{
-              height: "calc(100vh - 90px)",
-              overflowY: "auto",
-              scrollbarWidth: "none"
-            }}>
+          {/* media */}
+          {post.media && (
+            <div style={{ background: d ? "#000" : "#f0f0f0", aspectRatio: "1/1", backgroundImage: `url(${post.media})`, backgroundSize: "contain", backgroundRepeat: "no-repeat", backgroundPosition: "center" }} />
+          )}
 
-            {/* User Profile Header banner */}
-            {user && (
-              <div
-                className={`profile-header rounded-4 p-1 py-3 p-md-4 mb-4 border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
-                style={{ background: isDark ? 'linear-gradient(135deg, #000000 0%, #050505 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f3f5 100%)' }}
-              >
-                <div className="d-flex w-100 align-items-center  justify-content-center">
-                  <div className=" col-4 justify-content-center position-relative">
-                    {user?.profilePicture ? (
-                      <img
-                        src={user?.profilePicture}
-                        alt="Profile"
-                        className={`rounded-circle img-thumbnail bg-transparent ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
-                        style={{
-                          width: "110px",
-                          height: "110px",
-                          objectFit: "cover",
-                          boxShadow: isDark ? "0 8px 24px rgba(0,0,0,0.5)" : "0 8px 24px rgba(0,0,0,0.1)"
-                        }}
-                      />
-                    ) : (
-                      <div
-                        className={`rounded-circle d-flex align-items-center justify-content-center border ${isDark ? 'border-secondary text-white' : 'border-light-subtle text-dark'}`}
-                        style={{
-                          width: "110px",
-                          height: "110px",
-                          fontSize: "32px",
-                          fontWeight: "bold",
-                          background: isDark ? '#2c3540' : '#e9ecef'
-                        }}
-                      >
-                        {user?.userName?.charAt(0).toUpperCase()}
-                      </div>
+          {/* actions */}
+          <div style={{ padding: "12px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 16 }}>
+                <button onClick={() => handleToggleLike(index, post, post.likes?.some((l) => l.userId._id === userId))}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: post.likes?.some((l) => l.userId._id === userId) ? tokens.danger : tokens.text(d), padding: 0 }}>
+                  <i className={`bi ${post.likes?.some((l) => l.userId._id === userId) ? "bi-heart-fill" : "bi-heart"}`} />
+                </button>
+                <button onClick={() => setShowCommentInputs((prev) => ({ ...prev, [post._id]: !prev[post._id] }))}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: tokens.text(d), padding: 0 }}>
+                  <i className="bi bi-chat" />
+                </button>
+                <button onClick={() => handleSharePost(post._id)}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: tokens.text(d), padding: 0 }}>
+                  <i className="bi bi-send" />
+                </button>
+              </div>
+              <button onClick={() => handleSavePost(post._id)}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: post.savedBy?.includes(userId) ? tokens.accent : tokens.text(d), padding: 0 }}>
+                <i className={`bi ${post.savedBy?.includes(userId) ? "bi-bookmark-fill" : "bi-bookmark"}`} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: 13, fontWeight: 500, color: tokens.text(d), marginBottom: 6 }}>
+              {post.likes?.length > 0 ? `${post.likes.length.toLocaleString()} likes` : "Be the first to like"}
+            </div>
+
+            {post.text && (
+              <p style={{ fontSize: 13, color: tokens.text(d), margin: 0 }}>
+                <span style={{ fontWeight: 500, marginRight: 6 }}>{post.userId?.firstName}</span>{post.text}
+              </p>
+            )}
+
+            {post.comments?.length > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: tokens.border(d) }}>
+                <span style={{ fontSize: 12, color: tokens.textMuted(d), cursor: "pointer" }} onClick={() => navigate(`/postDetails/${post._id}`)}>
+                  View all {post.comments.length} comments
+                </span>
+                {post.comments.slice(-2).map((comment, idx) => (
+                  <div key={comment._id || idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6 }}>
+                    <p style={{ fontSize: 13, color: tokens.text(d), margin: 0 }}>
+                      <span style={{ fontWeight: 500, marginRight: 6 }}>{comment.userId?.firstName}:</span>{comment.text}
+                    </p>
+                    {(comment.userId?._id === userId || post.userId._id === userId) && (
+                      <button onClick={() => handleDeleteComment(post._id, comment._id)} style={{ background: "none", border: "none", cursor: "pointer", color: tokens.danger, fontSize: 12, padding: 0, flexShrink: 0 }}>
+                        <i className="bi bi-trash" />
+                      </button>
                     )}
-                    <h5 className={` fs-sm my-1 ${isDark ? 'text-white' : 'text-dark'}`}>{user?.userName}</h5>
                   </div>
-
-                  <div className="col-8 p-1 text-center flex-grow-1 text-center text-sm-start">
-
-                    <p className={`small mb-3  style-bio ${isDark ? 'text-secondary' : 'text-muted'}`}>{user?.bio || "Tell your story... "}</p>
-
-                    <div className="d-flex justify-content-center justify-content-sm-start align-items-center gap-4">
-                      <div className="cursor-pointer" onClick={handleShowFollowers}>
-                        <h6 className={`mb-0 fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>{followers.length || 0}</h6>
-                        <small className="text-muted">Followers</small>
-                      </div>
-                      <div className={`opacity-25 ${isDark ? 'bg-secondary' : 'bg-dark'}`} style={{ width: '1px', height: '24px' }}></div>
-                      <div className="cursor-pointer" onClick={handleShowFollowing}>
-                        <h6 className={`mb-0 fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>{following.length || 0}</h6>
-                        <small className="text-muted">Following</small>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             )}
 
-            {/* <div className='d-block d-md-none mt-2 mb-3'>
-            <FriendSuggestion suggestions={suggestions} loadData={loadData} onFollow={handleFollowUser} theme={isDark ? 'dark' : 'light'} />
-          </div> */}
-
-            {/* Navigation Tabs */}
-            <div className={` mb-4 ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#121212' : '#ffffff' }}>
-              <div className=" p-0">
-                <div className="d-flex justify-content-around">
-                  {tabs?.map((tab) => (
-                    <button
-                      key={tab.id}
-                      className={`py-2 flex-grow-1 border-0 bg-transparent text-center position-relative ${activeTab === tab.id ? "text-info fw-bold" : "text-muted"}`}
-                      onClick={() => setActiveTab(tab.id)}
-                      style={{ transition: "all 0.2s ease" }}
-                    >
-                      <div className="fs-5">{tab.icon}</div>
-                      {activeTab === tab.id && (
-                        <div className="position-absolute bottom-0 start-0 w-100 bg-info" style={{ height: "2px" }} />
-                      )}
-                    </button>
-                  ))}
-                </div>
+            {showCommentInputs[post._id] && (
+              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Add a comment…"
+                  value={commentInputs[post._id] || ""}
+                  onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post._id]: e.target.value }))}
+                  onKeyPress={(e) => e.key === "Enter" && commentInputs[post._id]?.trim() && handleAddComment(post, commentInputs[post._id])}
+                  style={{ flex: 1, background: tokens.surfaceAlt(d), border: tokens.border(d), borderRadius: tokens.radius.md, padding: "7px 12px", fontSize: 13, color: tokens.text(d), outline: "none" }}
+                />
+                <button
+                  onClick={() => commentInputs[post._id]?.trim() && handleAddComment(post, commentInputs[post._id])}
+                  disabled={!commentInputs[post._id]?.trim()}
+                  style={{ background: tokens.accent, color: "#fff", border: "none", borderRadius: tokens.radius.md, padding: "7px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", opacity: commentInputs[post._id]?.trim() ? 1 : 0.5 }}>
+                  Post
+                </button>
               </div>
-            </div>
-
-            {/* Tab Views Content */}
-
-
-            <div className="mb-4 rounded">
-              {(!posts || posts?.length == 0) && (
-                <div className="text-center py-5 bounce-in">
-                  <img src="/no-posts.png" alt="No posts" style={{ width: "120px", marginBottom: "20px" }} />
-                  <h3 className={`fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>It's awfully quiet in here...</h3>
-                  <p className="text-muted mb-4">Be the hero this feed needs. Share your very first post!</p>
-                  <button className="btn  btn-lg rounded-pill px-4 shadow">
-                    ✨ Create First Post
-                  </button>
-                </div>
-              )}
-              {activeTab === "grid" && (
-                <div className="row g-3">
-                  {loadingPosts ? <Loader text="Loading posts..." /> : filteredPosts?.reverse().map((post) => (
-                    <div key={post._id} className="col-4">
-                      <div
-                        className={`card overflow-hidden position-relative post-grid-card border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
-                        style={{ borderRadius: "8px", cursor: "pointer", aspectRatio: "1/1" }}
-                        onClick={() => handlePostClick(post._id)}
-                      >
-                        <div
-                          className="w-100 h-100 grid-image"
-                          style={{
-                            backgroundImage: `url(${post.media})`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === "slideshow" && (
-                <div className="row justify-content-center">
-                  {loadingPosts ? <Loader text="Loading posts..." /> : posts?.reverse().map((post, index) => (
-                    <div key={post._id} className="col-12 mb-4">
-                      <div className={`card border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#121212' : '#ffffff' }}>
-                        {/* Post Header */}
-                        <div className={`card-header border-bottom d-flex align-items-center justify-content-between p-3 bg-transparent ${isDark ? 'border-secondary' : 'border-light-subtle'}`}>
-                          <div className="d-flex align-items-center">
-                            <img
-                              src={post.userId.profilePicture || "https://via.placeholder.com/40"}
-                              alt="User"
-                              className={`rounded-circle me-3 border ${isDark ? 'border-secondary' : 'border-light-subtle'}`}
-                              style={{ width: "42px", height: "42px", objectFit: "cover" }}
-                            />
-                            <div>
-                              <h6 className={`mb-0 small fw-bold ${isDark ? 'text-light' : 'text-dark'}`}>{post.userId.userName}</h6>
-                              <small className="text-muted" style={{ fontSize: '0.75rem' }}>{moment(post.createdAt).fromNow()}</small>
-                            </div>
-                          </div>
-                          <button className={`btn p-0 ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}>
-                            <i className="bi bi-three-dots"></i>
-                          </button>
-                        </div>
-
-                        {/* Post Media Container */}
-                        <div
-                          className="w-100 bg-dark"
-                          style={{
-                            aspectRatio: "1/1",
-                            backgroundImage: `url(${post.media})`,
-                            backgroundSize: "contain",
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: "center"
-                          }}
-                        />
-
-                        {/* Actions & Description Footer */}
-                        <div className="card-body p-3">
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <div className="d-flex gap-3">
-                              <button className={`btn p-0 ${isDark ? 'text-light' : 'text-dark'}`} onClick={() => handleToggleLike(index, post, post.likes?.some(like => like.userId._id == userId))}>
-                                <i className={`bi ${post.likes?.some(like => like.userId._id == userId) ? "bi-heart-fill text-danger" : "bi-heart"} fs-5`}></i>
-                              </button>
-                              <button className={`btn p-0 ${isDark ? 'text-light' : 'text-dark'}`} onClick={() => handleShowCommentInput(post._id)}>
-                                <i className="bi bi-chat fs-5"></i>
-                              </button>
-                              <button className={`btn p-0 ${isDark ? 'text-light' : 'text-dark'}`} onClick={() => handleSharePost(post._id)}>
-                                <i className="bi bi-send fs-5"></i>
-                              </button>
-                            </div>
-                            <button className={`btn p-0 ${isDark ? 'text-light' : 'text-dark'}`} onClick={() => handleSavePost(post._id)}>
-                              <i className={`bi ${post.savedBy?.includes(user?._id) ? "bi-bookmark-fill text-info" : "bi-bookmark"} fs-5`}></i>
-                            </button>
-                          </div>
-
-                          <p className={`fw-bold mb-2 small ${isDark ? 'text-light' : 'text-dark'}`}>
-                            {post.likes?.length > 0 ? `${post.likes.length.toLocaleString()} likes` : "Be the first to like this"}
-                          </p>
-
-                          <p className={`mb-2 small ${isDark ? 'text-light' : 'text-dark'}`}>
-                            <span className="fw-bold me-2">{post.userId.firstName}</span>
-                            {post.text}
-                          </p>
-
-                          {post?.comments?.length > 0 && (
-                            <div className={`mt-2 border-top pt-2 ${isDark ? 'border-secondary-subtle' : 'border-light-subtle'}`}>
-                              <p className="text-muted small mb-2 cursor-pointer" onClick={() => handlePostClick(post._id)}>
-                                View all {post?.comments.length} comments
-                              </p>
-                              {post?.comments.slice(-2).map((comment, idx) => (
-                                <div key={comment._id || idx} className="d-flex align-items-start mb-1 justify-content-between">
-                                  <p className={`small mb-0 ${isDark ? 'text-light' : 'text-dark'}`}>
-                                    <span className="fw-bold me-2">{comment.userId?.firstName}:</span>
-                                    <span className="text-secondary-subtle">{comment.text}</span>
-                                  </p>
-                                  {(comment.userId?._id === user?._id || post.userId._id === user?._id) && (
-                                    <button className="btn btn-sm text-danger p-0 border-0 bg-transparent" onClick={() => handleDeleteComment(post._id, comment._id)}>
-                                      <i className="bi bi-trash" style={{ fontSize: '0.75rem' }}></i>
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {showCommentInputs[post._id] && (
-                            <div className="mt-3">
-                              <div className="d-flex align-items-center gap-2">
-                                <input
-                                  type="text"
-                                  className={`form-control form-control-sm ${isDark ? 'border-secondary bg-dark text-light' : 'border-light-subtle bg-light text-dark'}`}
-                                  placeholder="Add a comment..."
-                                  value={commentInputs[post._id] || ''}
-                                  onChange={(e) => handleCommentInputChange(post._id, e.target.value)}
-                                  onKeyPress={(e) => e.key === 'Enter' && handleSubmitComment(post)}
-                                />
-                                <button className="btn btn-info btn-sm fw-medium px-3 text-dark" onClick={() => handleSubmitComment(post)} disabled={!commentInputs[post._id]?.trim()}>
-                                  Post
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === "saved" && (
-                <div className={`card border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#121212' : '#ffffff' }}>
-                  <div className="card-body text-center py-5">
-                    <FaBookmark size={40} className="text-muted mb-3" />
-                    <SavedPosts theme={isDark ? 'dark' : 'light'} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Sidebar */}
-          <div className="col-lg-3 d-none d-lg-block">
-            <div className="sticky-top d-flex flex-column gap-3" style={{ top: "85px" }}>
-              <div className={`p-1 rounded border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#1f2833' : '#ffffff' }}>
-                <BirthdaysCard userId={userId} theme={isDark ? 'dark' : 'light'} />
-              </div>
-              {/* {loadingSuggestions ? <Loader text="Loading suggestions..." /> : suggestions &&
-              <div className={`p-1 rounded border ${isDark ? 'border-secondary' : 'border-light-subtle'}`} style={{ background: isDark ? '#1f2833' : '#ffffff' }}>
-                <FriendSuggestion suggestions={suggestions} loadData={loadData} onFollow={handleFollowUser} theme={isDark ? 'dark' : 'light'} />
-              </div>
-            } */}
-            </div>
+            )}
           </div>
         </div>
+      ))}
+    </div>
+  );
+
+  /* ── render ── */
+  return (
+    <div style={s.page}>
+      {showProfileModal && user && (
+        <EditProfile show={showProfileModal} onHide={() => setShowProfileModal(false)} user={user} onSave={handleSave}
+          onSettings={() => { navigate("/settings"); setShowProfileModal(false); }} onLogout={logOut} theme={d ? "dark" : "light"} />
+      )}
+
+      <div className="row">
+        <div className="d-none d-md-block col-md-3 " style={{ background: tokens.surface(d), padding: "12px 16px", borderBottom: tokens.border(d) }}>
+          <LeftSidebar />
+        </div>
+
+        {/* main column */}
+        <div style={s.main} onScroll={handleScroll} className="main-scroll col-md-6">
+          {user && <div className=" "><ProfileHeader /></div>}
+          <StoryBar />
+          <TabBar />
+
+          <div>
+            {activeTab === "grid" && <PostGrid />}
+            {activeTab === "slideshow" && <PostFeed />}
+            {activeTab === "saved" && (
+              <div style={{ padding: 28 }}>
+                <SavedPosts theme={d ? "dark" : "light"} />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="col-0 col-md-3 " style={{ background: tokens.surface(d), padding: "12px 16px", borderBottom: tokens.border(d) }}>
+          <RightSidebar />
+        </div>
+
       </div>
 
-      {/* Floating Action Mobile Dock */}
-      <div
-        className="position-fixed bottom-0 start-50 translate-middle-x mb-3 d-lg-none d-flex rounded-pill justify-content-center align-items-center gap-4 px-4 py-2 shadow-lg"
-        style={{
-          border: isDark ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-          background: isDark ? 'rgba(18, 18, 18, 0.85)' : 'rgba(255, 255, 255, 0.85)',
-          backdropFilter: 'blur(10px)',
-          zIndex: 1000,
-          opacity: isVisible ? 1 : 0,
-          transition: 'opacity 0.3s ease-in-out, background 0.3s ease',
-          pointerEvents: isVisible ? 'auto' : 'none'
-        }}
-      >
-        {/* Action 1: Create Story */}
-        <div
-          className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}
-          onClick={() => setShowCreateStory(true)}
-          title="Create Story"
-        >
-          <FaCamera size={18} />
-        </div>
-
-        <div className={`opacity-25 ${isDark ? 'bg-secondary' : 'bg-dark'}`} style={{ width: '1px', height: '16px' }} />
-
-        {/* Action 2: Create Post */}
-        <div
-          className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}
-          onClick={() => setShowModal(true)}
-          title="Create Post"
-        >
-          <i className="bi bi-pencil-square" style={{ fontSize: '18px' }}></i>
-        </div>
-
-        <div className={`opacity-25 ${isDark ? 'bg-secondary' : 'bg-dark'}`} style={{ width: '1px', height: '16px' }} />
-
-        {/* Action 3: Edit Profile Shortcut */}
-        <div
-          className={`cursor-pointer ${isDark ? 'text-secondary text-hover-light' : 'text-muted text-hover-dark'}`}
-          onClick={() => setShowProfileModal(true)}
-          title="Edit Profile"
-        >
-          <i className="bi bi-person-gear" style={{ fontSize: '19px' }}></i>
-        </div>
+      {/* mobile floating dock */}
+      <div style={{
+        position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", marginBottom: 16,
+        display: "flex", alignItems: "center", gap: 20, padding: "10px 24px",
+        background: d ? "rgba(17,17,17,0.88)" : "rgba(255,255,255,0.88)",
+        backdropFilter: "blur(12px)", borderRadius: tokens.radius.full, border: tokens.border(d),
+        boxShadow: d ? "0 4px 24px rgba(0,0,0,0.5)" : "0 4px 24px rgba(0,0,0,0.1)",
+        zIndex: 1000, opacity: isNavVisible ? 1 : 0, transition: "opacity 0.25s", pointerEvents: isNavVisible ? "auto" : "none",
+      }} className=" d-flex">
+      
+          <button onClick={() => setShowProfileModal(true)} style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0 }} title="Edit profile">
+           <FaUserEdit style={{ marginRight: 6 }} />
+         
+          </button>
+         <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
+        <button onClick={() => setShowCreateStory(true)} title="Create story" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0 }}>
+          <FaCamera />
+        </button>
+        <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
+        <button onClick={() => setShowModal(true)} title="Create post" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0 }}>
+          <FaPencilAlt />
+        </button>
+        <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
+        <button onClick={() => setShowProfileModal(true)} title="Edit profile" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 19, padding: 0 }}>
+          <FaUserCog />
+        </button>
+        {unreadCount > 0 && (
+          <>
+            <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
+            <button title="Notifications" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0, position: "relative" }}>
+              <FaBell />
+              <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, background: tokens.danger, borderRadius: "50%", fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Modals Container */}
-      {showModal && <CustomModal handleAddPost={handleAddPost} showModal={showModal} onClose={() => setShowModal(false)} theme={isDark ? 'dark' : 'light'} />}
+      {/* modals */}
+      {showModal && <CustomModal handleAddPost={async (text, media) => {
+        const formData = new FormData();
+        formData.append("userId", userId);
+        if (text) formData.append("text", text);
+        if (media) formData.append("media", media.file);
+        const res = await fetch(`${apiUrl}/post/mediaPost`, { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.success) { setPosts((prev) => [...(prev || []), data.post]); setShowModal(false); }
+      }} showModal={showModal} onClose={() => setShowModal(false)} theme={d ? "dark" : "light"} />}
 
-      <FollowModal show={showFollowersModal} onHide={() => setShowFollowersModal(false)} title="Followers" users={followers} currentUserId={userId} theme={isDark ? 'dark' : 'light'} />
-      <FollowModal show={showFollowingModal} onHide={() => setShowFollowingModal(false)} title="Following" users={following} currentUserId={userId} theme={isDark ? 'dark' : 'light'} />
-      <CreateStory show={showCreateStory} onHide={() => setShowCreateStory(false)} onCreateStory={handleCreateStory} user={user} theme={isDark ? 'dark' : 'light'} />
-      <StoryViewer show={isStoryViewerOpen} onHide={() => setIsStoryViewerOpen(false)} setStoryGroups={setStoryGroups} storyGroups={storyGroups} initialGroup={selectedStoryGroup} theme={isDark ? 'dark' : 'light'} />
-      {showPostDetail && selectedPostId && <PostDetail postId={selectedPostId} show={showPostDetail} onHide={() => setShowPostDetail(false)} onPostUpdated={fetchPosts} theme={isDark ? 'dark' : 'light'} />}
+      <FollowModal show={showFollowersModal} onHide={() => setShowFollowersModal(false)} title="Followers" users={followers} currentUserId={userId} theme={d ? "dark" : "light"} />
+      <FollowModal show={showFollowingModal} onHide={() => setShowFollowingModal(false)} title="Following" users={following} currentUserId={userId} theme={d ? "dark" : "light"} />
+      <CreateStory show={showCreateStory} onHide={() => setShowCreateStory(false)} onCreateStory={handleCreateStory} user={user} theme={d ? "dark" : "light"} />
+      <StoryViewer show={isStoryViewerOpen} onHide={() => setIsStoryViewerOpen(false)} setStoryGroups={setStoryGroups} storyGroups={storyGroups} initialGroup={selectedStoryGroup} theme={d ? "dark" : "light"} />
+      {showPostDetail && selectedPostId && <PostDetail postId={selectedPostId} show={showPostDetail} onHide={() => setShowPostDetail(false)} onPostUpdated={fetchPosts} theme={d ? "dark" : "light"} />}
 
-      {/* Global Performance Styles Rule updates */}
-      <style jsx global>{`
-      .text-gradient {
-        background: linear-gradient(45deg, #45f3ff, #00ff87);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-      .text-hover-light:hover {
-        color: #ffffff !important;
-      }
-      .text-hover-dark:hover {
-        color: #121212 !important;
-      }
-      .text-hover-danger:hover {
-        color: #dc3545 !important;
-      }
-      .highlight-row:hover {
-        background-color: ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'};
-      }
-      .custom-notification-item:hover {
-        background-color: ${isDark ? 'rgba(255, 255, 255, 0.05) !important' : 'rgba(0, 0, 0, 0.05) !important'};
-      }
-      .post-grid-card:hover .grid-image {
-        transform: scale(1.04);
-      }
-      .grid-image {
-        transition: transform 0.3s ease;
-      }
-      /* Scrollbar treatment */
-      div::-webkit-scrollbar {
-        width: 5px;
-      }
-      div::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      div::-webkit-scrollbar-thumb {
-        background: ${isDark ? '#2c3540' : '#ced4da'};
-        border-radius: 4px;
-      }
-    `}</style>
+      <style>{`
+        .main-scroll {
+          height: calc(100vh - 70px);
+          overflow-y: auto;
+          scrollbar-width: none;
+        }
+        .main-scroll::-webkit-scrollbar { display: none; }
+        .tile-overlay { opacity: 0 !important; }
+        .tile-overlay:hover { opacity: 1 !important; }
+        @media (max-width: 991px) {
+          .main-scroll { height: auto; overflow-y: unset; }
+        }
+      `}</style>
     </div>
   );
 };

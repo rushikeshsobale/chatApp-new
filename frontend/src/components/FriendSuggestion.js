@@ -1,3 +1,4 @@
+
 import React, { useContext, useState, useEffect } from "react";
 import { FaUserPlus, FaUserCheck, FaUserClock } from "react-icons/fa";
 import { createNotification } from "../services/notificationService";
@@ -6,251 +7,305 @@ import { UserContext } from "../contexts/UserContext";
 import { sendFollowRequest, getRelationshipStatus } from "../services/relationships";
 import { fetchSuggestions } from "../services/profileService";
 
-const FriendSuggestion = ({ loadData }) => {
-  const [suggestions, setSuggestions] = useState([]);
-  const [followStatus, setFollowStatus] = useState({});
-  const [showAll, setShowAll] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(true);
-
-  const { socket } = useContext(UserContext);
-  const navigate = useNavigate();
-  
-  const currentUser = JSON.parse(localStorage.getItem("user"));
-  const userId = currentUser?._id || currentUser?.userId;
-
-  /* ---------------- Fetch Suggestions ---------------- */
-  const getSuggestions = async () => {
-    try {
-      const response = await fetchSuggestions();
-      // Reverse once when storing data, preventing re-render layout shifts
-      setSuggestions(response ? [...response].reverse() : []);
-    } catch (err) {
-      console.error("Error fetching suggestions:", err);
-    }
-  };
-
-  /* ---------------- Screen size & Initial Fetch ---------------- */
-  useEffect(() => {
-    if (!currentUser) return;
-    getSuggestions();
-
-    const checkScreenSize = () => {
-      const desktopView = window.innerWidth >= 992;
-      setIsDesktop(desktopView);
-      if (!desktopView) setShowAll(true);
-    };
-
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
-  }, []);
-
-  /* ---------------- Fetch relationship statuses in parallel ---------------- */
-  useEffect(() => {
-    if (!suggestions?.length) return;
-
-    const fetchStatuses = async () => {
-      const statusMap = {};
-      // Promise.all fetches everyone simultaneously instead of sequentially
-      await Promise.all(
-        suggestions.map(async (user) => {
-          try {
-            const res = await getRelationshipStatus(user._id);
-            statusMap[user._id] = res.state;
-          } catch {
-            statusMap[user._id] = "none";
-          }
-        })
-      );
-      setFollowStatus(statusMap);
-    };
-
-    fetchStatuses();
-  }, [suggestions]);
-
-  /* ---------------- Follow handler ---------------- */
-  const handleFollow = async (user) => {
-    try {
-      const result = await sendFollowRequest(user._id, "follow");
-      if (!result) return;
-
-      const newState = result.status === "pending" ? "requested" : "following";
-
-      setFollowStatus((prev) => ({
-        ...prev,
-        [user._id]: newState,
-      }));
-
-      const notificationData = {
-        recipient: user._id,
-        sender: userId,
-        type: user.isPrivate ? "follow_request" : "follow",
-        message: user.isPrivate
-          ? `${currentUser?.userName || "Someone"} sent you a follow request`
-          : `${currentUser?.userName || "Someone"} started following you`,
-        createdAt: new Date().toISOString(),
-        read: false,
-      };
-
-      await createNotification(notificationData);
-      socket.emit("emit_notification", notificationData);
-      if (loadData) loadData();
-    } catch (err) {
-      console.error("Follow error:", err);
-    }
-  };
-
-  /* ---------------- Handle View Limits ---------------- */
-  // On desktop, limit to 4 suggestions unless "See All" is active
-  const displayedSuggestions = isDesktop && !showAll 
-    ? suggestions.slice(0, 4) 
-    : suggestions;
-
-  if (!suggestions.length) return null;
-
-  return (
-    <div className="card border-0 shadow-sm" style={styles.cardContainer}>
-      {/* Header */}
-      <div className="p-1 d-flex justify-content-between align-items-center" style={{ padding: "5px 0px" }}>
-        <h6 className="mb-0 text-light" style={styles.headerTitle}>
-          Suggestions For You
-        </h6>
-        {isDesktop && suggestions.length > 4 && (
-          <button
-            className="btn p-0 text-primary text-small"
-            style={styles.seeAllBtn}
-            onClick={() => setShowAll(!showAll)}
-          >
-            {showAll ? "Show Less" : "See All"}
-          </button>
-        )}
-      </div>
-
-      {/* Suggestion List */}
-      <div className="card-body p-0">
-        <ul className="list-unstyled mb-0 d-lg-block d-flex flex-row gap-2" style={styles.listContainer}>
-          {displayedSuggestions.map((user) => {
-            const status = followStatus[user._id] || "none";
-            
-            // Configuration for your dynamic buttons
-            const btnConfig = getButtonConfig(status);
-
-            return (
-              <li key={user._id} className="p-2 d-flex align-items-center justify-content-between flex-lg-row flex-column card border-0 shadow-sm" style={styles.listItem}>
-                
-                {/* Profile Section */}
-                <div
-                  className="d-lg-flex align-items-center mb-lg-0 mb-2 gap-2"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/userProfile/${user._id}`)}
-                >
-                  <div className="d-flex justify-content-center">
-                    <img
-                      src={user.profilePicture || "https://via.placeholder.com/40"}
-                      alt={`${user.userName}'s profile`}
-                      className="rounded-circle"
-                      style={styles.avatar}
-                    />
-                  </div>
-                  <h6 className="text-truncate text-center text-lg-start text-light mb-0 mt-lg-0 mt-1" style={styles.username}>
-                    {user.userName}
-                  </h6>
-                </div>
-
-                {/* Follow Button Action */}
-                <button
-                  disabled={btnConfig.disabled}
-                  className={btnConfig.className}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleFollow(user);
-                  }}
-                >
-                  {btnConfig.icon}
-                  <span className="small ms-1">{btnConfig.text}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </div>
-  );
+import { ThemeContext } from '../contexts/ThemeContext';
+/* ─── design tokens ───────────────────────────────────────────── */
+const t = {
+  surface:   (d) => (d ? "#141414" : "#ffffff"),
+  surfaceAlt:(d) => (d ? "#1e1e1e" : "#f5f5f7"),
+  border:    (d) => (d ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"),
+  text:      (d) => (d ? "#f0f0f0" : "#111111"),
+  textMuted: (d) => (d ? "#888" : "#6b7280"),
+  accent:    "#378ADD",
+  accentBg:  (d) => (d ? "rgba(55,138,221,0.12)" : "#EBF3FC"),
+  accentText:(d) => (d ? "#85B7EB" : "#1565C0"),
+  warning:   "#EF9F27",
+  warningBg: (d) => (d ? "rgba(239,159,39,0.12)" : "#FEF4E6"),
+  success:   "#1D9E75",
+  successBg: (d) => (d ? "rgba(29,158,117,0.12)" : "#E6F6F1"),
+  radius: { sm: "6px", md: "10px", lg: "14px", full: "9999px" },
 };
 
-/* ---------------- Clean Helper Logic for Buttons ---------------- */
-const getButtonConfig = (status) => {
+/* ─── avatar ─────────────────────────────────────────────────── */
+const Avatar = ({ src, name, size = 40, dark }) => {
+  const initials = (name || "?").charAt(0).toUpperCase();
+  const base = {
+    width: size, height: size, borderRadius: "50%", flexShrink: 0,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontWeight: 600, fontSize: size * 0.38,
+    background: t.accentBg(dark), color: t.accentText(dark),
+    objectFit: "cover",
+  };
+  return src
+    ? <img src={src} alt={name} style={base} />
+    : <div style={base}>{initials}</div>;
+};
+
+/* ─── button config ──────────────────────────────────────────── */
+const btnConfig = (status, dark) => {
   switch (status) {
     case "requested":
       return {
-        text: "Requested",
-        className: "btn btn-sm btn-outline-warning text-warning rounded-pill py-0 px-2",
-        icon: <FaUserClock className="small" />,
-        disabled: true,
-      };
-    case "follow_back":
-      return {
-        text: "Follow Back",
-        className: "btn btn-sm btn-outline-primary text-white rounded-pill py-0 px-2",
-        icon: <FaUserPlus className="small" />,
-        disabled: false,
+        label: "Requested", disabled: true,
+        icon: <FaUserClock size={11} />,
+        style: { background: t.warningBg(dark), color: t.warning, border: `1px solid ${t.warning}33` },
       };
     case "following":
       return {
-        text: "Following",
-        className: "btn btn-sm btn-success text-white rounded-pill py-0 px-2",
-        icon: <FaUserCheck className="small" />,
-        disabled: true,
+        label: "Following", disabled: true,
+        icon: <FaUserCheck size={11} />,
+        style: { background: t.successBg(dark), color: t.success, border: `1px solid ${t.success}33` },
+      };
+    case "follow_back":
+      return {
+        label: "Follow back", disabled: false,
+        icon: <FaUserPlus size={11} />,
+        style: { background: t.accentBg(dark), color: t.accentText(dark), border: `1px solid ${t.accent}33` },
       };
     default:
       return {
-        text: "Follow",
-        className: "btn btn-sm btn-primary text-white rounded-pill py-0 px-2",
-        icon: <FaUserPlus className="small" />,
-        disabled: false,
+        label: "Follow", disabled: false,
+        icon: <FaUserPlus size={11} />,
+        style: { background: t.accentBg(dark), color: t.accentText(dark), border: `1px solid ${t.accent}33` },
       };
   }
 };
 
-/* ---------------- Visual Layout Enhancements ---------------- */
-const styles = {
-  cardContainer: {
-    maxHeight: "90vh",
-    overflowY: "auto",
-    background: "transparent",
-  },
-  headerTitle: {
-    fontSize: "11px",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    opacity: 0.7,
-  },
-  seeAllBtn: {
-    fontSize: "11px",
-    textDecoration: "none",
-    boxShadow: "none",
-  },
-  listContainer: {
-    overflowX: "auto",
-    whiteSpace: "nowrap",
-    paddingBottom: "5px",
-  },
-  listItem: {
-    minWidth: "110px",
-    flex: "0 0 auto",
-    backgroundColor: "#111111",
-    marginBottom: "8px",
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    objectFit: "cover",
-    border: "1px solid #333",
-  },
-  username: {
-    fontSize: "11px",
-    maxWidth: "85px",
-  },
+/* ─── main component ─────────────────────────────────────────── */
+const FriendSuggestion = ({ loadData }) => {
+    const { isDark } = useContext(ThemeContext);
+
+  const dark = isDark;
+  const [suggestions, setSuggestions] = useState([]);
+  const [followStatus, setFollowStatus] = useState({});
+  const [showAll, setShowAll] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 992);
+  const [loadingId, setLoadingId] = useState(null);
+
+  const { socket } = useContext(UserContext);
+  const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem("user"));
+  const userId = currentUser?._id || currentUser?.userId;
+
+  /* fetch suggestions */
+  useEffect(() => {
+    if (!currentUser) return;
+    (async () => {
+      try {
+        const res = await fetchSuggestions();
+        setSuggestions(res ? [...res].reverse() : []);
+      } catch (e) {
+        console.error("Error fetching suggestions:", e);
+      }
+    })();
+
+    const onResize = () => setIsDesktop(window.innerWidth >= 992);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  /* fetch relationship statuses */
+  useEffect(() => {
+    if (!suggestions.length) return;
+    (async () => {
+      const map = {};
+      await Promise.all(
+        suggestions.map(async (u) => {
+          try {
+            const res = await getRelationshipStatus(u._id);
+            map[u._id] = res.state;
+          } catch {
+            map[u._id] = "none";
+          }
+        })
+      );
+      setFollowStatus(map);
+    })();
+  }, [suggestions]);
+
+  /* follow handler */
+  const handleFollow = async (user) => {
+    if (loadingId) return;
+    setLoadingId(user._id);
+    try {
+      const result = await sendFollowRequest(user._id, "follow");
+      if (!result) return;
+      const newState = result.status === "pending" ? "requested" : "following";
+      setFollowStatus((prev) => ({ ...prev, [user._id]: newState }));
+
+      const notif = {
+        recipient: user._id, sender: userId,
+        type: user.isPrivate ? "follow_request" : "follow",
+        message: user.isPrivate
+          ? `${currentUser?.userName || "Someone"} sent you a follow request`
+          : `${currentUser?.userName || "Someone"} started following you`,
+        createdAt: new Date().toISOString(), read: false,
+      };
+      await createNotification(notif);
+      socket?.emit("emit_notification", notif);
+      loadData?.();
+    } catch (e) {
+      console.error("Follow error:", e);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const displayed = isDesktop && !showAll ? suggestions.slice(0, 5) : suggestions;
+  if (!suggestions.length) return null;
+
+  /* ── desktop list view ── */
+  const DesktopList = () => (
+    <div>
+      {/* header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.7px", textTransform: "uppercase", color: t.textMuted(dark) }}>
+          Suggested for you
+        </span>
+        {suggestions.length > 5 && (
+          <button
+            onClick={() => setShowAll(!showAll)}
+            style={{ fontSize: 11, fontWeight: 500, color: t.accentText(dark), background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
+            {showAll ? "Show less" : "See all"}
+          </button>
+        )}
+      </div>
+
+      {/* list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {displayed.map((user) => {
+          const status = followStatus[user._id] || "none";
+          const cfg = btnConfig(status, dark);
+          const isLoading = loadingId === user._id;
+
+          return (
+            <div
+              key={user._id}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "8px 10px", borderRadius: t.radius.md,
+                transition: "background 0.15s",
+                cursor: "default",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = t.surfaceAlt(dark)}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              {/* avatar */}
+              <div style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => navigate(`/userProfile/${user._id}`)}>
+                <Avatar src={user.profilePicture} name={user.userName} size={38} dark={dark} />
+              </div>
+
+              {/* name */}
+              <div
+                style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
+                onClick={() => navigate(`/userProfile/${user._id}`)}
+              >
+                <div style={{ fontSize: 13, fontWeight: 500, color: t.text(dark), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {user.userName}
+                </div>
+                {user.mutualFollowers > 0 && (
+                  <div style={{ fontSize: 11, color: t.textMuted(dark), marginTop: 1 }}>
+                    {user.mutualFollowers} mutual{user.mutualFollowers > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+
+              {/* follow button */}
+              <button
+                disabled={cfg.disabled || isLoading}
+                onClick={(e) => { e.stopPropagation(); handleFollow(user); }}
+                style={{
+                  ...cfg.style,
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "5px 11px", borderRadius: t.radius.full,
+                  fontSize: 12, fontWeight: 500, cursor: cfg.disabled ? "default" : "pointer",
+                  flexShrink: 0, transition: "opacity 0.15s",
+                  opacity: isLoading ? 0.6 : 1,
+                }}
+              >
+                {isLoading
+                  ? <span style={{ width: 11, height: 11, border: `1.5px solid currentColor`, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+                  : cfg.icon
+                }
+                {cfg.label}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  /* ── mobile horizontal scroll ── */
+  const MobileScroll = () => (
+    <div>
+      <div style={{ marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.7px", textTransform: "uppercase", color: t.textMuted(dark) }}>
+          Suggested for you
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
+        {suggestions.map((user) => {
+          const status = followStatus[user._id] || "none";
+          const cfg = btnConfig(status, dark);
+          const isLoading = loadingId === user._id;
+
+          return (
+            <div
+              key={user._id}
+              style={{
+                flexShrink: 0, width: 110,
+                background: t.surfaceAlt(dark),
+                border: `1px solid ${t.border(dark)}`,
+                borderRadius: t.radius.lg,
+                padding: "14px 10px",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+              }}
+            >
+              <div style={{ cursor: "pointer" }} onClick={() => navigate(`/userProfile/${user._id}`)}>
+                <Avatar src={user.profilePicture} name={user.userName} size={44} dark={dark} />
+              </div>
+              <div
+                style={{ fontSize: 12, fontWeight: 500, color: t.text(dark), textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+                onClick={() => navigate(`/userProfile/${user._id}`)}
+              >
+                {user.userName}
+              </div>
+              <button
+                disabled={cfg.disabled || isLoading}
+                onClick={(e) => { e.stopPropagation(); handleFollow(user); }}
+                style={{
+                  ...cfg.style,
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "5px 10px", borderRadius: t.radius.full,
+                  fontSize: 11, fontWeight: 500, cursor: cfg.disabled ? "default" : "pointer",
+                  width: "100%", justifyContent: "center",
+                  opacity: isLoading ? 0.6 : 1, transition: "opacity 0.15s",
+                }}
+              >
+                {isLoading
+                  ? <span style={{ width: 10, height: 10, border: `1.5px solid currentColor`, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+                  : cfg.icon
+                }
+                {cfg.label}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+
+  return (
+    <>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .fs-scroll::-webkit-scrollbar { display: none; }
+      `}</style>
+      {isDesktop ? <DesktopList /> : <MobileScroll />}
+    </>
+  );
 };
 
 export default FriendSuggestion;

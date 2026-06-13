@@ -42,7 +42,7 @@ const ManagedNavbar = () => {
 
  if(location.pathname ==='/home' || location.pathname ==='/profile' ){
   return (
-    <div className='container-fluid mt-1'>
+    <div className=''>
       <Navbar />
     </div>
   );
@@ -126,7 +126,7 @@ function App() {
   }, []);
 
   return (
-    <div className={`App  ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} pt-1`}>
+    <div className={`App  ${isDark ? 'bg-dark text-light' : 'bg-light text-dark'} `}>
       {incomingCall && (
         <IncomingCall
           show={showIncoming}
