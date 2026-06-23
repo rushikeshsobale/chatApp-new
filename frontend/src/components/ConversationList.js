@@ -244,6 +244,7 @@ const ConversationList = ({
 
   const handleUserSelect = (user) => {
     setSelectedFriend(user)
+    setSelectedConversation(null)
   }
 
   return (

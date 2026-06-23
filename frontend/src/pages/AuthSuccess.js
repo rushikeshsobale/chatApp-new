@@ -8,7 +8,6 @@ export default function AuthSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoggedIn, setIsLoggedIn, setUser } = useContext(UserContext);
-
   const fetchUser = useCallback(async () => {
     try {
       const res = await getMe();
@@ -29,26 +28,17 @@ export default function AuthSuccess() {
       if (urlParams.get('auth_status') === 'success') {
         try {
           const key = await CryptoUtils.loadKeyLocally();
-
           if (!key) {
             console.warn("Private key missing. Generating new keys...");
-
             const keyPair = await CryptoUtils.generateSessionKeyPair();
-
             await CryptoUtils.saveKeyLocally(keyPair.privateKey);
-
             const publicKeyString =
               await CryptoUtils.exportPublicKeyString(
                 keyPair.publicKey
               );
 
-            await updatePublickey(publicKeyString);
-
-           
+            await updatePublickey(publicKeyString);         
           }
-
-          console.log("Private key:", key);
-
           await fetchUser();
           navigate('/home', { replace: true });
         } catch (err) {
@@ -59,7 +49,6 @@ export default function AuthSuccess() {
     runAuthenticationSetup();
   }, []);
 
-
   return (
     <div style={styles.container}>
       <div style={styles.spinner}></div>
@@ -67,8 +56,6 @@ export default function AuthSuccess() {
     </div>
   );
 }
-
-
 // Quick minimal dark styles to match a clean dev aesthetic
 const styles = {
   container: {

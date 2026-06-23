@@ -32,11 +32,12 @@ export const register = async (userData) => {
   }
 };
 export const getMe = async () => {
-  try {    const response = await api.get('auth/getUser');
+  try {
+    const response = await api.get('auth/getUser');
     return response.data;
   } catch (error) {
     throw error.response?.data?.error || 'Failed to fetch user data';
-  } 
+  }
 };
 export const login = async (credentials) => {
   try {
@@ -59,7 +60,7 @@ export const verifyEmail = async ({ email, code }) => {
 };
 export const sendVerification = async (email) => {
   try {
-    const response = await api.post('auth/send-verification',{email});
+    const response = await api.post('auth/send-verification', { email });
     return response.data;
   } catch (error) {
     throw error.response?.data?.error || 'Failed to send verification code';
@@ -70,7 +71,7 @@ export const completeProfile = async (formData) => {
     const response = await api.put(
       "/auth/complete-profile",
       formData
-    
+
     );
 
     return response.data;
@@ -105,7 +106,7 @@ export const refreshToken = async () => {
   }
 };
 
- export const handleForgotPassword = async (email) => {
+export const handleForgotPassword = async (email) => {
   try {
     const response = await api.post('auth/forgot-password', { email });
     return response.data;

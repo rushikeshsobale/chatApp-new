@@ -45,6 +45,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
   const [senderPublicKey, setSenderPublicKey] = useState(null);
   const [typingUser, setTypingUser] = useState(null);
   const [outgoingCallType, setOutgoingCallType] = useState(null);
+  const [activeReactionMessage, setActiveReactionMessage] = useState(null);
   // null | "audio" | "video"
   const userId = user?._id;
   const messagesEndRef = useRef(null);
@@ -86,6 +87,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
   };
   // 1. Crypto Init & Initial Fetch
   useEffect(() => {
+    console.log(member)
     const init = async () => {
       const key = await CryptoUtils.loadKeyLocally();
       if (key) setUserPrivateKey(key);
@@ -250,7 +252,10 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
 
   // 6. Message History Fetch Engine
   const callFetchMessages = async (page = 1, limit = 20) => {
-    if (!conversation) return;
+    if (!conversation) {
+      setMessages([]);
+      return
+    };
     try {
       const data = await fetchMessage(conversation._id, page, limit);
       if (!data || data.length === 0) return;

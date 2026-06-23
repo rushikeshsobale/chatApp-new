@@ -393,7 +393,7 @@ const HomePage = ({ socket }) => {
 
   // Theme — memoised so it doesn't rebuild every render
   const theme = useMemo(() => ({
-    bg: isDark ? ' text-light' : 'bg-light text-dark',
+    bg: isDark ? 'bg-black text-light' : 'bg-light text-dark',
     card: isDark ? '  border-secondary  text-light' : 'card bg-white border-light-subtle  text-dark',
     border: isDark ? 'border-secondary' : 'border-light-subtle',
     input: isDark ? 'form-control bg-dark border-secondary text-light shadow-none' : 'form-control bg-white border-light-subtle text-dark shadow-none',
@@ -430,7 +430,6 @@ const HomePage = ({ socket }) => {
 
   return (
     <div className={` ${theme.bg} m-1`}>
-
       {/* Toast notifications */}
       <ToastContainer position="bottom-center" className="mb-3">
         {toast && (
@@ -439,10 +438,7 @@ const HomePage = ({ socket }) => {
           </Toast>
         )}
       </ToastContainer>
-
-   
         <div className="  row mx-0 ">
-
           {/* ===== LEFT RAIL ===== */}
           <div className="col-lg-3 d-none d-lg-block position-sticky" style={{ top: 80, height: 'fit-content' }}>
             <div className={`${theme.card} p-3 rounded-3`}>
@@ -487,7 +483,7 @@ const HomePage = ({ socket }) => {
           <div className="col-12 mx-auto col-md-8 col-lg-6 p-0">
 
             {/* Story rail */}
-            <div className={`${theme.card} p-3 `}>
+            <div className={`${theme.card} p-3 m-1`}>
               <div
                 className="d-flex  overflow-auto pb-1 align-items-center"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}

@@ -102,6 +102,7 @@ const ChatComponent = () => {
       }
     };
     loadConversations();
+    console.log(activeUsers, 'activeUsers')
   }, [userId]);
 
   // Responsive Swipe Handlers

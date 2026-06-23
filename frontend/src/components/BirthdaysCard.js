@@ -32,7 +32,7 @@ const BirthdaysCard = ({ userId }) => {
 
     return (
       <p className="mb-0 small">
-        <span className="fw-bold">{firstName}</span>
+        <span className="">{firstName}</span>
         {othersCount > 0 && (
           <>
             {' '}and <span className="fw-bold">{othersCount} other{othersCount > 1 ? 's' : ''}</span>
@@ -43,10 +43,8 @@ const BirthdaysCard = ({ userId }) => {
   };
 
   return (
-    <div className="card border-0 shadow-sm mb-3">
-      <div className="card-header bg-white">
-        <h6 className="mb-0 fw-bold">Birthdays</h6>
-      </div>
+    <div className=" border-0 shadow-sm mb-3">
+     
       <div className="card-body">
         <div className="d-flex align-items-center">
           <i

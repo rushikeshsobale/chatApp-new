@@ -332,7 +332,7 @@ const ProfilePage = () => {
 
   /* ── styles ── */
   const s = {
-    page: { minHeight: "100vh", background: tokens.page(d), fontFamily: "'Inter', 'Poppins', sans-serif", color: tokens.text(d), transition: "background 0.3s, color 0.3s" },
+    page: { background: tokens.page(d), fontFamily: "'Inter', 'Poppins', sans-serif", color: tokens.text(d), transition: "background 0.3s, color 0.3s" },
     layout: { display: "grid", gridTemplateColumns: "260px 1fr 240px", gap: 0, maxWidth: 1200, margin: "0 auto",  },
     sidebar: { padding: "20px 16px", position: "sticky", height: "calc(100vh - 70px)", overflowY: "auto", scrollbarWidth: "none" },
     sidebarBorder: (side) => ({ borderRight: side === "left" ? tokens.border(d) : "none", borderLeft: side === "right" ? tokens.border(d) : "none" }),
@@ -397,7 +397,7 @@ const ProfilePage = () => {
 
   /* ── profile header ── */
   const ProfileHeader = () => (
-    <div style={{ background: tokens.surface(d), borderBottom: tokens.border(d), padding: "24px 28px 0" }}>
+    <div style={{ background: tokens.surface(d), borderBottom: tokens.border(d), padding: "24px 28px 0", margin: "5px 0px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
         {/* avatar with story ring */}
         <div style={{ position: "relative", flexShrink: 0 }}>
@@ -418,7 +418,7 @@ const ProfilePage = () => {
       </div>
       
       {/* stats row */}
-      <div style={{ display: "flex", gap: 20, marginTop: 20, paddingBottom: 20, textAlign: "center", borderBottom: tokens.border(d) }}>
+      <div style={{ display: "flex", gap: 20, marginTop: 20, paddingBottom: 20, textAlign: "center", }}>
         <div style={{ cursor: "default" }}>
           <div style={{ fontSize: 17, fontWeight: 500, color: tokens.text(d) }}>{posts?.length || 0}</div>
           <div style={{ fontSize: 12, color: tokens.textMuted(d), marginTop: 1 }}>Posts</div>
