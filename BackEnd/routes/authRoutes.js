@@ -277,9 +277,9 @@ router.post("/login", async (req, res) => {
 // --- UPDATED SYMMETRIC CRYPTO KEY SYNC ENDPOINTS ---
 
 // Example Backend Route
-router.post("/update-public-key", async (req, res) => {
+router.post("/update-public-key", verifyToken, async (req, res) => {
   const { publicKey } = req.body; // The base64 string from your frontend
-  const userId = req.user.id; // From your JWT auth
+  const userId = req.decoded.userId;
 
   // Only store the public key string
   await Muser.findByIdAndUpdate(userId, {

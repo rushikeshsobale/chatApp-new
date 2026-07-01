@@ -42,6 +42,7 @@ const relationships = require("./routes/relationships.js")
 const passport = require('passport');
 const conversationRoutes = require("./routes/conversationRoutes.js");   
 const userRoutes = require("./routes/userRoutes.js");
+ app.use(passport.initialize());
  app.use( router);
  app.use("/auth", authRoutes);
  app.use("/profile", profileRoutes);
@@ -53,5 +54,4 @@ const userRoutes = require("./routes/userRoutes.js");
  app.use("/relationships", relationships);
  app.use("/conversations", conversationRoutes);
   app.use("/users", userRoutes);
- app.use(passport.initialize());
 module.exports = app;

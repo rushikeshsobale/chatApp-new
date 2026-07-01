@@ -141,7 +141,28 @@ router.post('/create', verifyToken, upload.single('media'), compressMedia, async
 // Get all stories for a user
 router.get('/user/:userId', verifyToken, async (req, res) => {
     try {
-        const stories = await Story.find({ userId: req.params.userId })
+        const targetUserId = req.params.userId;
+        const currentUserId = req.decoded.userId;
+
+        if (targetUserId !== currentUserId) {
+            const targetUser = await Muser.findById(targetUserId).select('isPrivate');
+            if (!targetUser) {
+                return res.status(404).json({ success: false, error: 'User not found' });
+            }
+            if (targetUser.isPrivate) {
+                const isFollowing = await Relationships.findOne({
+                    requester: currentUserId,
+                    recipient: targetUserId,
+                    type: 'follow',
+                    status: 'accepted'
+                });
+                if (!isFollowing) {
+                    return res.status(403).json({ success: false, error: 'This account is private' });
+                }
+            }
+        }
+
+        const stories = await Story.find({ userId: targetUserId })
             .populate('userId', 'userName profilePicture')
             .sort({ createdAt: -1 });
         res.json({ success: true, stories });

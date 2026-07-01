@@ -11,14 +11,11 @@ const Post = require("../Modules/Post.js");
 const { uploadToS3 } = require("../utils/s3Upload");
 const verifyToken = require("./verifyToken.js");
 const upload = multer({ storage: multer.memoryStorage() });
-router.post("/mediaPost", upload.single("media"), async (req, res) => {
-  const { text, userId } = req.body;
-  if (!userId) {
-    return res.status(400).json({
-      success: false,
-      message: "userId are required",
-    });
-  }
+router.post("/mediaPost", verifyToken, upload.single("media"), async (req, res) => {
+  const { text } = req.body;
+  // userId is always the authenticated caller — trusting a body-supplied
+  // userId would let anyone create posts attributed to anyone else.
+  const userId = req.decoded.userId;
   try {
     let mediaKey = null;
     if (req.file) {
@@ -410,7 +407,14 @@ router.post("/savePost/:postId", verifyToken, async (req, res) => {
 // Get saved posts for a user
 router.get("/:userId/savedPosts", verifyToken,  async (req, res) => {
   const { userId } = req.params;
-  
+
+  if (userId !== req.decoded.userId) {
+    return res.status(403).json({
+      success: false,
+      message: "Not authorized to view this user's saved posts"
+    });
+  }
+
   try {
     const savedPosts = await Post.find({ savedBy: userId })
       .populate("userId", "userName profilePicture")

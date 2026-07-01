@@ -126,7 +126,7 @@ router.patch("/:id/read", auth, async (req, res) => {
   const userId = req.decoded.userId;
 
   await Conversation.updateOne(
-    { _id: req.params.id },
+    { _id: req.params.id, participants: userId },
     { $set: { [`unreadCount.${userId}`]: 0 } }
   );
 

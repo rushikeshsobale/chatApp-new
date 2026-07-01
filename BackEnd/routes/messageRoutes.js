@@ -14,12 +14,14 @@ router.post(
   async (req, res) => {
     try {
       const {
-        senderId,
         receiverId,
         content,
         parentId,
         messageType
       } = req.body;
+      // senderId is always the authenticated caller — trusting a
+      // body-supplied senderId would let anyone send messages as anyone.
+      const senderId = req.decoded.userId;
 
       if (!receiverId) {
         return res.status(400).json({
@@ -123,6 +125,14 @@ router.get(
         limit = 20
       } = req.query;
 
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      if (!conversation.participants.some(p => p.toString() === req.decoded.userId)) {
+        return res.status(403).json({ error: "Not a participant in this conversation" });
+      }
+
       const skip =
         (Number(page) - 1) *
         Number(limit);
@@ -158,17 +168,19 @@ router.patch(
   async (req, res) => {
     try {
 
-      const updated =
-        await Message.findByIdAndUpdate(
-          req.params.messageId,
-          {
-            status: "read",
-            readAt: new Date()
-          },
-          { new: true }
-        );
+      const message = await Message.findById(req.params.messageId);
+      if (!message) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      if (message.receiverId.toString() !== req.decoded.userId) {
+        return res.status(403).json({ error: "Not authorized to mark this message read" });
+      }
 
-      return res.json(updated);
+      message.status = "read";
+      message.readAt = new Date();
+      await message.save();
+
+      return res.json(message);
 
     } catch (err) {
 
@@ -200,11 +212,11 @@ router.patch(
       message.reactions =
         message.reactions.filter(
           r =>
-            r.userId !== req.user._id
+            r.userId !== req.decoded.userId
         );
 
       message.reactions.push({
-        userId: req.user._id,
+        userId: req.decoded.userId,
         emoji
       });
 

@@ -41,12 +41,12 @@ import {
 } from "../services/profileService";
 import { createNotification, updateNotification } from "../services/notificationService";
 import { getFollowers, getFollowing } from "../services/relationships";
-
+ console.count("profilepage");
 /* ─── design tokens ──────────────────────────────────────────────── */
 const tokens = {
   radius: { md: "8px", lg: "12px", xl: "16px", full: "9999px" },
   border: (dark) => `0.5px solid ${dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)"}`,
-  surface: (dark) => (dark ? "#111111" : "#ffffff"),
+  surface: (dark) => (dark ? "none" : "#ffffff"),
   page: (dark) => (dark ? "#000000" : "#f4f6f8"),
   surfaceAlt: (dark) => (dark ? "#1a1a1a" : "#f8f9fa"),
   text: (dark) => (dark ? "#f0f0f0" : "#111111"),
@@ -285,7 +285,7 @@ const ProfilePage = () => {
 
   const handleDeleteNotification = async (notificationId) => {
     try {
-      await fetch(`${apiUrl}/notifications/${notificationId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      await fetch(`${apiUrl}/notifications/${notificationId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` }, credentials: "include" });
       setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (e) { console.error(e); }
@@ -336,7 +336,7 @@ const ProfilePage = () => {
     layout: { display: "grid", gridTemplateColumns: "260px 1fr 240px", gap: 0, maxWidth: 1200, margin: "0 auto",  },
     sidebar: { padding: "20px 16px", position: "sticky", height: "calc(100vh - 70px)", overflowY: "auto", scrollbarWidth: "none" },
     sidebarBorder: (side) => ({ borderRight: side === "left" ? tokens.border(d) : "none", borderLeft: side === "right" ? tokens.border(d) : "none" }),
-    main: { borderLeft: tokens.border(d), borderRight: tokens.border(d) },
+    main: {},
     card: { background: tokens.surface(d), border: tokens.border(d), borderRadius: tokens.radius.lg },
   };
 
@@ -377,11 +377,15 @@ const ProfilePage = () => {
   const RightSidebar = () => (
     <div style={{ ...s.sidebar, ...s.sidebarBorder("right") }} className="d-none d-md-block">
       <SectionLabel dark={d}>Birthdays</SectionLabel>
-      <BirthdaysCard userId={userId} theme={d ? "dark" : "light"} />
+    
+         <BirthdaysCard userId={userId} theme={d ? "dark" : "light"} />
+    
+      
 
       <Divider dark={d} />
 
       <SectionLabel dark={d}>Trending</SectionLabel>
+      <div className=" p-2">
       {trendingTopics?.slice(0, 4).map((topic, i) => (
         <div key={i} style={{ padding: "8px 0", borderBottom: i < 3 ? tokens.border(d) : "none" }}>
           <div style={{ fontSize: 11, color: tokens.textMuted(d) }}>#{topic.category || "Trending"}</div>
@@ -392,12 +396,12 @@ const ProfilePage = () => {
       {trendingTopics?.length === 0 && (
         <p style={{ fontSize: 13, color: tokens.textMuted(d) }}>Nothing trending right now</p>
       )}
+      </div>
     </div>
   );
-
   /* ── profile header ── */
   const ProfileHeader = () => (
-    <div style={{ background: tokens.surface(d), borderBottom: tokens.border(d), padding: "24px 28px 0", margin: "5px 0px" }}>
+    <div style={{ background: tokens.surface(d), border: tokens.border(d), padding: "24px 28px 0", margin: "10px 0px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
         {/* avatar with story ring */}
         <div style={{ position: "relative", flexShrink: 0 }}>
@@ -405,18 +409,14 @@ const ProfilePage = () => {
             <Avatar src={user?.profilePicture} name={user?.userName} size={74} dark={d} />
           </div>
         </div>
-
         {/* meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 20, fontWeight: 500, color: tokens.text(d), letterSpacing: "-0.3px" }}>{user?.userName}</div>
           <div style={{ fontSize: 13, color: tokens.textMuted(d), marginTop: 2 }}>{user?.firstName} {user?.lastName}</div>
           <p style={{ fontSize: 13, color: tokens.textMuted(d), marginTop: 8, lineHeight: 1.55, maxWidth: 360 }}>{user?.bio || "No bio yet."}</p>
         </div>
-
         {/* actions */}
-        
       </div>
-      
       {/* stats row */}
       <div style={{ display: "flex", gap: 20, marginTop: 20, paddingBottom: 20, textAlign: "center", }}>
         <div style={{ cursor: "default" }}>
@@ -437,7 +437,7 @@ const ProfilePage = () => {
 
   /* ── story bar ── */
   const StoryBar = () => (
-    <div style={{ display: "flex", gap: 14, padding: "14px 28px", borderBottom: tokens.border(d), background: tokens.surface(d), overflowX: "auto", scrollbarWidth: "none" }}>
+    <div style={{ display: "flex", gap: 14, padding: "14px 28px", border: tokens.border(d), background: tokens.surface(d), overflowX: "auto", scrollbarWidth: "none" }}>
       {/* add story */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, cursor: "pointer", flexShrink: 0 }} onClick={() => setShowCreateStory(true)}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", border: tokens.border(d), background: tokens.surfaceAlt(d), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: tokens.textMuted(d) }}>+</div>
@@ -461,7 +461,7 @@ const ProfilePage = () => {
 
   /* ── tab bar ── */
   const TabBar = () => (
-    <div style={{ display: "flex",justifyContent: "space-between", background: tokens.surface(d), borderBottom: tokens.border(d), padding: "0 28px" }}>
+    <div style={{ display: "flex",justifyContent: "space-between", background: tokens.surface(d), borderBottom: tokens.border(d), padding: "0 28px", margin:'5px 0px' }}>
       {tabs.map((tab) => (
         <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
           display: "flex", alignItems: "center", gap: 6, padding: "12px 0", marginRight: 28, background: "none", border: "none", borderBottom: `2px solid ${activeTab === tab.id ? tokens.text(d) : "transparent"}`, fontSize: 11, fontWeight: 500, letterSpacing: "0.6px", textTransform: "uppercase", color: activeTab === tab.id ? tokens.text(d) : tokens.textMuted(d), cursor: "pointer", transition: "color 0.15s",
@@ -614,7 +614,7 @@ const ProfilePage = () => {
       )}
 
       <div className="row">
-        <div className="d-none d-md-block col-md-3 " style={{ background: tokens.surface(d), padding: "12px 16px", borderBottom: tokens.border(d) }}>
+        <div className="d-none d-md-block col-md-3 " style={{padding: "12px 16px", borderBottom: tokens.border(d) }}>
           <LeftSidebar />
         </div>
 
@@ -634,7 +634,7 @@ const ProfilePage = () => {
             )}
           </div>
         </div>
-        <div className="col-0 col-md-3 " style={{ background: tokens.surface(d), padding: "12px 16px", borderBottom: tokens.border(d) }}>
+        <div className="col-0 col-md-3 " style={{  padding: "12px 16px", borderBottom: tokens.border(d) }}>
           <RightSidebar />
         </div>
 
@@ -683,7 +683,7 @@ const ProfilePage = () => {
         formData.append("userId", userId);
         if (text) formData.append("text", text);
         if (media) formData.append("media", media.file);
-        const res = await fetch(`${apiUrl}/post/mediaPost`, { method: "POST", body: formData });
+        const res = await fetch(`${apiUrl}/post/mediaPost`, { method: "POST", body: formData, credentials: "include" });
         const data = await res.json();
         if (data.success) { setPosts((prev) => [...(prev || []), data.post]); setShowModal(false); }
       }} showModal={showModal} onClose={() => setShowModal(false)} theme={d ? "dark" : "light"} />}

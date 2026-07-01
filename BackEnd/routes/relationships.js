@@ -35,7 +35,7 @@ router.patch("/:id/accept", verifyToken, async (req, res) => {
     if (!relationship)
       return res.status(404).json({ message: "Request not found" });
 
-    if (relationship.recipient.toString() !== req.user.id)
+    if (relationship.recipient.toString() !== req.decoded.userId)
       return res.status(403).json({ message: "Unauthorized" });
 
     relationship.status = "accepted";
@@ -54,7 +54,7 @@ router.patch("/:id/reject", verifyToken, async (req, res) => {
     if (!relationship)
       return res.status(404).json({ message: "Request not found" });
 
-    if (relationship.recipient.toString() !== req.user.id)
+    if (relationship.recipient.toString() !== req.decoded.userId)
       return res.status(403).json({ message: "Unauthorized" });
 
     relationship.status = "rejected";
@@ -107,7 +107,7 @@ router.get("/following/:userId", async (req, res) => {
 
 router.get("/requests", verifyToken, async (req, res) => {
   const requests = await Relationship.find({
-    recipient: req.user.id,
+    recipient: req.decoded.userId,
     status: "pending",
   }).populate("requester", "userName profilePicture");
 
