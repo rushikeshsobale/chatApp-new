@@ -505,7 +505,7 @@ router.put(
           generateUniqueName: true,
         });
 
-        profilePicture = uploadResult.url;
+        profilePicture = uploadResult.key;
       }
 
       // Parse profile data safely

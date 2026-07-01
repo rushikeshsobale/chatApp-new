@@ -52,7 +52,7 @@ router.post(
         });
 
         attachment = {
-          url: uploadResult.url,
+          url: uploadResult.key,
           name: req.file.originalname,
           mimeType: req.file.mimetype,
           size: req.file.size

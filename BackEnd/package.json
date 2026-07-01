@@ -1,9 +1,10 @@
 {
   "scripts": {
-    "dev": "nodemon app.js"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.687.0",
+    "@aws-sdk/s3-request-presigner": "^3.1077.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "aws-sdk": "^2.1692.0",
     "bcrypt": "^5.1.1",

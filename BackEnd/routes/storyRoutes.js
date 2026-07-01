@@ -119,7 +119,7 @@ router.post('/create', verifyToken, upload.single('media'), compressMedia, async
 
         const story = new Story({
             userId: req.decoded.userId,
-            media: uploadResult.url,
+            media: uploadResult.key,
             mediaType,
             caption
         });

@@ -28,7 +28,7 @@ router.post("/", auth, upload.single("groupAvatar"), async (req, res) => {
   try {
     const currentUserId = req.decoded.userId;
     let { groupName, participants, encryptedKeys } = req.body;
-    let mediaUrl = null;
+    let mediaKey = null;
     if (typeof encryptedKeys === "string") {
   encryptedKeys = JSON.parse(encryptedKeys);
 }
@@ -42,7 +42,7 @@ router.post("/", auth, upload.single("groupAvatar"), async (req, res) => {
         generateUniqueName: true
       });
 
-      mediaUrl = uploadResult.url;
+      mediaKey = uploadResult.key;
     }
 
     if (!participants || participants.length === 0) {
@@ -91,7 +91,7 @@ router.post("/", auth, upload.single("groupAvatar"), async (req, res) => {
       const conversation = await Conversation.create({
         participants: finalParticipants,
         groupName,
-        groupAvatar: mediaUrl|| 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
+        groupAvatar: mediaKey || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         isGroup: true,
         groupAdmin: currentUserId,
         encryptedKeys: encryptedKeys || null,

@@ -20,17 +20,17 @@ router.post("/mediaPost", upload.single("media"), async (req, res) => {
     });
   }
   try {
-    let mediaUrl = null;
+    let mediaKey = null;
     if (req.file) {
       const uploadResult = await uploadToS3(req.file, {
           folder: "profiles",
         checkDuplicate: true
       });
-      mediaUrl = uploadResult.url;
+      mediaKey = uploadResult.key;
     }
     const newPost = new Post({
       text,
-      media: mediaUrl,
+      media: mediaKey,
       userId,
     });
     const savedPost = await newPost.save();

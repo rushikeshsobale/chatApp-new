@@ -3,6 +3,7 @@ require('dotenv').config();
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
+const signMediaResponse = require("./middleware/signMediaResponse");
 
 const app = express();
 // CORS Configuration
@@ -20,6 +21,9 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.set("trust proxy", 1);
 app.use(express.json());
+// Turns stored media keys / legacy urls in every JSON response into
+// fresh pre-signed S3 urls (see BackEnd/utils/s3Upload.js signDeep).
+app.use(signMediaResponse);
 
 // so Google strategy is loaded
 

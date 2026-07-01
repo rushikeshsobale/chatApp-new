@@ -127,25 +127,32 @@ router.get("/userProfile/:userId", verifyToken, async (req, res) => {
 });
 router.get("/suggestions", verifyToken, async (req, res) => {
   try {
-    // Get the logged-in user's following list
-    const currentUser = await Muser.findById(req.decoded.userId).select("following");
-    
+    const currentUser = await Muser.findById(
+      req.decoded.userId
+    ).select("following");
+
     if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
 
-    // Find users who are NOT the current user and NOT in the following list
     const suggestions = await Muser.find({
-      _id: { 
-        $ne: req.decoded.userId, // exclude yourself
-        $nin: currentUser.following // exclude people already followed
-      }
-    });
+      _id: {
+        $ne: req.decoded.userId,
+        $nin: currentUser.following,
+      },
+    })
+      .select("_id userName profilePicture")
+      .limit(20)
+      .lean();
 
     res.json(suggestions);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({
+      message: "Internal server error",
+    });
   }
 });
 
@@ -169,7 +176,7 @@ router.put("/updateUser/:userId", upload.single("profilePicture"), async (req, r
   // }
   
   try {
-      let mediaUrl = null;
+      let mediaKey = null;
       // Handle file upload (Profile Picture)
       if (req.file) {
           const uploadResult = await uploadToS3(req.file, {
@@ -177,7 +184,7 @@ router.put("/updateUser/:userId", upload.single("profilePicture"), async (req, r
               checkDuplicate: false,
               generateUniqueName: true
           });
-          mediaUrl = uploadResult.url;
+          mediaKey = uploadResult.key;
       }
 
       // 2. Prepare the data object
@@ -186,7 +193,7 @@ router.put("/updateUser/:userId", upload.single("profilePicture"), async (req, r
           lastName,
           bio,
           // Include profilePicture ONLY if a file was uploaded
-          ...(mediaUrl && { profilePicture: mediaUrl }), 
+          ...(mediaKey && { profilePicture: mediaKey }),
           
           // 3. Handle Interest Data and Onboarding Flag
           // The client sends 'interest' as a JSON string; parse it back into an object

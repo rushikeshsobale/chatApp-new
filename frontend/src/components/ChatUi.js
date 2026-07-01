@@ -1,16 +1,19 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import '../css/Chat.css';
+import '../css/chat-bubbles.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { deleteMessages } from '../services/messageService';
 import { ThemeContext } from "../contexts/ThemeContext";
 import {
-
+  FaArrowLeft,
   FaPhone,
   FaVideo,
-  FaEllipsisV
+  FaEllipsisV,
+
 } from "react-icons/fa";
 import {
+  faDownload,
   faCheckDouble,
   faEllipsisV,
   faTrashAlt,
@@ -23,13 +26,14 @@ import {
   faFileAlt
 
 } from '@fortawesome/free-solid-svg-icons';
-import { FaArrowLeft } from 'react-icons/fa';
+
 import { UserContext } from '../contexts/UserContext';
 import CryptoUtils from '../utils/CryptoUtils';
 import { fetchMessage } from '../services/messageService';
 import { callSendMessage } from '../services/messageService';
 import OutGoingCall from './videoCall/OutGoingCall';
-
+import MessageReactions from './MessageReactions';
+import ReactionMenu from './ReactionMenu';
 
 const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
   const { socket, user } = useContext(UserContext);
@@ -50,7 +54,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
   const userId = user?._id;
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-
+  const [showReactionMenu, setShowReactionMenu] = useState(true);
   const CallMessage = ({ message }) => {
     const { callType, callStatus, duration } =
       message.callDetails || {};
@@ -320,6 +324,14 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
     input.click();
   };
 
+  const handleReaction = (message, emoji) => {
+    console.log("Reacting to message:", message._id, "with emoji:", emoji);
+    socket.emit("message:reaction", {
+      messageId: message._id,
+      receiverId: member._id,
+      emoji,
+    });
+  };
   const { isDark } = useContext(ThemeContext);
   const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
   const headerFooterBg = isDark ? "bg-secondary text-white border-secondary" : "bg-light text-dark border-light";
@@ -410,43 +422,75 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
           messages?.map((message, index) => {
             const isReceived = (message.receiverId?._id || message.receiverId) === userId;
             return (
-              <div key={message._id || index} className={`d-flex mb-2 ${isReceived ? 'justify-content-start' : 'justify-content-end'}`}>
-                <div className={`p-2 rounded-3 shadow-sm position-relative ${bubbleTextColor}`} style={{ backgroundColor: isReceived ? receivedBubbleBg : sentBubbleBg, maxWidth: "75%", minWidth: "60px" }}>
-                  <div className="small text-break mb-1">
-                    {decryptedMessages[message._id] ? decryptedMessages[message._id] : "…hi"}
-                  </div>
+              <div
+                key={message._id || index}
+                className={`d-flex mb-2 ${isReceived ? "justify-content-start" : "justify-content-end"}`}
+              >
+                <div className={isReceived ? "bubble-col bubble-col-start" : "bubble-col bubble-col-end"}>
+                  <div className={`chat-bubble ${isReceived ? "chat-bubble-received" : "chat-bubble-sent"}`}>
 
-                  {message?.attachment && (
-                    <div className="mt-1 mb-1 rounded overflow-hidden">
-                      {message.attachment.type === 'image' && (
-                        <img src={message.attachment.name} alt="Attachment" className="img-fluid w-100" style={{ maxHeight: "200px", objectFit: "cover" }} />
-                      )}
-                      {message.attachment.type === 'video' && (
-                        <video controls className="w-100" style={{ maxHeight: "200px" }}>
-                          <source src={message.attachment.name} type="video/mp4" />
-                        </video>
-                      )}
-                      {(!message.attachment.type || message.attachment.type === 'file') && (
-                        <a href={message.attachment.name} target="_blank" rel="noopener noreferrer" className="d-flex align-items-center gap-2 p-2 border rounded text-decoration-none small text-truncate">
-                          <FontAwesomeIcon icon={faFileAlt} />
-                          <span>{message.attachment.name || 'Download File'}</span>
-                        </a>
+                    <div className="small text-break mb-1">
+                      {decryptedMessages[message._id] ? decryptedMessages[message._id] : "…hi"}
+                    </div>
+
+                    {message?.attachment && (
+                      <div className="chat-attachment">
+                        {message.messageType === "image" && (
+                          <img
+                            src={message.attachment.url}
+                            alt="Attachment"
+                            className="img-fluid w-100"
+                            style={{ maxHeight: "200px", objectFit: "cover", display: "block" }}
+                          />
+                        )}
+                        {message.messageType === "video" && (
+                          <video controls className="w-100" style={{ maxHeight: "200px" }}>
+                            <source src={message.attachment.url} type="video/mp4" />
+                          </video>
+                        )}
+                        {(!message.messageType || message.messageType === "file") && (
+                          <a
+                            href={message.attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="chat-file-link"
+                          >
+                            <span className="chat-file-icon">
+                              <FontAwesomeIcon icon={faFileAlt} />
+                            </span>
+                            <span className="text-truncate flex-grow-1">
+                              {message.attachment.name || "Download File"}
+                            </span>
+                            <FontAwesomeIcon icon={faDownload} className="chat-file-download" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {message.messageType === "call_log" && <CallMessage message={message} />}
+
+                    <div className="chat-meta">
+                      <span>
+                        {new Date(message?.timestamp || message.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {!isReceived && (
+                        <span className={message?.status === "read" ? "chat-read" : ""}>
+                          <FontAwesomeIcon icon={message?.status === "read" ? faCheckDouble : faCheck} />
+                        </span>
                       )}
                     </div>
-                  )}
-
-                  {message.messageType === "call_log" && (
-                    <CallMessage message={message} />
-
-                  )}
-                  <div className="d-flex align-items-center justify-content-end gap-1" style={{ fontSize: "0.65rem", opacity: 0.7 }}>
-                    <span>{new Date(message?.timestamp || message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    {!isReceived && (
-                      <span className={message?.status === 'read' ? 'text-info' : ''}>
-                        <FontAwesomeIcon icon={message?.status === 'read' ? faCheckDouble : faCheck} />
-                      </span>
-                    )}
                   </div>
+
+                  <MessageReactions reactions={message.reactions} isReceived={isReceived} />
+
+                    <ReactionMenu
+                      isReceived={isReceived}
+                      onSelect={(emoji) => handleReaction(message, emoji)}
+                    />
+              
                 </div>
               </div>
             );
@@ -454,7 +498,6 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
         )}
         <div ref={messagesEndRef} />
       </div>
-
       {/* Input Dock Panel */}
       <div className={`p-2 border-top position-relative ${headerFooterBg}`}>
         {showAttachmentPopup && (
