@@ -90,7 +90,7 @@ router.get("/followers/:userId", async (req, res) => {
     recipient: req.params.userId,
     type: "follow",
     status: "accepted",
-  }).populate("requester", "userName profilePicture");
+  }).populate("requester", "userName profilePicture").limit(200);
 
   res.json(followers);
 });
@@ -100,7 +100,7 @@ router.get("/following/:userId", async (req, res) => {
     requester: req.params.userId,
     type: "follow",
     status: "accepted",
-  }).populate("recipient", "userName profilePicture");
+  }).populate("recipient", "userName profilePicture").limit(200);
 
   res.json(following);
 });
@@ -109,7 +109,7 @@ router.get("/requests", verifyToken, async (req, res) => {
   const requests = await Relationship.find({
     recipient: req.decoded.userId,
     status: "pending",
-  }).populate("requester", "userName profilePicture");
+  }).populate("requester", "userName profilePicture").limit(200);
 
   res.json(requests);
 })
@@ -189,7 +189,7 @@ router.get("/friends/:userId", async (req, res) => {
       { requester: req.params.userId },
       { recipient: req.params.userId },
     ],
-  }).populate("requester recipient", "userName profilePicture");
+  }).populate("requester recipient", "userName profilePicture").limit(200);
 
   res.json(friends);
 });

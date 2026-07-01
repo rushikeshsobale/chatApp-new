@@ -33,5 +33,7 @@ const storySchema = new mongoose.Schema({
 
 // Index for automatic deletion of expired stories
 storySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// The feed query filters by userId (via $in) + createdAt together.
+storySchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Story', storySchema); 

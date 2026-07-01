@@ -38,7 +38,9 @@ router.get('/fetch/:id', verifyToken, async (req, res) => {
     }
     try {
         const notifications = await Notification.find({ recipient: id })
-            .populate('sender', 'userName profilePicture');
+            .populate('sender', 'userName profilePicture')
+            .sort({ createdAt: -1 })
+            .limit(200);
         res.json(notifications);
     } catch (error) {
         console.error('Error fetching notifications:', error);

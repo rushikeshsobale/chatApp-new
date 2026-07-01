@@ -28,4 +28,6 @@ const GroupSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+GroupSchema.index({ members: 1 });
+
 module.exports = mongoose.model('Group', GroupSchema);
