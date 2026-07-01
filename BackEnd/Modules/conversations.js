@@ -10,7 +10,24 @@ const conversationSchema = new mongoose.Schema(
     }
   ],
 
-  
+  isGroup: {
+    type: Boolean,
+    default: false
+  },
+
+  groupName: {
+    type: String
+  },
+
+  groupAvatar: {
+    type: String
+  },
+
+  groupAdmin: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Muser"
+  },
+
   lastMessageAt: {
     type: Date
   },
@@ -23,7 +40,7 @@ encryptedKeys: [
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Muser",
       required: true
     },
     encryptedKey: {

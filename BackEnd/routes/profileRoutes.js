@@ -71,7 +71,7 @@ router.get("/userProfile/:userId", verifyToken, async (req, res) => {
         status: "accepted",
       }),
 
-      Post.countDocuments({ user: userId }),
+      Post.countDocuments({ userId }),
     ]);
 
     // 🔥 5. Get posts only if not locked

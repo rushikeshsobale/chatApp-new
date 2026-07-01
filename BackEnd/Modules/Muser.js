@@ -171,10 +171,23 @@ const userSchema = new mongoose.Schema({
     },
   ],
 
+  // Matches what routes/router.js's /sendRequest and /acceptFriendRequest
+  // actually store (friendId + a denormalized friendName + request state) —
+  // this used to be typed as a plain [ObjectId], which doesn't match what's
+  // pushed into it and threw a CastError on every real use.
   friends: [
     {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Muser",
+      friendId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Muser",
+      },
+      friendName: {
+        type: String,
+      },
+      isFriend: {
+        type: String,
+        enum: ["sent", "recieved", "friends"],
+      },
     },
   ],
 });

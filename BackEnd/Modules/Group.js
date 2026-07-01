@@ -16,12 +16,12 @@ const GroupSchema = new mongoose.Schema({
   admins: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Muer',
+      ref: 'Muser',
     },
   ],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Muserser',
+    ref: 'Muser',
     required: true,
   },
 }, {
