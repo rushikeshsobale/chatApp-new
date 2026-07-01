@@ -149,6 +149,16 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
 
+  emailVerificationCode: {
+    type: String,
+    select: false,
+  },
+
+  emailVerificationExpires: {
+    type: Date,
+    select: false,
+  },
+
   lastUpdated: {
     type: Date,
   },

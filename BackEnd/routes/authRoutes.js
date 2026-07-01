@@ -162,13 +162,15 @@ router.post("/register", upload.single("profilePicture"), async (req, res) => {
         message: "An account with this email already exists.",
       });
     }
-    // Hash the password cleanly using standard bcrypt layers
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    // Muser's pre('save') hook already hashes `password` whenever it's
+    // modified — hashing it here too would double-hash it, which makes
+    // bcrypt.compare() at login always fail (verified: hashing an
+    // already-hashed value produces something the plain password never
+    // compares equal to).
     const newUser = new Muser({
       email,
       userName: username,
-      password: hashedPassword,
+      password,
       birthdate,
       emailVerified: true, // Set true for local development bypass loop
       onboardingComplete: false,
@@ -355,15 +357,27 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-router.post('/reset-password', verifyToken, async (req, res) => {
-  const { newPassword } = req.body;
+// Verifies the short-lived reset token /forgot-password emailed to the
+// user (signed separately from the persistent login cookie) — it was
+// previously never checked at all; this route required a valid existing
+// *login* session instead, which a logged-out user who forgot their
+// password by definition doesn't have.
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
   try {
-    const userId = req.decoded.userId; // Pull directly from safe verified middleware context
-    const user = await Muser.findById(userId);
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, code: "MISSING_FIELDS", message: "Reset token and new password are required." });
+    }
+
+    const decoded = jwt.verify(token, secretKey);
+    const user = await Muser.findById(decoded.userId);
 
     if (!user) return res.status(404).json({ success: false, code: "ACCOUNT_NOT_FOUND", message: "Account not found." });
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    // Muser's pre('save') hook hashes `password` whenever it's modified —
+    // hashing it here too would double-hash it (see /register for the
+    // same fix and why).
+    user.password = newPassword;
     await user.save();
 
     res.status(200).json({ message: 'Password reset execution successful' });
@@ -374,6 +388,8 @@ router.post('/reset-password', verifyToken, async (req, res) => {
 });
 
 // Clean up endpoint redundancy loops
+const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 router.post("/send-verification", async (req, res) => {
   try {
     const { email } = req.body;
@@ -384,7 +400,23 @@ router.post("/send-verification", async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ success: false, code: "EMAIL_ALREADY_EXISTS", message: "An account with this email already exists." });
     }
-    // TODO: generate and send OTP via sendVerificationEmail()
+
+    const verificationCode = crypto.randomInt(100000, 1000000).toString();
+
+    // Find or create a not-yet-onboarded holding record for this email so
+    // the code has somewhere to live until /verify-email is called.
+    await Muser.findOneAndUpdate(
+      { email },
+      {
+        email,
+        emailVerificationCode: verificationCode,
+        emailVerificationExpires: new Date(Date.now() + VERIFICATION_CODE_TTL_MS),
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+
+    await sendVerificationEmail(email, verificationCode);
+
     res.status(200).json({ success: true, message: "Verification code sent.", email, nextStep: "verify-email" });
   } catch (error) {
     console.error("Send verification error:", error);
@@ -404,8 +436,13 @@ router.post("/verify-email", async (req, res) => {
       });
     }
 
-    // TODO: Replace with real OTP lookup (e.g. check OTP stored in DB/Redis)
-    const isValidCode = true; // Replace with: await OtpModel.verify(email, code)
+    const user = await Muser.findOne({ email }).select("+emailVerificationCode +emailVerificationExpires");
+
+    const isValidCode =
+      !!user &&
+      user.emailVerificationCode === code &&
+      user.emailVerificationExpires &&
+      user.emailVerificationExpires.getTime() > Date.now();
 
     if (!isValidCode) {
       return res.status(400).json({
@@ -415,18 +452,10 @@ router.post("/verify-email", async (req, res) => {
       });
     }
 
-    // Check existing user
-    let user = await Muser.findOne({ email });
-
-    // Create temporary onboarding user
-    if (!user) {
-      user = await Muser.create({
-        email,
-        emailVerified: true,
-        onboardingComplete: false,
-        authProvider: "email",
-      });
-    }
+    user.emailVerified = true;
+    user.emailVerificationCode = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
 
     // Generate auth token
     const token = jwt.sign(

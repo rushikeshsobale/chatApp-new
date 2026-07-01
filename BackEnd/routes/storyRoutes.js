@@ -265,7 +265,7 @@ router.delete('/:storyId', verifyToken, async (req, res) => {
         // Delete from S3
         await deleteFromS3(story.media);
 
-        await story.remove();
+        await story.deleteOne();
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

@@ -1,7 +1,13 @@
 const Message = require("../Modules/Messages");
 const Conversation = require("../Modules/conversations");
-// userId -> socketId
+// userId -> Set<socketId>. A user can have more than one tab/device
+// connected at once, so presence is only "offline" once every socket for
+// that user has disconnected — not just the first one to close.
 const onlineUsers = new Map();
+// callerId -> in-progress call bookkeeping. Must be module-level (not
+// re-created per connection) since the caller and callee are always two
+// different socket connections and both need to see the same entry.
+const activeCalls = new Map();
 
 module.exports = (io) => {
     io.on("connection", (socket) => {
@@ -11,7 +17,9 @@ module.exports = (io) => {
 
             socket.userId = userId;
 
-            onlineUsers.set(userId, socket.id);
+            const wasOffline = !onlineUsers.has(userId);
+            if (wasOffline) onlineUsers.set(userId, new Set());
+            onlineUsers.get(userId).add(socket.id);
 
             socket.join(userId);
             socket.emit(
@@ -21,11 +29,14 @@ module.exports = (io) => {
                     status: "online"
                 }))
             );
-            // Notify everyone else
-            socket.broadcast.emit("user:status_changed", {
-                userId,
-                status: "online",
-            });
+            // Only announce "online" the first time this user connects —
+            // a second tab/device shouldn't re-broadcast presence.
+            if (wasOffline) {
+                socket.broadcast.emit("user:status_changed", {
+                    userId,
+                    status: "online",
+                });
+            }
         });
 
 
@@ -334,8 +345,6 @@ module.exports = (io) => {
         // CALL EVENTS
         // ==================================================
 
-        const activeCalls = new Map();
-
         socket.on("call:start", async ({ receiverId, callType, offer, conversationId }) => {
 
             try {
@@ -395,6 +404,7 @@ module.exports = (io) => {
                     callType,
                     startedAt: Date.now(),
                     conversationId: conversation._id,
+                    messageId: callMessage._id,
                 });
 
                 io.to(receiverId).emit("call:incoming", {
@@ -547,28 +557,44 @@ module.exports = (io) => {
                 }
             }
         );
-        socket.on("call:reject", async (recieverId) => {
-            const call =
-                activeCalls.get(socket.userId) ||
-                activeCalls.get(receiverId);
+        socket.on("call:reject", async ({ receiverId }) => {
+            try {
+                const call =
+                    activeCalls.get(socket.userId) ||
+                    activeCalls.get(receiverId);
 
-            if (call) {
-                const duration =
-                    call.acceptedAt
-                        ? Math.floor(
-                            (Date.now() - call.acceptedAt) / 1000
-                        )
-                        : 0
-                await Message.create({
-                    sender: call.callerId,
-                    receiver: call.receiverId,
-                    type: "call",
-                    callData: {
-                        callType,
-                        status: "rejected",
-                        duration: 0,
-                    }
+                if (!call) {
+                    io.to(receiverId).emit("call:end");
+                    return;
+                }
+
+                const updatedMessage =
+                    await Message.findByIdAndUpdate(
+                        call.messageId,
+                        {
+                            $set: {
+                                "callDetails.callStatus": "rejected",
+                                "callDetails.duration": 0,
+                            },
+                        },
+                        { new: true }
+                    );
+
+                io.to(call.callerId).emit("conversation:update", {
+                    conversationId: call.conversationId,
+                    lastMessage: updatedMessage,
                 });
+
+                io.to(call.receiverId).emit("conversation:update", {
+                    conversationId: call.conversationId,
+                    lastMessage: updatedMessage,
+                });
+
+                io.to(receiverId).emit("call:end");
+
+                activeCalls.delete(call.callerId);
+            } catch (err) {
+                console.error("call:reject error:", err);
             }
         });
 
@@ -578,16 +604,25 @@ module.exports = (io) => {
 
         socket.on("disconnect", () => {
             if (socket.userId) {
-                onlineUsers.delete(socket.userId);
-
-                socket.broadcast.emit(
-                    "user:status_changed",
-                    {
-                        userId: socket.userId,
-                        status: "offline",
+                const sockets = onlineUsers.get(socket.userId);
+                if (sockets) {
+                    sockets.delete(socket.id);
+                    if (sockets.size === 0) {
+                        onlineUsers.delete(socket.userId);
                     }
-                );
+                }
 
+                // Only announce "offline" once every socket for this user
+                // (all open tabs/devices) has disconnected.
+                if (!onlineUsers.has(socket.userId)) {
+                    socket.broadcast.emit(
+                        "user:status_changed",
+                        {
+                            userId: socket.userId,
+                            status: "offline",
+                        }
+                    );
+                }
             }
 
         });
