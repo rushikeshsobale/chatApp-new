@@ -197,6 +197,9 @@ async saveKeyLocally(privateKey) {
    */
   async decryptMessage(data, privateKey, currentUserId) {
     if (!data || !privateKey || !currentUserId) return "";
+    // Attachment-only messages (image/video/file) carry no encrypted text —
+    // there's nothing to decrypt, so don't treat it as a decryption failure.
+    if (!data.content) return "";
     try {
       const payload = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
 
@@ -229,78 +232,6 @@ async saveKeyLocally(privateKey) {
       return new TextDecoder().decode(decrypted);
     } catch (error) {
       console.error("Decryption failed:", error);
-      return "⚠️ Unable to decrypt message";
-    }
-  },
-
-  // ==========================================
-  // 5. ENCRYPTED MULTICAST GROUP LAYER
-  // ==========================================
-
-  async decryptGroupKey(conversation, privateKeyObj) {
-    if (!conversation.encryptedGroupKey) throw new Error("No encrypted group key found");
-    const encryptedKeyBuffer = this.base64ToArrayBuffer(conversation.encryptedGroupKey);
-
-    let privateKey;
-    if (privateKeyObj instanceof CryptoKey) {
-      privateKey = privateKeyObj;
-    } else {
-      const privateKeyBuffer = new Uint8Array(privateKeyObj.data);
-      privateKey = await window.crypto.subtle.importKey(
-        "pkcs8",
-        privateKeyBuffer,
-        { name: "RSA-OAEP", hash: "SHA-256" },
-        true,
-        ["decrypt"]
-      );
-    }
-
-    const decryptedGroupKeyBuffer = await window.crypto.subtle.decrypt(
-      { name: "RSA-OAEP" },
-      privateKey,
-      encryptedKeyBuffer
-    );
-
-    return window.crypto.subtle.importKey(
-      "raw",
-      decryptedGroupKeyBuffer,
-      { name: "AES-GCM" },
-      true,
-      ["encrypt", "decrypt"]
-    );
-  },
-
-  async encryptGroupMessage(message, groupKey) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(message);
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    
-    const encrypted = await window.crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      groupKey,
-      data
-    );
-    return {
-      ciphertext: this.arrayBufferToBase64(encrypted),
-      iv: this.arrayBufferToBase64(iv),
-    };
-  },
-
-  async decryptGroupMessage(encryptedPayload, groupKey) {
-    try {
-      const { ciphertext, iv } = encryptedPayload;
-      const encryptedBuffer = this.base64ToArrayBuffer(ciphertext);
-      const ivBuffer = new Uint8Array(this.base64ToArrayBuffer(iv));
-      
-      const decrypted = await window.crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: ivBuffer },
-        groupKey,
-        encryptedBuffer
-      );
-
-      return new TextDecoder().decode(decrypted);
-    } catch (err) {
-      console.error("Group decryption breakdown:", err);
       return "⚠️ Unable to decrypt message";
     }
   }

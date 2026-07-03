@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import { initializeSocket, disconnectSocket } from '../utils/socket';
 export const UserContext = createContext();
@@ -7,7 +7,7 @@ export const UserProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(null);
-  
+
   const myVideoRef = useRef();
   const [answer, setAnswer] = useState(null);
   const [showIncoming, setShowIncoming] = useState(false);
@@ -26,8 +26,8 @@ export const UserProvider = ({ children }) => {
     }
     return null;
   });
-  
-  
+
+
 
   useEffect(() => {
     // Teardown if user logs out or session expires
@@ -42,19 +42,16 @@ export const UserProvider = ({ children }) => {
     setSocket(socketConnection);
     socketConnection.emit('user:init', user._id);
     socketConnection.on('user:status_changed', (data) => {
-      console.log('User status changed:', data);
       setActiveUsers((prev) => {
-        const exists = prev.some((u) => u === data.userId || u?._id === data.userId);
-        if (!exists) {
-          return [...prev, data.userId];
+        const exists = prev.some((u) => (u.userId ?? u) === data.userId);
+
+        if (data.status === 'online') {
+          if (exists) return prev;
+          return [...prev, { userId: data.userId, status: 'online' }];
         }
-        return prev;
+
+        return prev.filter((u) => (u.userId ?? u) !== data.userId);
       });
-    });
-    socketConnection.emit('user:get_status', user._id, (data) => {
-      if (data.status === 'online') {
-        setActiveUsers((prev) => [...prev, user._id]);
-      }
     });
 
     socketConnection.on("online_users", (users) => {
@@ -73,27 +70,41 @@ export const UserProvider = ({ children }) => {
     };
   }, [user?._id]);
 
+
+  const contextValue = useMemo(
+    () => ({
+      socket,
+      activeUsers,
+      answer,
+      incomingCall,
+      setIncomingCall,
+      user,
+      setUser,
+      setMember,
+      member,
+      showIncoming,
+      setShowIncoming,
+      callData,
+      setIsLoggedIn,
+      isLoggedIn,
+    }),
+    [
+      socket,
+      activeUsers,
+      answer,
+      incomingCall,
+      user,
+      member,
+      showIncoming,
+      callData,
+      isLoggedIn,
+    ]
+  );
+
   return (
-    <UserContext.Provider
-      value={{
-        socket,
-        activeUsers,
-        answer,
-        incomingCall,
-        setIncomingCall,
-        user,
-        setUser,
-        setMember,
-        member,
-     
-        showIncoming,
-        setShowIncoming,
-        callData,
-        setIsLoggedIn,
-        isLoggedIn,
-      }}
-    >
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
+
   );
 };

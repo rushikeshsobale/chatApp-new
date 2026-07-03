@@ -37,7 +37,6 @@ const postRoutes = require("./routes/postRoutes.js");
 const storyRoutes = require("./routes/storyRoutes.js");
 const notificationRoutes = require("./routes/notificationRoutes.js");
 const messageRoutes = require("./routes/messageRoutes.js");
-const groupRoutes = require("./routes/groupRoutes.js")
 const relationships = require("./routes/relationships.js")
 const passport = require('passport');
 const conversationRoutes = require("./routes/conversationRoutes.js");   
@@ -50,7 +49,6 @@ const userRoutes = require("./routes/userRoutes.js");
  app.use("/stories", storyRoutes);
  app.use("/notifications", notificationRoutes);
  app.use("/messages", messageRoutes);
- app.use("/group", groupRoutes);
  app.use("/relationships", relationships);
  app.use("/conversations", conversationRoutes);
   app.use("/users", userRoutes);

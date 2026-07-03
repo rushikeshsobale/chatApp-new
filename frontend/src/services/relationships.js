@@ -85,4 +85,34 @@ export const rejectFollowRequest = async (requesterId) => {
   }
 };
 
+export const blockUser = async (targetUserId) => {
+  try {
+    const response = await api.post(`/relationships/block/${targetUserId}`);
+    return response.data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+export const unblockUser = async (targetUserId) => {
+  try {
+    const response = await api.delete(`/relationships/block/${targetUserId}`);
+    return response.data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+export const getBlockStatus = async (targetUserId) => {
+  try {
+    const response = await api.get(`/relationships/block/${targetUserId}`);
+    return response.data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
 

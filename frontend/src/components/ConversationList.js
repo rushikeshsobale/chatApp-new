@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { ThemeContext } from "../contexts/ThemeContext";
 import CryptoUtils from "../utils/CryptoUtils";
 import { FaCheck, FaCheckDouble, FaCog, FaArrowLeft, FaSearch } from "react-icons/fa";
 import { UserContext } from "../contexts/UserContext";
-import { fetchConversations } from "../services/conversations";
+import { fetchConversations, fetchConversationById } from "../services/conversations";
 import ChatUi from "./ChatUi";
 import UserSearchBox from "./UserSearchBox";
 import { useNavigate } from "react-router-dom";
@@ -24,6 +24,9 @@ const ConversationList = ({
   const [msgCounts, setMsgCounts] = useState({});
   const [showSearch, setShowSearch] = useState(false);
   const currentUserId = user?._id;
+  // Kept in sync with `conversations` so the socket handler below can check
+  // "do we already know about this conversation?" without a stale closure.
+  const conversationIdsRef = useRef(new Set());
   const themeBg = isDark ? "bg-dark" : "bg-white";
   const themeBorder = isDark ? "border-secondary" : "border-light-subtle";
   const nameColorDefault = isDark ? "text-light-emphasis" : "text-dark-emphasis";
@@ -63,6 +66,23 @@ const ConversationList = ({
   }, [user]);
 
   useEffect(() => {
+    conversationIdsRef.current = new Set(conversations.map(c => c._id));
+  }, [conversations]);
+
+  // A freshly-started chat (via UserSearchBox) only becomes known to
+  // ChatUi/ConversationList once the first message round-trips and
+  // ChatUi calls setSelectedConversation — sync it into the list here
+  // instead of waiting on the socket update, which may arrive discarded
+  // if this effect hasn't registered the id yet.
+  useEffect(() => {
+    if (!selectedConversation?._id) return;
+    setConversations(prev => {
+      if (prev.some(c => c._id === selectedConversation._id)) return prev;
+      return [selectedConversation, ...prev];
+    });
+  }, [selectedConversation]);
+
+  useEffect(() => {
     if (!socket || !user) return;
 
     const handleConversationUpdate = ({
@@ -71,6 +91,22 @@ const ConversationList = ({
       unreadCount,
     }) => {
       console.log("Received conversation update for ID:", conversationId, "with message:", lastMessage);
+
+      if (!conversationIdsRef.current.has(conversationId)) {
+        // Unknown conversation — e.g. the other side just sent us the
+        // first message of a brand-new chat we have no local record of
+        // yet. Fetch it instead of silently dropping the update.
+        fetchConversationById(conversationId)
+          .then(conv => {
+            setConversations(prev => {
+              if (prev.some(c => c._id === conversationId)) return prev;
+              return [{ ...conv, lastMessage, unreadCount }, ...prev];
+            });
+          })
+          .catch(err => console.error("Failed to load new conversation:", err));
+        return;
+      }
+
       setConversations(prev => {
 
         const target = prev.find(

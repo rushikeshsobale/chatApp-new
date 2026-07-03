@@ -1,27 +1,5 @@
 // src/services/authService.js
 import api from '../api';
-import { jwtDecode } from 'jwt-decode';
-
-const TOKEN_KEY = 'token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
-
-export const setTokens = (accessToken, refreshToken) => {
-  localStorage.setItem(TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-};
-
-export const getAccessToken = () => localStorage.getItem(TOKEN_KEY);
-export const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY);
-
-export const isTokenExpired = (token) => {
-  if (!token) return true;
-  try {
-    const decoded = jwtDecode(token);
-    return decoded.exp * 1000 < Date.now();
-  } catch (e) {
-    return true;
-  }
-};
 
 export const register = async (userData) => {
   try {
@@ -84,28 +62,6 @@ export const completeProfile = async (formData) => {
     );
   }
 };
-export const refreshToken = async () => {
-  try {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    const response = await api.post('auth/refresh-token', {
-      refreshToken
-    });
-
-    const { accessToken, newRefreshToken } = response.data;
-    setTokens(accessToken, newRefreshToken);
-    return accessToken;
-  } catch (error) {
-    // Clear tokens on refresh failure
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    throw error.response?.data?.error || 'Failed to refresh token';
-  }
-};
-
 export const handleForgotPassword = async (email) => {
   try {
     const response = await api.post('auth/forgot-password', { email });
@@ -121,17 +77,4 @@ export const resetPassword = async (token, newPassword) => {
     newPassword
   });
   return response.data;
-};
-
-export const setPassword = async (password) => {
-  try {
-    const response = await api.post(
-      "auth/set-password",
-      { password },
-      { withCredentials: true } // IMPORTANT
-    );
-    return response.data;
-  } catch (error) {
-    throw error.response?.data?.message || "Failed to set password";
-  }
 };

@@ -51,6 +51,16 @@ export const createOrGetConversation = async (data) => {
     throw error;
   }
 };
+export const fetchConversationById = async (conversationId) => {
+  try {
+    const res = await api.get(`/conversations/${conversationId}`);
+    return res.data;
+  } catch (error) {
+    console.error("Failed to fetch conversation", error);
+    throw error;
+  }
+};
+
 export const fetchConversationMessages = async (conversationId) => {
   try {
     const res = await api.get(`/messages/${conversationId}`);

@@ -1,5 +1,4 @@
 import api from '../api';
-import { getAccessToken } from './authService';
 
 // Get user data
 export const getUserData = async () => {
@@ -25,12 +24,52 @@ export const getUserProfilePage = async (userId) => {
 
 // Get user posts
 export const getUserPosts = async (userId) => {
-    
+
     try {
         const response = await api.get(`/post/getPosts/${userId}`);
         return response.data;
     } catch (error) {
         throw new Error("Failed to fetch posts");
+    }
+};
+
+// Get posts related to a post (same author first, then rest of the feed), paginated
+export const getRelatedPosts = async (postId, page = 1) => {
+    try {
+        const response = await api.get(`/post/related/${postId}`, { params: { page } });
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to fetch related posts");
+    }
+};
+
+// Edit a post's caption
+export const editPost = async (postId, text) => {
+    try {
+        const response = await api.put(`/post/${postId}`, { text });
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to edit post");
+    }
+};
+
+// Delete a post
+export const deletePost = async (postId) => {
+    try {
+        const response = await api.delete(`/post/${postId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to delete post");
+    }
+};
+
+// Get home feed (own posts + following), paginated
+export const getFeed = async (page = 1) => {
+    try {
+        const response = await api.get('/post/feed', { params: { page } });
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to fetch feed");
     }
 };
 export const getPostById =async(postId)=>{
@@ -60,6 +99,16 @@ export const getStories = async (followers) => {
         return response.data;
     } catch (error) {
         throw new Error("Failed to fetch stories");
+    }
+};
+
+// Get a single user's stories
+export const getUserStories = async (userId) => {
+    try {
+        const response = await api.get(`/stories/user/${userId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to fetch user stories");
     }
 };
 
@@ -288,6 +337,16 @@ export const savePost = async (postId) => {
         return response.data;
     } catch (error) {
         throw new Error("Failed to save post");
+    }
+};
+
+// Unsave post
+export const unsavePost = async (postId) => {
+    try {
+        const response = await api.post(`/post/unsavePost/${postId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error("Failed to unsave post");
     }
 };
 

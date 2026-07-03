@@ -53,6 +53,16 @@ encryptedKeys: [
     type: Map,
     of: Number,
     default: {}
+  },
+
+  // Per-user "clear chat" cutoff — messages created at or before this
+  // timestamp are hidden from that user's view only. Deliberately not a
+  // shared/global delete: clearing your own view shouldn't remove the
+  // conversation history for the other participant.
+  clearedAt: {
+    type: Map,
+    of: Date,
+    default: {}
   }
 
 },

@@ -37,6 +37,11 @@ const postSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  mediaType: {
+    type: String,
+    enum: ['image', 'video'],
+    default: 'image',
+  },
   hash: { type: String, required: false },
   userId: {
     type: mongoose.Schema.Types.ObjectId,

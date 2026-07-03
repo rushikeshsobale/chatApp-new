@@ -8,7 +8,8 @@ const router = express.Router();
 const crypto = require("crypto");
 const Media = require("../Modules/Media.js");
 const Post = require("../Modules/Post.js");
-const { uploadToS3 } = require("../utils/s3Upload");
+const Relationship = require("../Modules/relationships.js");
+const { uploadToS3, deleteFromS3 } = require("../utils/s3Upload");
 const verifyToken = require("./verifyToken.js");
 const upload = multer({ storage: multer.memoryStorage() });
 router.post("/mediaPost", verifyToken, upload.single("media"), async (req, res) => {
@@ -18,16 +19,19 @@ router.post("/mediaPost", verifyToken, upload.single("media"), async (req, res) 
   const userId = req.decoded.userId;
   try {
     let mediaKey = null;
+    let mediaType = 'image';
     if (req.file) {
       const uploadResult = await uploadToS3(req.file, {
           folder: "profiles",
         checkDuplicate: true
       });
       mediaKey = uploadResult.key;
+      mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
     }
     const newPost = new Post({
       text,
       media: mediaKey,
+      mediaType,
       userId,
     });
     const savedPost = await newPost.save();
@@ -48,40 +52,107 @@ router.post("/mediaPost", verifyToken, upload.single("media"), async (req, res) 
 // Get all posts by a specific userId
 const mongoose = require('mongoose');
 
-router.get("/getPosts/:userId",verifyToken, async (req, res) => {
-  
-    const userId = req.decoded.userId;  // 1. Check if userId is actually the string "undefined" or missing
-  if (!userId || userId === "undefined") {
-    return res.status(400).json({ 
-      success: false, 
-      message: "User ID is required and must be valid." 
-    });
-  }
+router.get("/getPosts/:userId", verifyToken, async (req, res) => {
+  const { userId } = req.params;
 
-  // 2. Validate if it's a proper MongoDB ObjectId format
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ 
-      success: false, 
-      message: "Invalid User ID format." 
+  if (!userId || userId === "undefined" || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid User ID format.",
     });
   }
 
   try {
     const posts = await Post.find({ userId })
+      .sort({ createdAt: -1 })
       .populate("userId", "userName profilePicture")
       .populate("comments.userId", "userName profilePicture")
       .populate("likes.userId", "userName profilePicture");
 
-    if (posts.length === 0) {
-      return res.status(201).json({
-        success: false,
-        message: "No posts found for this user",
-      });
-    } 
-
     res.status(200).json({ success: true, posts });
   } catch (error) {
     console.error("Error fetching posts:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+// Home feed: caller's own posts + posts by users they follow, newest first
+const FEED_PAGE_SIZE = 20;
+
+router.get("/feed", verifyToken, async (req, res) => {
+  const userId = req.decoded.userId;
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+  try {
+    const following = await Relationship.find({
+      requester: userId,
+      type: "follow",
+      status: "accepted",
+    }).select("recipient");
+
+    const authorIds = [userId, ...following.map((f) => f.recipient)];
+
+    const posts = await Post.find({ userId: { $in: authorIds } })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * FEED_PAGE_SIZE)
+      .limit(FEED_PAGE_SIZE)
+      .populate("userId", "userName profilePicture")
+      .populate("comments.userId", "userName profilePicture")
+      .populate("likes.userId", "userName profilePicture");
+
+    res.status(200).json({ success: true, posts, page, limit: FEED_PAGE_SIZE });
+  } catch (error) {
+    console.error("Error fetching feed:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+// Posts related to a given post: other posts by the same author first,
+// then the rest of the caller's own+following feed, newest first.
+router.get("/related/:postId", verifyToken, async (req, res) => {
+  const { postId } = req.params;
+  const userId = req.decoded.userId;
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ success: false, message: "Invalid post id" });
+  }
+
+  try {
+    const basePost = await Post.findById(postId).select("userId");
+    if (!basePost) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    const following = await Relationship.find({
+      requester: userId,
+      type: "follow",
+      status: "accepted",
+    }).select("recipient");
+    const feedAuthorIds = [userId, ...following.map((f) => f.recipient)];
+
+    const populateOpts = (query) =>
+      query
+        .populate("userId", "userName profilePicture")
+        .populate("comments.userId", "userName profilePicture")
+        .populate("likes.userId", "userName profilePicture");
+
+    const sameAuthorPosts = await populateOpts(
+      Post.find({ _id: { $ne: postId }, userId: basePost.userId }).sort({ createdAt: -1 }).limit(100)
+    );
+
+    const excludeIds = [postId, ...sameAuthorPosts.map((p) => p._id)];
+    const feedPosts = await populateOpts(
+      Post.find({ _id: { $nin: excludeIds }, userId: { $in: feedAuthorIds } }).sort({ createdAt: -1 }).limit(100)
+    );
+
+    const combined = [...sameAuthorPosts, ...feedPosts];
+    const start = (page - 1) * FEED_PAGE_SIZE;
+    const posts = combined.slice(start, start + FEED_PAGE_SIZE);
+
+    res.status(200).json({ success: true, posts, page, limit: FEED_PAGE_SIZE, total: combined.length });
+  } catch (error) {
+    console.error("Error fetching related posts:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
@@ -285,6 +356,64 @@ router.get("/:postId/getPostById", async (req, res) => {
     res.status(200).json({ success: true, post });
   } catch (error) {
     console.error("Error fetching post:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+// Edit a post's caption (media is not editable after publish)
+router.put("/:postId", verifyToken, async (req, res) => {
+  const { postId } = req.params;
+  const { text } = req.body;
+  const userId = req.decoded.userId;
+
+  try {
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    if (post.userId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: "Not authorized to edit this post" });
+    }
+
+    post.text = text;
+    await post.save();
+
+    const updated = await Post.findById(postId)
+      .populate("userId", "userName profilePicture")
+      .populate("comments.userId", "userName profilePicture")
+      .populate("likes.userId", "userName profilePicture");
+
+    res.status(200).json({ success: true, post: updated });
+  } catch (error) {
+    console.error("Error editing post:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+// Delete a post (and its S3 media, if any)
+router.delete("/:postId", verifyToken, async (req, res) => {
+  const { postId } = req.params;
+  const userId = req.decoded.userId;
+
+  try {
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    if (post.userId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: "Not authorized to delete this post" });
+    }
+
+    if (post.media) {
+      await deleteFromS3(post.media).catch((error) => {
+        console.error("Error deleting post media from S3:", error);
+      });
+    }
+    await post.deleteOne();
+
+    res.status(200).json({ success: true, message: "Post deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting post:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });

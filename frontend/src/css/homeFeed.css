@@ -1,0 +1,288 @@
+/* Home feed — visual polish for PostCard (works in both light & dark theme,
+   since it layers neutral rgba overlays on top of the existing Bootstrap
+   theme classes rather than hardcoding colors). */
+
+/* Grid / feed view toggle */
+.hb-view-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  border: none;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.hb-view-toggle:hover {
+  background-color: rgba(127, 127, 127, 0.14);
+}
+
+.hb-view-toggle.active {
+  background-color: #6366f1;
+  color: #fff !important;
+}
+
+/* Explore-style thumbnail grid */
+.hb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+.hb-grid-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  cursor: pointer;
+  background: rgba(127, 127, 127, 0.12);
+}
+
+.hb-grid-tile img,
+.hb-grid-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.hb-grid-tile:hover img,
+.hb-grid-tile:hover video {
+  transform: scale(1.04);
+}
+
+.hb-grid-video-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.hb-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.hb-grid-overlay span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hb-grid-tile:hover .hb-grid-overlay {
+  opacity: 1;
+}
+
+.hb-post-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.hb-post-card + .hb-post-card {
+  margin-top: 14px;
+}
+
+/* Header avatar gets a soft gradient ring, like a story indicator */
+.hb-avatar-ring {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #ec4899);
+  flex-shrink: 0;
+}
+
+.hb-avatar-ring img {
+  display: block;
+  border: 2px solid var(--hb-card-bg, #fff);
+}
+
+/* Circular hover treatment for all action icons */
+.hb-icon-btn {
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.hb-icon-btn:hover {
+  background-color: rgba(127, 127, 127, 0.14);
+}
+
+.hb-icon-btn:active {
+  transform: scale(0.88);
+}
+
+.hb-icon-btn.liked svg {
+  animation: hb-pop 0.28s ease;
+}
+
+@keyframes hb-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+/* Media */
+.hb-post-media {
+  background: #000;
+}
+
+.hb-post-media img {
+  transition: transform 0.3s ease;
+}
+
+/* Comments preview block */
+.hb-comments {
+  padding-top: 8px;
+}
+
+.hb-view-comments {
+  color: inherit;
+  opacity: 0.65;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 0 !important;
+}
+
+.hb-view-comments:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.hb-comment-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+}
+
+.hb-comment-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.hb-comment-bubble {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.hb-comment-delete {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0 !important;
+}
+
+.hb-comment-row:hover .hb-comment-delete {
+  opacity: 0.75;
+}
+
+.hb-comment-delete:hover {
+  opacity: 1 !important;
+  background-color: rgba(220, 53, 69, 0.12);
+}
+
+/* Comment composer */
+.hb-comment-bar {
+  gap: 8px;
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 999px;
+  padding: 5px 6px 5px 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hb-comment-bar:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.hb-comment-bar .hb-comment-avatar {
+  width: 26px;
+  height: 26px;
+  margin-top: 0;
+}
+
+.hb-comment-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+
+.hb-comment-input::placeholder {
+  opacity: 0.6;
+}
+
+.hb-send-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(127, 127, 127, 0.16);
+  color: inherit;
+  opacity: 0.55;
+  transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+
+.hb-send-btn.active {
+  background: #6366f1;
+  color: #fff;
+  opacity: 1;
+}
+
+.hb-send-btn.active:hover {
+  background: #4f46e5;
+}
+
+.hb-send-btn:active:not(:disabled) {
+  transform: scale(0.88);
+}
+
+/* Load more */
+.hb-load-more {
+  border-radius: 999px;
+  padding: 8px 22px;
+  font-weight: 600;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.hb-load-more:active:not(:disabled) {
+  transform: scale(0.96);
+}

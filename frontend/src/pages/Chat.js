@@ -6,25 +6,19 @@ import ChatUi from "../components/ChatUi";
 import ConversationList from "../components/ConversationList";
 import { useNavigate } from "react-router-dom";
 import UsersList from "./Users";
-import GroupChatUi from "../components/GroupChatUi";
 import { UserContext } from "../contexts/UserContext";
-import { FaArrowLeft, FaUsers, FaCog, FaTrash, FaBellSlash, FaArchive, FaTimes } from "react-icons/fa";
-import CreateGroupDrawer from "../components/CreateGroup";
+import { FaArrowLeft, FaCog, FaTrash, FaBellSlash, FaArchive, FaTimes } from "react-icons/fa";
 import { fetchConversations } from "../services/conversations";
-import NewGroup from "../components/NewGroup";
 import { createOrGetConversation } from "../services/conversations";
-import { fetchUserKeys } from "../services/keyse2e";
 import CryptoUtils from "../utils/CryptoUtils";
 import { ThemeContext } from "../contexts/ThemeContext";
 import UserSearchBox from "../components/UserSearchBox";
 
 const ChatComponent = () => {
   const navigate = useNavigate();
-  const groupModalRef = useRef();
   const menuRef = useRef();
   const touchStartX = useRef(0);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [userName, setUserName] = useState("");
   const [conversations, setConversations] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
@@ -70,39 +64,18 @@ const ChatComponent = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Fetch Conversations and unlock group symmetric keys
+  // Fetch Conversations
   useEffect(() => {
     const loadConversations = async () => {
       if (!userId) return;
       try {
         const data = await fetchConversations();
-        const privateKey = await CryptoUtils.loadKeyLocally();
-        if (!privateKey) {
-          setConversations(data);
-          return;
-        }
-
-        const updatedConversations = await Promise.all(
-          data.map(async (conv) => {
-            try {
-              if (!conv.isGroup || !conv.encryptedGroupKey) {
-                return conv;
-              }
-              const groupKey = await CryptoUtils.decryptGroupKey(conv, privateKey);
-              return { ...conv, groupKey };
-            } catch (err) {
-              console.error("Group key decrypt failed:", err);
-              return conv;
-            }
-          })
-        );
-        setConversations(updatedConversations);
+        setConversations(data);
       } catch (err) {
         console.error("Error loading conversations:", err);
       }
     };
     loadConversations();
-    console.log(activeUsers, 'activeUsers')
   }, [userId]);
 
   // Responsive Swipe Handlers
@@ -154,9 +127,6 @@ const ChatComponent = () => {
             className={`position-absolute end-0 m-2 shadow-lg rounded border p-2 ${isDark ? "bg-dark border-secondary" : "bg-white border-light"}`}
             style={{ top: "50px", width: "220px", zIndex: 1050 }}
           >
-            <div className="d-flex align-items-center p-2 rounded cursor-pointer btn btn-link text-decoration-none w-100 text-start text-reset" onClick={() => groupModalRef.current.open()}>
-              <FaUsers className="me-2" /> Create Group
-            </div>
             <div className="d-flex align-items-center p-2 rounded btn btn-link text-decoration-none w-100 text-start text-reset">
               <FaTrash className="me-2" /> Clear Chat History
             </div>
@@ -173,16 +143,6 @@ const ChatComponent = () => {
           </div>
         )}
       </div>
-
-      {/* <NewGroup
-        ref={groupModalRef}
-        users={[]}
-        onCreate={(group) => {
-          handleCreateGroup(group);
-          groupModalRef.current?.close();
-        }}
-        onClose={() => setIsModalOpen(false)}
-      /> */}
 
       {/* Main Top App Branding Header Grid */}
       
@@ -232,13 +192,6 @@ const ChatComponent = () => {
           </div>
         )} */}
       </div>
-
-      {/* <CreateGroupDrawer
-        conversations={conversations}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onGroupCreated={handleCreateGroup}
-      /> */}
     </div>
   );
 };

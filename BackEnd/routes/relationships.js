@@ -181,6 +181,55 @@ router.get("/status/:targetUserId", verifyToken, async (req, res) => {
   }
 });
 
+router.post("/block/:targetUserId", verifyToken, async (req, res) => {
+  try {
+    const requester = req.decoded.userId;
+    const recipient = req.params.targetUserId;
+
+    if (requester === recipient)
+      return res.status(400).json({ message: "Cannot block yourself" });
+
+    await Relationship.findOneAndUpdate(
+      { requester, recipient, type: "block" },
+      { requester, recipient, type: "block", status: "accepted" },
+      { upsert: true }
+    );
+
+    res.json({ message: "User blocked" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete("/block/:targetUserId", verifyToken, async (req, res) => {
+  try {
+    const requester = req.decoded.userId;
+    const recipient = req.params.targetUserId;
+
+    await Relationship.findOneAndDelete({ requester, recipient, type: "block" });
+
+    res.json({ message: "User unblocked" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/block/:targetUserId", verifyToken, async (req, res) => {
+  try {
+    const userId = req.decoded.userId;
+    const targetUserId = req.params.targetUserId;
+
+    const [blockedByMe, blockedMe] = await Promise.all([
+      Relationship.findOne({ requester: userId, recipient: targetUserId, type: "block" }),
+      Relationship.findOne({ requester: targetUserId, recipient: userId, type: "block" }),
+    ]);
+
+    res.json({ blockedByMe: !!blockedByMe, blockedMe: !!blockedMe });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.get("/friends/:userId", async (req, res) => {
   const friends = await Relationship.find({
     type: "friend",

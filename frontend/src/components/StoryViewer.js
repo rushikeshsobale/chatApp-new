@@ -8,7 +8,7 @@ const INTERVAL_MS = 50;
 
 const StoryViewer = ({ show, onHide, storyGroups = [], setStoryGroups, initialGroup = null }) => {
   const user = JSON.parse(localStorage.getItem("user"));
-  const myUserId = user?.userId;
+  const myUserId = user?._id;
 
   const [currentUserIdx, setCurrentUserIdx] = useState(0);
   const [storyInUserIdx, setStoryInUserIdx] = useState(0); 

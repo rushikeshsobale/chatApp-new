@@ -11,7 +11,7 @@ const Relationship = new mongoose.Schema({
     },
     type : {
         type: String,
-        enum: ['friend', 'follow'],
+        enum: ['friend', 'follow', 'block'],
         required: true
     },
     status : {

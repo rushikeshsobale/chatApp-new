@@ -1,21 +1,26 @@
 import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import '../css/homeFeed.css';
 import moment from 'moment';
 import {
   FaHeart, FaRegHeart, FaComment, FaPaperPlane,
   FaBookmark, FaRegBookmark, FaEllipsisH, FaBell,
-  FaHashtag, FaCalendarAlt, FaUser, FaHome, FaPlus,
+  FaHashtag, FaCalendarAlt, FaUser, FaHome, FaPlus, FaTrash,
+  FaTh, FaStream, FaPlay,
 } from 'react-icons/fa';
 import { Spinner, Alert, Badge, Toast, ToastContainer } from 'react-bootstrap';
 
 import {
-  getUserPosts,
+  getFeed,
+  getRelatedPosts,
   getPostById,
   likePost,
   unlikePost,
   addComment,
+  deleteComment,
   savePost,
+  unsavePost,
   sharePost,
   getTrendingTopics,
   getEvents,
@@ -26,19 +31,28 @@ import { createNotification, getNotifications, updateNotification } from '../ser
 import StoryCircle from '../components/StoryCircle';
 import StoryViewer from '../components/StoryViewer';
 import CreateStory from '../components/CreateStory';
+import PostViewer from '../components/PostViewer';
 import { ThemeContext } from '../contexts/ThemeContext';
 import FriendSuggestion from '../components/FriendSuggestion';
 import { UserContext } from '../contexts/UserContext';
+
+// Older posts predate the mediaType field, so fall back to sniffing the
+// file extension off the (signed) media url.
+const isVideoPost = (post) =>
+  post.mediaType ? post.mediaType === 'video' : /\.(mp4|mov|webm|ogg)(\?|$)/i.test(post.media || '');
 
 // ---------------------------------------------------------------------------
 // Sub-component: PostCard
 // Isolated so HomePage doesn't re-render every card on unrelated state changes
 // ---------------------------------------------------------------------------
-const PostCard = React.memo(({ post, userId, theme, onLike, onComment, onSave, onShare, onNavigate }) => {
+const PostCard = React.memo(({ post, userId, currentUserAvatar, theme, onLike, onComment, onDeleteComment, onSave, onShare, onNavigate }) => {
   const [commentText, setCommentText] = useState('');
+  const [showCommentBox, setShowCommentBox] = useState(false);
 
   const hasLiked = post.likes?.some(l => (l.userId?._id || l.userId) === userId);
   const isSaved = post.savedBy?.includes(userId);
+  const comments = post.comments || [];
+  const isPostAuthor = (post.userId?._id || post.userId) === userId;
 
   const handleCommentKeyDown = (e) => {
     if (e.key === 'Enter') submitComment();
@@ -50,9 +64,13 @@ const PostCard = React.memo(({ post, userId, theme, onLike, onComment, onSave, o
     setCommentText('');
   };
 
+  const toggleCommentBox = () => {
+    setShowCommentBox(prev => !prev);
+  };
+
   return (
     <div
-      className={`${theme.card} rounded-3 overflow-hidden shadow-sm`}
+      className={`${theme.card} hb-post-card rounded-4 overflow-hidden shadow-sm`}
       onClick={() => onNavigate(`/postDetails/${post._id}`)}
       style={{ cursor: 'pointer' }}
       role="article"
@@ -66,62 +84,78 @@ const PostCard = React.memo(({ post, userId, theme, onLike, onComment, onSave, o
           onClick={(e) => { e.stopPropagation(); onNavigate(`/ProfilePage/${post.userId?._id}`); }}
           aria-label={`Go to ${post.userId?.userName}'s profile`}
         >
-          <img
-            src={post.userId?.profilePicture || '/assets/default-avatar.svg'}
-            alt={`${post.userId?.userName}'s profile picture`}
-            className="rounded-circle object-fit-cover"
-            width="38"
-            height="38"
-            loading="lazy"
-          />
+          <span className="hb-avatar-ring">
+            <img
+              src={post.userId?.profilePicture || '/assets/default-avatar.svg'}
+              alt={`${post.userId?.userName}'s profile picture`}
+              className="rounded-circle object-fit-cover"
+              width="36"
+              height="36"
+              loading="lazy"
+            />
+          </span>
           <div className="text-start">
             <div className="fw-bold small">{post.userId?.userName || 'Anonymous'}</div>
             <div className={theme.subtext} style={{ fontSize: '0.70rem' }}>{moment(post.createdAt).fromNow()}</div>
           </div>
         </button>
         <button
-          className="btn btn-sm text-inherit"
-          style={{ color: 'inherit' }}
+          className="btn btn-sm text-inherit hb-icon-btn"
+          style={{ color: 'inherit', width: 32, height: 32 }}
           onClick={(e) => e.stopPropagation()}
           aria-label="Post options"
         >
-          <FaEllipsisH />
+          <FaEllipsisH size={15} />
         </button>
       </div>
 
-      {/* Image */}
-      <div className="bg-black d-flex align-items-center justify-content-center" style={{ maxHeight: 500, overflow: 'hidden' }}>
-        <img
-          src={post.media}
-          className="w-100 h-100 object-fit-contain"
-          alt={post.text || 'Post image'}
-          style={{ minHeight: 280, maxHeight: 500 }}
-          loading="lazy"
-        />
-      </div>
+      {/* Media */}
+      {post.media && (
+        <div className="hb-post-media d-flex align-items-center justify-content-center" style={{ maxHeight: 500, overflow: 'hidden' }}>
+          {isVideoPost(post) ? (
+            <video
+              src={post.media}
+              className="w-100 h-100 object-fit-contain"
+              style={{ minHeight: 280, maxHeight: 500 }}
+              controls
+              playsInline
+              preload="metadata"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              src={post.media}
+              className="w-100 h-100 object-fit-contain"
+              alt={post.text || 'Post image'}
+              style={{ minHeight: 280, maxHeight: 500 }}
+              loading="lazy"
+            />
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="card-body py-2">
-        <div className="d-flex justify-content-between mb-2">
+        <div className="d-flex justify-content-between align-items-center mb-1">
           <div className="d-flex gap-1">
             <button
-              className="btn btn-sm text-inherit"
+              className={`btn btn-sm text-inherit hb-icon-btn ${hasLiked ? 'liked' : ''}`}
               style={{ color: 'inherit' }}
               onClick={(e) => { e.stopPropagation(); onLike(post); }}
               aria-label={hasLiked ? 'Unlike post' : 'Like post'}
             >
-              {hasLiked ? <FaHeart className="text-danger" size={18} /> : <FaRegHeart size={18} />}
+              {hasLiked ? <FaHeart className="text-danger" size={19} /> : <FaRegHeart size={19} />}
             </button>
             <button
-              className="btn btn-sm text-inherit"
+              className="btn btn-sm text-inherit hb-icon-btn"
               style={{ color: 'inherit' }}
-              aria-label="Comment on post"
-              onClick={(e) => { e.stopPropagation(); document.getElementById(`comment-${post._id}`)?.focus(); }}
+              aria-label={showCommentBox ? 'Hide comment box' : 'Comment on post'}
+              onClick={(e) => { e.stopPropagation(); toggleCommentBox(); }}
             >
-              <FaComment size={18} />
+              <FaComment size={19} />
             </button>
             <button
-              className="btn btn-sm text-inherit"
+              className="btn btn-sm text-inherit hb-icon-btn"
               style={{ color: 'inherit' }}
               aria-label="Share post"
               onClick={(e) => { e.stopPropagation(); onShare(post._id); }}
@@ -130,44 +164,102 @@ const PostCard = React.memo(({ post, userId, theme, onLike, onComment, onSave, o
             </button>
           </div>
           <button
-            className="btn btn-sm text-inherit"
+            className="btn btn-sm text-inherit hb-icon-btn"
             style={{ color: 'inherit' }}
             aria-label={isSaved ? 'Unsave post' : 'Save post'}
-            onClick={(e) => { e.stopPropagation(); onSave(post._id); }}
+            onClick={(e) => { e.stopPropagation(); onSave(post); }}
           >
             {isSaved ? <FaBookmark size={18} /> : <FaRegBookmark size={18} />}
           </button>
         </div>
-        <div className="mb-1 fw-bold small">{post.likes?.length || 0} likes</div>
-        <div className="small">
-          <span className="fw-bold me-2">{post.userId?.userName}</span>{post.text}
+        <div className={`mb-1 small ${theme.subtext}`}>
+          {post.likes?.length || 0} likes
+          {comments.length > 0 && <> &middot; {comments.length} comment{comments.length === 1 ? '' : 's'}</>}
         </div>
+        {post.text && (
+          <div className="small">
+            <span className="fw-medium me-2">{post.userId?.userName}</span>{post.text}
+          </div>
+        )}
       </div>
 
-      {/* Comment input */}
-      <div
-        className={`card-footer bg-transparent d-flex py-2 align-items-center border-top ${theme.border}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          id={`comment-${post._id}`}
-          type="text"
-          className={`${theme.input} form-control-sm`}
-          placeholder="Add a comment…"
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          onKeyDown={handleCommentKeyDown}
-          aria-label="Write a comment"
-        />
-        <button
-          className="btn btn-sm text-primary fw-semibold ms-2"
-          onClick={submitComment}
-          disabled={!commentText.trim()}
-          aria-label="Post comment"
+      {/* Comments preview */}
+      {comments.length > 0 && (
+        <div
+          className={`hb-comments px-3 pb-2 border-top ${theme.border}`}
+          onClick={(e) => e.stopPropagation()}
         >
-          Post
-        </button>
-      </div>
+          {comments.length > 2 && (
+            <button
+              className="btn btn-sm hb-view-comments mt-2"
+              onClick={() => onNavigate(`/postDetails/${post._id}`)}
+            >
+              View all {comments.length} comments
+            </button>
+          )}
+          {comments.slice(-2).map((comment) => {
+            const canDelete = (comment.userId?._id || comment.userId) === userId || isPostAuthor;
+            return (
+              <div key={comment._id} className="hb-comment-row small">
+                <img
+                  src={comment.userId?.profilePicture || '/assets/default-avatar.svg'}
+                  alt=""
+                  className="hb-comment-avatar"
+                  loading="lazy"
+                />
+                <div className="hb-comment-bubble">
+                  <span className="fw-medium me-2">{comment.userId?.userName || 'Anonymous'}</span>
+                  {comment.text}
+                </div>
+                {canDelete && (
+                  <button
+                    className="btn btn-sm hb-comment-delete text-danger"
+                    aria-label="Delete comment"
+                    onClick={() => onDeleteComment(post._id, comment._id)}
+                  >
+                    <FaTrash size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Comment input */}
+      {showCommentBox && (
+        <div
+          className={`card-footer bg-transparent py-2 border-top ${theme.border}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="hb-comment-bar d-flex align-items-center">
+            <img
+              src={currentUserAvatar || '/assets/default-avatar.svg'}
+              alt=""
+              className="hb-comment-avatar"
+            />
+            <input
+              id={`comment-${post._id}`}
+              type="text"
+              className="hb-comment-input"
+              placeholder="Add a comment…"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={handleCommentKeyDown}
+              aria-label="Write a comment"
+              autoFocus
+            />
+            <button
+              className={`hb-send-btn ${commentText.trim() ? 'active' : ''}`}
+              onClick={submitComment}
+              disabled={!commentText.trim()}
+              aria-label="Post comment"
+            >
+              <FaPaperPlane size={13} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -178,24 +270,49 @@ PostCard.displayName = 'PostCard';
 // Custom hooks
 // ---------------------------------------------------------------------------
 
+const FEED_PAGE_SIZE = 20;
+
 function usePosts(userId) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   const fetchPosts = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await getUserPosts(userId);
-      setPosts(data?.posts || []);
+      const data = await getFeed(1);
+      const firstPage = data?.posts || [];
+      setPosts(firstPage);
+      setPage(1);
+      setHasMore(firstPage.length === FEED_PAGE_SIZE);
     } catch {
       setError('Could not load your feed. Pull to refresh.');
     } finally {
       setLoading(false);
     }
   }, [userId]);
+
+  const fetchMorePosts = useCallback(async () => {
+    if (!userId || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const data = await getFeed(nextPage);
+      const newPosts = data?.posts || [];
+      setPosts(prev => [...prev, ...newPosts]);
+      setPage(nextPage);
+      setHasMore(newPosts.length === FEED_PAGE_SIZE);
+    } catch {
+      // Non-critical — user can retry via the button
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [userId, page, loadingMore, hasMore]);
 
   // Sync a single post from the server (e.g. after a socket event)
   const refreshPost = useCallback(async (postId, field) => {
@@ -247,23 +364,40 @@ function usePosts(userId) {
     }
   }, []);
 
-  const toggleSave = useCallback(async (postId) => {
+  const removeComment = useCallback(async (postId, commentId) => {
+    // Optimistic update
+    setPosts(prev => prev.map(p => p._id === postId
+      ? { ...p, comments: (p.comments || []).filter(c => c._id !== commentId) }
+      : p
+    ));
+    try {
+      await deleteComment(postId, commentId);
+    } catch {
+      // Revert: refetch just this post
+      refreshPost(postId, 'all');
+    }
+  }, [refreshPost]);
+
+  const toggleSave = useCallback(async (post) => {
+    const postId = post._id;
+    const isSaved = post.savedBy?.includes(userId);
     // Optimistic update
     setPosts(prev => prev.map(p => p._id === postId ? {
       ...p,
-      savedBy: p.savedBy?.includes(userId)
+      savedBy: isSaved
         ? p.savedBy.filter(id => id !== userId)
         : [...(p.savedBy || []), userId],
     } : p));
     try {
-      await savePost(postId);
+      if (isSaved) await unsavePost(postId);
+      else await savePost(postId);
     } catch {
       // Revert: refetch just this post
       refreshPost(postId, 'all');
     }
   }, [userId, refreshPost]);
 
-  return { posts, setPosts, loading, error, fetchPosts, refreshPost, toggleLike, submitComment, toggleSave };
+  return { posts, setPosts, loading, loadingMore, hasMore, error, fetchPosts, fetchMorePosts, refreshPost, toggleLike, submitComment, removeComment, toggleSave };
 }
 
 function useNotifications(userId) {
@@ -347,8 +481,10 @@ const HomePage = ({ socket }) => {
   const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [toast, setToast] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'feed'
+  const [viewerPost, setViewerPost] = useState(null);
 
-  const { posts, setPosts, loading, error, fetchPosts, refreshPost, toggleLike, submitComment, toggleSave } = usePosts(userId);
+  const { posts, setPosts, loading, loadingMore, hasMore, error, fetchPosts, fetchMorePosts, refreshPost, toggleLike, submitComment, removeComment, toggleSave } = usePosts(userId);
   const { unreadCount, fetchNotifications, markRead } = useNotifications(userId);
   const { storyGroups, setStoryGroups, uploading, fetchStories, createNewStory } = useStories(userId);
 
@@ -540,8 +676,25 @@ const HomePage = ({ socket }) => {
               <FriendSuggestion theme={theme} />
             </div>
 
-            {/* Search */}
-
+            {/* View toggle */}
+            <div className="d-flex justify-content-end gap-1 mb-2 px-1">
+              <button
+                className={`btn btn-sm hb-view-toggle ${viewMode === 'grid' ? 'active' : ''} ${theme.subtext}`}
+                onClick={() => setViewMode('grid')}
+                aria-pressed={viewMode === 'grid'}
+                aria-label="Grid view"
+              >
+                <FaTh size={14} />
+              </button>
+              <button
+                className={`btn btn-sm hb-view-toggle ${viewMode === 'feed' ? 'active' : ''} ${theme.subtext}`}
+                onClick={() => setViewMode('feed')}
+                aria-pressed={viewMode === 'feed'}
+                aria-label="Feed view"
+              >
+                <FaStream size={14} />
+              </button>
+            </div>
 
             {/* Feed */}
             {loading && filteredPosts.length === 0 ? (
@@ -558,6 +711,44 @@ const HomePage = ({ socket }) => {
                 <h5>Nothing here yet.</h5>
                 <p className={theme.subtext}>Follow more people or search for something.</p>
               </div>
+            ) : viewMode === 'grid' ? (
+              <div className="d-flex flex-column">
+                <div className="hb-grid">
+                  {filteredPosts.filter(p => p.media).map(post => (
+                    <div
+                      key={post._id}
+                      className="hb-grid-tile"
+                      onClick={() => setViewerPost(post)}
+                      role="button"
+                      aria-label={`Open post by ${post.userId?.userName || 'Anonymous'}`}
+                    >
+                      {isVideoPost(post) ? (
+                        <video src={post.media} muted preload="metadata" />
+                      ) : (
+                        <img src={post.media} alt={post.text || 'Post'} loading="lazy" />
+                      )}
+                      {isVideoPost(post) && (
+                        <span className="hb-grid-video-badge"><FaPlay size={12} /></span>
+                      )}
+                      <div className="hb-grid-overlay">
+                        <span><FaHeart size={13} /> {post.likes?.length || 0}</span>
+                        <span><FaComment size={13} /> {post.comments?.length || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="d-flex justify-content-center mt-3">
+                    <button
+                      className="btn btn-outline-secondary btn-sm hb-load-more"
+                      onClick={fetchMorePosts}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? <Spinner animation="border" size="sm" /> : 'Load more'}
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="d-flex flex-column">
                 {filteredPosts.map(post => (
@@ -565,14 +756,27 @@ const HomePage = ({ socket }) => {
                     key={post._id}
                     post={post}
                     userId={userId}
+                    currentUserAvatar={user?.profilePicture}
                     theme={theme}
                     onLike={toggleLike}
                     onComment={submitComment}
+                    onDeleteComment={removeComment}
                     onSave={toggleSave}
                     onShare={handleShare}
                     onNavigate={navigate}
                   />
                 ))}
+                {hasMore && (
+                  <div className="d-flex justify-content-center mt-3">
+                    <button
+                      className="btn btn-outline-secondary btn-sm hb-load-more"
+                      onClick={fetchMorePosts}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? <Spinner animation="border" size="sm" /> : 'Load more'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -616,6 +820,19 @@ const HomePage = ({ socket }) => {
         onHide={() => setShowCreateStory(false)}
         onCreateStory={handleCreateStory}
       />
+
+      {/* Full-screen post viewer (grid tap-through) */}
+      {viewerPost && (
+        <PostViewer
+          initialPost={viewerPost}
+          userId={userId}
+          currentUserAvatar={user?.profilePicture}
+          onClose={() => setViewerPost(null)}
+          onNavigateProfile={(uid) => { setViewerPost(null); navigate(`/ProfilePage/${uid}`); }}
+          onPostUpdated={(updated) => setPosts(prev => prev.map(p => p._id === updated._id ? { ...p, ...updated } : p))}
+          onPostDeleted={(postId) => setPosts(prev => prev.filter(p => p._id !== postId))}
+        />
+      )}
     </div>
   );
 };

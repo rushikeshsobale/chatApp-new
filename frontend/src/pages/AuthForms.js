@@ -2,7 +2,6 @@ import React, { useState, useContext } from "react";
 import { UserContext } from "../contexts/UserContext";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { useDispatch } from 'react-redux';
-import { jwtDecode } from 'jwt-decode';
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaLock,
@@ -24,8 +23,6 @@ import {
   sendVerification,
 } from "../services/authService";
 import { SET_USER } from "../store/action";
-import { fetchUserKeys, uploadUserKeys } from "../services/keyse2e";
-import CryptoUtils from "../utils/CryptoUtils";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../css/AuthForms.css";

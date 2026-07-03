@@ -6,7 +6,6 @@ const Muser = require("../Modules/Muser.js");
 const multer = require("multer");
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const KeysModel = require("../Modules/keysModel.js");
 const verifyToken = require("./verifyToken.js");
 const { uploadToS3 } = require("../utils/s3Upload");
 const sendVerificationEmail = require("../utils/emailService.js");
@@ -34,8 +33,8 @@ const generateUserToken = (user) => {
 // Set standard secure cookie options
 const cookieOptions = {
   httpOnly: true,
-  secure: true, // Always true for cross-origin zero-knowledge persistence
-  sameSite: "none",
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
@@ -49,22 +48,33 @@ passport.use(new GoogleStrategy({
     let user = await Muser.findOne({ googleId: profile.id });
 
     if (!user) {
-      let baseUserName = profile.displayName.replace(/\s+/g, "_").toLowerCase();
-      let uniqueUserName = baseUserName;
-      let count = 1;
-      while (await Muser.findOne({ userName: uniqueUserName })) {
-        uniqueUserName = `${baseUserName}_${count++}`;
-      }
+      const email = profile.emails[0].value;
+      user = await Muser.findOne({ email });
 
-      user = await Muser.create({
-        googleId: profile.id,
-        email: profile.emails[0].value,
-        userName: uniqueUserName,
-        firstName: profile.name.givenName,
-        lastName: profile.name.familyName,
-        emailVerified: true,
-        isGoogleAccount: true
-      });
+      if (user) {
+        // Existing manually-registered account — link Google login to it
+        user.googleId = profile.id;
+        user.isGoogleAccount = true;
+        user.emailVerified = true;
+        await user.save();
+      } else {
+        let baseUserName = profile.displayName.replace(/\s+/g, "_").toLowerCase();
+        let uniqueUserName = baseUserName;
+        let count = 1;
+        while (await Muser.findOne({ userName: uniqueUserName })) {
+          uniqueUserName = `${baseUserName}_${count++}`;
+        }
+
+        user = await Muser.create({
+          googleId: profile.id,
+          email,
+          userName: uniqueUserName,
+          firstName: profile.name.givenName,
+          lastName: profile.name.familyName,
+          emailVerified: true,
+          isGoogleAccount: true
+        });
+      }
     }
     done(null, user);
   } catch (err) {
@@ -86,23 +96,16 @@ router.get('/google/callback',
       res.cookie("token", token, cookieOptions);
       res.cookie('logged_in', 'true', { ...cookieOptions, httpOnly: false });
 
-      // Generate the deterministic symmetric seed for crypto
-      const serverPepper = process.env.AUTH_PEPPER || "DefaultLocalPepperSecret";
-      const symmetricSeed = crypto
-        .createHmac("sha256", serverPepper)
-        .update(req.user.googleId)
-        .digest("hex");
-
       // 🔹 FIX: Check if this user has finished onboarding
       if (req.user.onboardingComplete) {
         // Old User -> Send straight to auth-success to mount chat keys
         const frontendUrl = `${process.env.FRONTEND_URL}/auth-success`;
-        const queryParams = `?auth_status=success&userId=${req.user._id}&username=${req.user.userName}&seed=${symmetricSeed}`;
+        const queryParams = `?auth_status=success&userId=${req.user._id}&username=${req.user.userName}`;
         return res.redirect(frontendUrl + queryParams);
       } else {
         // New User -> Redirect them to onboarding first, passing the tracking parameters
         const onboardingUrl = `${process.env.FRONTEND_URL}/onboarding`;
-        const queryParams = `?userId=${req.user._id}&username=${req.user.userName}&seed=${symmetricSeed}`;
+        const queryParams = `?userId=${req.user._id}&username=${req.user.userName}`;
         return res.redirect(onboardingUrl + queryParams);
       }
     } catch (err) {
@@ -273,66 +276,6 @@ router.post("/login", async (req, res) => {
       code: "SERVER_ERROR",
       message: "Something went wrong. Please try again.",
     });
-  }
-});
-
-// --- UPDATED SYMMETRIC CRYPTO KEY SYNC ENDPOINTS ---
-
-// Example Backend Route
-router.post("/update-public-key", verifyToken, async (req, res) => {
-  const { publicKey } = req.body; // The base64 string from your frontend
-  const userId = req.decoded.userId;
-
-  // Only store the public key string
-  await Muser.findByIdAndUpdate(userId, {
-    publicKey: publicKey,
-    keyRegisteredAt: new Date()
-  });
-
-  res.status(200).json({ success: true });
-});
-
-router.post('/upload-keys', verifyToken, async (req, res) => {
-  try {
-    const userId = req.decoded.userId;
-    const { encryptedMasterKey, salt, iv } = req.body;
-
-    if (!encryptedMasterKey || !salt || !iv) {
-      return res.status(400).json({ success: false, code: "MISSING_FIELDS", message: "Incomplete key data. Please try again." });
-    }
-
-    // Persist as strings directly to prevent buffer conversion compilation breaks
-    const keys = await KeysModel.findOneAndUpdate(
-      { userId: userId },
-      {
-        userId,
-        encryptedMasterKey,
-        salt,
-        iv,
-        updatedAt: new Date()
-      },
-      { upsert: true, new: true }
-    );
-
-    await Muser.findByIdAndUpdate(userId, { keysId: keys._id });
-    res.status(200).json({ message: 'Symmetric backup payload synchronized successfully' });
-  } catch (error) {
-    console.error('Keys upload error:', error);
-    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Couldn't save your keys. Please try again." });
-  }
-});
-
-router.get('/user-keys', verifyToken, async (req, res) => {
-  try {
-    const userId = req.decoded.userId;
-    const keys = await KeysModel.findOne({ userId });
-    if (!keys) {
-      return res.status(404).json({ success: false, code: "NOT_FOUND", message: "No keys found for this account." });
-    }
-    res.status(200).json(keys);
-  } catch (error) {
-    console.error('Failed to fetch user keys:', error);
-    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Couldn't retrieve your keys. Please try again." });
   }
 });
 
@@ -609,8 +552,8 @@ router.put(
           profileData.onboarding;
 
         Object.assign(updateData, {
-          interests: interests || [],
-          goals: goals || [],
+          ...(interests && { interests }),
+          ...(goals && { goals }),
           preferences: {
             ...preferences,
             ...profileData.onboarding.preferences,
@@ -654,24 +597,9 @@ router.put(
         httpOnly: false,
       });
 
-      // Seed
-      const serverPepper =
-        process.env.AUTH_PEPPER ||
-        "DefaultLocalPepperSecret";
-
-      const seedSourceId =
-        updatedUser.googleId ||
-        updatedUser._id.toString();
-
-      const symmetricSeed = crypto
-        .createHmac("sha256", serverPepper)
-        .update(seedSourceId)
-        .digest("hex");
-
       const redirectUrl =
         `/auth-success?auth_status=success` +
-        `&username=${updatedUser.userName}` +
-        `&seed=${symmetricSeed}`;
+        `&username=${updatedUser.userName}`;
 
       return res.status(200).json({
         success: true,

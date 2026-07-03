@@ -7,6 +7,7 @@ import EditProfile from './EditProfile';
 import { updateNotification, deleteNotification } from '../services/notificationService';
 import { updateUserProfile } from '../services/profileService';
 
+console.count("NavBAr");
 /* ─── Icon components (inline SVG, no icon-font dependency) ──────────── */
 const IconHome = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -56,7 +57,7 @@ const styles = `
   }
 
   .nb-root.dark {
-    background: rgba(10, 10, 10, 0.92);
+    background: rgba(224, 224, 224, 0.92);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid #1f1f1f;
   }
@@ -73,6 +74,14 @@ const styles = `
   }
 
   /* Brand */
+  .nb-logo-wrap {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
   .nb-brand {
     font-size: 1.05rem;
     font-weight: 700;
@@ -158,7 +167,7 @@ const styles = `
   }
 
   .nb-root.light .nb-btn { color: #666; }
-  .nb-root.dark  .nb-btn { color: #888; }
+  .nb-root.dark  .nb-btn { color: #000000; }
 
   .nb-root.light .nb-btn:hover { background: #f3f4f6; color: #111; transform: translateY(-1px); }
   .nb-root.dark  .nb-btn:hover { background: #1e1e1e; color: #e5e5e5; transform: translateY(-1px); }
@@ -211,6 +220,8 @@ const styles = `
   /* Mobile: hide search, show search toggle */
   @media (max-width: 640px) {
     .nb-inner { padding: 0 16px; gap: 12px; }
+    .nb-logo-wrap { width: 70px; }
+    .nb-logo { width: 160px; height: 38px; }
     .nb-search { display: none; }
     .nb-search.expanded {
       display: flex;
@@ -243,12 +254,12 @@ const styles = `
 /* ─── Component ──────────────────────────────────────────────────────── */
 const Navbar = () => {
   const navigate = useNavigate();
-  const [showEditProfile, setShowEditProfile]     = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications]         = useState([]);
-  const [unreadCount, setUnreadCount]             = useState(0);
-  const [showProfileModal, setShowProfileModal]   = useState(false);
-  const [searchOpen, setSearchOpen]               = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const { unseenMessages = [], setUser, user } = useContext(UserContext);
   const { isDark } = useContext(ThemeContext);
@@ -284,6 +295,12 @@ const Navbar = () => {
   };
 
   const handleSave = async (profileData) => {
+    const updated = await updateUserProfile(user._id, profileData);
+    setUser(updated?.user);
+    setShowProfileModal(false);
+  };
+
+  const handleSaveUnused = async (profileData) => {
     try {
       const updated = await updateUserProfile(user._id, profileData);
       setUser(updated?.user);
@@ -309,15 +326,23 @@ const Navbar = () => {
         <div className="nb-inner">
 
           {/* Brand */}
-          <span
-            className="nb-brand"
-            role="link"
-            tabIndex={0}
+          <div className="nb-logo-wrap" tabIndex={0}
             onClick={() => navigate('/')}
-            onKeyDown={e => e.key === 'Enter' && navigate('/')}
-          >
-            HiBUDDY
-          </span>
+            onKeyDown={e => e.key === 'Enter' && navigate('/')}>
+            <img
+              className="nb-logo"
+              src="/hibuddyicon.svg"
+              alt="HiBUDDY"
+              width={250}
+              height={60}
+              fetchPriority='high'
+              // style={{
+              //   background: 'linear-gradient(90deg,  #1a202c, #2d3748)',
+              //   padding: '8px 16px',
+              //   borderRadius: '12px'
+              // }}
+            />
+          </div>
 
           {/* Search — hidden on mobile until toggle */}
           <div className={`nb-search${searchOpen ? ' expanded' : ''}`}>

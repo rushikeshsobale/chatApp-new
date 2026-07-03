@@ -97,11 +97,6 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
 
-  keysId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "keysModel",
-  },
-
   // Onboarding
   onboardingComplete: {
     type: Boolean,

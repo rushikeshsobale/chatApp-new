@@ -1,22 +1,25 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
 import '../css/Chat.css';
 import '../css/chat-bubbles.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { deleteMessages } from '../services/messageService';
+import { clearChat } from '../services/messageService';
+import { blockUser, unblockUser, getBlockStatus } from '../services/relationships';
 import { ThemeContext } from "../contexts/ThemeContext";
 import {
   FaArrowLeft,
   FaPhone,
   FaVideo,
   FaEllipsisV,
+  FaUserCircle,
+  FaBan,
+  FaTrashAlt,
 
 } from "react-icons/fa";
 import {
   faDownload,
   faCheckDouble,
-  faEllipsisV,
-  faTrashAlt,
   faSmile,
   faCheck,
   faPaperPlane,
@@ -35,8 +38,9 @@ import OutGoingCall from './videoCall/OutGoingCall';
 import MessageReactions from './MessageReactions';
 import ReactionMenu from './ReactionMenu';
 
-const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
+const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation }) => {
   const { socket, user } = useContext(UserContext);
+  const navigate = useNavigate();
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [userPrivateKey, setUserPrivateKey] = useState(null);
@@ -50,11 +54,13 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
   const [typingUser, setTypingUser] = useState(null);
   const [outgoingCallType, setOutgoingCallType] = useState(null);
   const [activeReactionMessage, setActiveReactionMessage] = useState(null);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [blockStatus, setBlockStatus] = useState({ blockedByMe: false, blockedMe: false });
   // null | "audio" | "video"
   const userId = user?._id;
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const [showReactionMenu, setShowReactionMenu] = useState(true);
+  const headerMenuRef = useRef(null);
   const CallMessage = ({ message }) => {
     const { callType, callStatus, duration } =
       message.callDetails || {};
@@ -110,6 +116,44 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
     init();
     callFetchMessages();
   }, [member]);
+
+  // Block status between the current user and this chat's member
+  useEffect(() => {
+    if (!member?._id) return;
+    let cancelled = false;
+    getBlockStatus(member._id)
+      .then((status) => {
+        if (!cancelled && status) setBlockStatus(status);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [member]);
+
+  // Close the header "..." dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target)) {
+        setShowHeaderMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // BACKEND EVENT: the other participant deleted a message they sent us
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDeleted = ({ messageId }) => {
+      setMessages(prev => prev.filter(m => m._id !== messageId));
+    };
+
+    socket.on("message:deleted", handleDeleted);
+
+    return () => {
+      socket.off("message:deleted", handleDeleted);
+    };
+  }, [socket]);
 
 
   useEffect(() => {
@@ -192,6 +236,26 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
     };
   }, [socket, member]);
 
+  // BACKEND EVENT: Listening for the other participant's reactions
+  // (the reactor's own client is updated via the message:react ack instead)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReacted = ({ messageId, reactions }) => {
+      setMessages(prev =>
+        prev.map(msg =>
+          msg._id === messageId ? { ...msg, reactions } : msg
+        )
+      );
+    };
+
+    socket.on("message:reacted", handleReacted);
+
+    return () => {
+      socket.off("message:reacted", handleReacted);
+    };
+  }, [socket]);
+
   // 3. BACKEND EVENTS: Listening for incoming typing signals
   useEffect(() => {
     if (!socket) return;
@@ -238,6 +302,21 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
       });
 
       setMessages((prev) => [...prev, response.message]);
+
+      // First message in a brand-new chat: the conversation didn't exist
+      // client-side until the backend just created it. Report it back up
+      // so the parent stops passing conversation=null (history refetch,
+      // sidebar entry, calls, etc. all key off this).
+      if (!conversation?._id && setSelectedConversation) {
+        setSelectedConversation({
+          _id: response.conversationId || response.message.conversationId,
+          participants: [user, member],
+          lastMessage: response.message,
+          unreadCount: { [user._id]: 0, [member._id]: 0 },
+          updatedAt: new Date(),
+        });
+      }
+
       setMessageInput('');
       setSelectedFile(null);
     } catch (error) {
@@ -302,7 +381,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   useEffect(() => {
-    console.log(messages);
+  
     scrollToBottom();
     setMsgCounts((prevCounts) => ({ ...prevCounts, [member?._id]: 0 }));
   }, [messages]);
@@ -324,14 +403,81 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
     input.click();
   };
 
-  const handleReaction = (message, emoji) => {
-    console.log("Reacting to message:", message._id, "with emoji:", emoji);
-    socket.emit("message:reaction", {
-      messageId: message._id,
-      receiverId: member._id,
-      emoji,
-    });
+  const handleViewContact = () => {
+    setShowHeaderMenu(false);
+    if (member?._id) navigate(`/ProfilePage/${member._id}`);
   };
+
+  const handleClearChat = async () => {
+    setShowHeaderMenu(false);
+    if (!conversation?._id) return;
+    if (!window.confirm("Clear all messages in this chat? This can't be undone.")) return;
+    try {
+      await clearChat(conversation._id);
+      setMessages([]);
+      setDecryptedMessages({});
+    } catch (error) {
+      console.error("Failed to clear chat:", error);
+    }
+  };
+
+  const handleToggleBlock = async () => {
+    setShowHeaderMenu(false);
+    if (!member?._id) return;
+    try {
+      if (blockStatus.blockedByMe) {
+        await unblockUser(member._id);
+        setBlockStatus((prev) => ({ ...prev, blockedByMe: false }));
+      } else {
+        if (!window.confirm(`Block ${member?.userName || "this user"}? They won't be able to message you.`)) return;
+        await blockUser(member._id);
+        setBlockStatus((prev) => ({ ...prev, blockedByMe: true }));
+      }
+    } catch (error) {
+      console.error("Failed to toggle block state:", error);
+    }
+  };
+
+  const handleDeleteMessage = (message) => {
+    if (!socket) return;
+    if (!window.confirm("Delete this message?")) return;
+    socket.emit(
+      "message:delete",
+      {
+        messageId: message._id,
+        receiverId: member._id,
+      },
+      (response) => {
+        if (response?.status === "ok") {
+          setMessages((prev) => prev.filter((m) => m._id !== message._id));
+        }
+      }
+    );
+  };
+
+  const handleReaction = (message, emoji) => {
+    if (!socket) return;
+    socket.emit(
+      "message:react",
+      {
+        messageId: message._id,
+        receiverId: member._id,
+        emoji,
+      },
+      (response) => {
+        if (response?.status === "ok") {
+          setMessages(prev =>
+            prev.map(msg =>
+              msg._id === message._id
+                ? { ...msg, reactions: response.reactions }
+                : msg
+            )
+          );
+        }
+      }
+    );
+  };
+  const isBlocked = blockStatus.blockedByMe || blockStatus.blockedMe;
   const { isDark } = useContext(ThemeContext);
   const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
   const headerFooterBg = isDark ? "bg-secondary text-white border-secondary" : "bg-light text-dark border-light";
@@ -401,15 +547,54 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
               <FaVideo size={16} />
             </button>
 
-            <button className="btn btn-sm">
-              <FaEllipsisV size={16} />
-            </button>
+            <div ref={headerMenuRef} className="position-relative">
+              <button
+                className="btn btn-sm"
+                onClick={() => setShowHeaderMenu((prev) => !prev)}
+              >
+                <FaEllipsisV size={16} />
+              </button>
+
+              {showHeaderMenu && (
+                <div
+                  className={`position-absolute end-0 shadow-lg rounded border p-2 ${isDark ? "bg-dark border-secondary" : "bg-white border-light"}`}
+                  style={{ top: "36px", width: "200px", zIndex: 1050 }}
+                >
+                  <button
+                    className="d-flex align-items-center gap-2 p-2 rounded btn btn-link text-decoration-none w-100 text-start text-reset"
+                    onClick={handleViewContact}
+                  >
+                    <FaUserCircle /> View Contact
+                  </button>
+                  <button
+                    className="d-flex align-items-center gap-2 p-2 rounded btn btn-link text-decoration-none w-100 text-start text-reset"
+                    onClick={handleClearChat}
+                  >
+                    <FaTrashAlt /> Clear Chat
+                  </button>
+                  <button
+                    className="d-flex align-items-center gap-2 p-2 rounded btn btn-link text-decoration-none w-100 text-start text-danger"
+                    onClick={handleToggleBlock}
+                  >
+                    <FaBan /> {blockStatus.blockedByMe ? "Unblock User" : "Block User"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
         </div>
 
 
       </div>
+
+      {(blockStatus.blockedByMe || blockStatus.blockedMe) && (
+        <div className={`text-center small py-1 ${isDark ? "bg-secondary text-light" : "bg-light text-muted"}`}>
+          {blockStatus.blockedByMe
+            ? "You have blocked this user. Unblock to send messages."
+            : "You can no longer message this user."}
+        </div>
+      )}
 
       {/* Message Area */}
       <div className="flex-grow-1 p-3 overflow-y-auto" style={{ background: messagesAreaBg }}>
@@ -429,28 +614,30 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
                 <div className={isReceived ? "bubble-col bubble-col-start" : "bubble-col bubble-col-end"}>
                   <div className={`chat-bubble ${isReceived ? "chat-bubble-received" : "chat-bubble-sent"}`}>
 
-                    <div className="small text-break mb-1">
-                      {decryptedMessages[message._id] ? decryptedMessages[message._id] : "…hi"}
-                    </div>
+                    {decryptedMessages[message._id] && (
+                      <div className="small text-break mb-1">
+                        {decryptedMessages[message._id]}
+                      </div>
+                    )}
 
                     {message?.attachment && (
                       <div className="chat-attachment">
-                        {message.messageType === "image" && (
+                        {message.attachment.type === "image" && (
                           <img
-                            src={message.attachment.url}
+                            src={message.attachment.name}
                             alt="Attachment"
                             className="img-fluid w-100"
                             style={{ maxHeight: "200px", objectFit: "cover", display: "block" }}
                           />
                         )}
-                        {message.messageType === "video" && (
+                        {message.attachment.type === "video" && (
                           <video controls className="w-100" style={{ maxHeight: "200px" }}>
-                            <source src={message.attachment.url} type="video/mp4" />
+                            <source src={message.attachment.name} type="video/mp4" />
                           </video>
                         )}
-                        {(!message.messageType || message.messageType === "file") && (
+                        {(!message.attachment.type || message.attachment.type === "file") && (
                           <a
-                            href={message.attachment.url}
+                            href={message.attachment.name}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="chat-file-link"
@@ -486,11 +673,43 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
 
                   <MessageReactions reactions={message.reactions} isReceived={isReceived} />
 
+                  <div className="d-flex align-items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm p-0 border-0 bg-transparent text-muted"
+                      style={{ fontSize: "0.75rem", opacity: 0.6 }}
+                      onClick={() =>
+                        setActiveReactionMessage((prev) =>
+                          prev === message._id ? null : message._id
+                        )
+                      }
+                      aria-label="React to message"
+                    >
+                      <FontAwesomeIcon icon={faSmile} />
+                    </button>
+
+                    {!isReceived && (
+                      <button
+                        type="button"
+                        className="btn btn-sm p-0 border-0 bg-transparent text-muted"
+                        style={{ fontSize: "0.75rem", opacity: 0.6 }}
+                        onClick={() => handleDeleteMessage(message)}
+                        aria-label="Delete message"
+                      >
+                        <FaTrashAlt />
+                      </button>
+                    )}
+                  </div>
+
+                  {activeReactionMessage === message._id && (
                     <ReactionMenu
                       isReceived={isReceived}
-                      onSelect={(emoji) => handleReaction(message, emoji)}
+                      onSelect={(emoji) => {
+                        handleReaction(message, emoji);
+                        setActiveReactionMessage(null);
+                      }}
                     />
-              
+                  )}
                 </div>
               </div>
             );
@@ -523,7 +742,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
         )}
 
         <div className="d-flex align-items-center gap-1">
-          <button className="btn border-0 p-2 text-reset" onClick={() => setShowAttachmentPopup(!showAttachmentPopup)}>
+          <button className="btn border-0 p-2 text-reset" onClick={() => setShowAttachmentPopup(!showAttachmentPopup)} disabled={isBlocked}>
             <FontAwesomeIcon icon={faPaperclip} />
           </button>
 
@@ -531,19 +750,20 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack }) => {
             type="text"
             ref={inputRef}
             className={`form-control form-control-sm border-0 ${isDark ? 'bg-dark text-white' : 'bg-white text-dark'}`}
-            placeholder="Type a message..."
+            placeholder={isBlocked ? "You can't send messages in this chat" : "Type a message..."}
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             onFocus={handleTyping}
             onBlur={handleBlur}
             style={{ borderRadius: "20px" }}
+            disabled={isBlocked}
           />
 
-          <button className="btn border-0 p-2 text-reset" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+          <button className="btn border-0 p-2 text-reset" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={isBlocked}>
             <FontAwesomeIcon icon={faSmile} />
           </button>
 
-          <button className="btn btn-success rounded-circle d-flex align-items-center justify-content-center p-2" onClick={() => sendMessage(selectedFile)} disabled={!messageInput.trim() && !selectedFile} style={{ width: "36px", height: "36px" }}>
+          <button className="btn btn-success rounded-circle d-flex align-items-center justify-content-center p-2" onClick={() => sendMessage(selectedFile)} disabled={isBlocked || (!messageInput.trim() && !selectedFile)} style={{ width: "36px", height: "36px" }}>
             <FontAwesomeIcon icon={faPaperPlane} size="sm" className="text-white" />
           </button>
         </div>

@@ -1,18 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaImage, FaTimes, FaRegSmile, FaChartBar, FaGlobeAmericas, FaChevronDown } from 'react-icons/fa';
+import { FaImage, FaTimes, FaRegSmile, FaChartBar, FaGlobeAmericas, FaChevronDown, FaSpinner } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const PostModal = ({ showModal, onClose, handleAddPost }) => {
-  const [text, setText] = useState('');
+const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initialText = '', isSubmitting = false, error = null }) => {
+  const isEdit = mode === 'edit';
+  const [text, setText] = useState(initialText);
   const [media, setMedia] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Auto-focus logic
+  // Auto-focus logic; reset the draft each time the modal opens
   const textareaRef = useRef(null);
   useEffect(() => {
-    if (showModal && textareaRef.current) {
-      textareaRef.current.focus();
+    if (showModal) {
+      setText(initialText);
+      setMedia(null);
+      textareaRef.current?.focus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showModal]);
 
   const handleMediaUpload = (e) => {
@@ -48,16 +52,18 @@ const PostModal = ({ showModal, onClose, handleAddPost }) => {
               <span>Public</span>
               <FaChevronDown size={10} />
             </div>
-            <button 
+            <button
               onClick={() => handleAddPost(text, media)}
-              disabled={!text.trim() && !media}
+              disabled={isSubmitting || (isEdit ? !text.trim() : !text.trim() && !media)}
               className="studio-publish-btn"
             >
-              Publish
+              {isSubmitting ? <FaSpinner className="studio-spin" /> : (isEdit ? 'Save' : 'Publish')}
             </button>
           </div>
 
           <div className="studio-scroll-area">
+            {error && <div className="studio-error">{error}</div>}
+
             {/* Input Section */}
             <div className="studio-input-wrapper">
               <textarea
@@ -67,11 +73,12 @@ const PostModal = ({ showModal, onClose, handleAddPost }) => {
                 placeholder="What's happening?"
                 className="studio-textarea"
                 rows={media ? 2 : 5}
+                disabled={isSubmitting}
               />
             </div>
 
             {/* Media Preview */}
-            {media && (
+            {!isEdit && media && (
               <div className="studio-media-preview">
                 <button onClick={() => setMedia(null)} className="studio-remove-media">
                   <FaTimes size={12} />
@@ -88,18 +95,22 @@ const PostModal = ({ showModal, onClose, handleAddPost }) => {
           {/* Bottom Interactive Bar */}
           <div className="studio-footer">
             <div className="studio-actions">
-              <input 
-                type="file" 
-                hidden 
-                ref={fileInputRef} 
-                onChange={handleMediaUpload} 
-                accept="image/*,video/*" 
-              />
-              <button className="studio-action-btn" onClick={() => fileInputRef.current.click()}>
-                <FaImage />
-              </button>
-              <button className="studio-action-btn"><FaChartBar /></button>
-              <button className="studio-action-btn"><FaRegSmile /></button>
+              {!isEdit && (
+                <>
+                  <input
+                    type="file"
+                    hidden
+                    ref={fileInputRef}
+                    onChange={handleMediaUpload}
+                    accept="image/*,video/*"
+                  />
+                  <button className="studio-action-btn" onClick={() => fileInputRef.current.click()}>
+                    <FaImage />
+                  </button>
+                  <button className="studio-action-btn"><FaChartBar /></button>
+                  <button className="studio-action-btn"><FaRegSmile /></button>
+                </>
+              )}
             </div>
 
             <div className={`studio-counter ${text.length > 250 ? 'warning' : ''}`}>
@@ -195,6 +206,25 @@ const PostModal = ({ showModal, onClose, handleAddPost }) => {
           .studio-publish-btn:disabled {
             opacity: 0.3;
             cursor: not-allowed;
+          }
+
+          .studio-spin {
+            animation: studio-spin 0.8s linear infinite;
+          }
+
+          @keyframes studio-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+
+          .studio-error {
+            background: rgba(255, 77, 77, 0.12);
+            border: 1px solid rgba(255, 77, 77, 0.35);
+            color: #ff8080;
+            font-size: 0.8rem;
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-bottom: 14px;
           }
 
           .studio-scroll-area {

@@ -1,0 +1,208 @@
+/*
+  Chat bubble redesign — distinctive shape + theme-aware colors.
+  Drop this into your global stylesheet (or a chat.css imported once).
+
+  Theming approach: define the bubble colors as CSS variables on :root
+  and override them under a [data-theme="dark"] (or .dark) selector —
+  swap the selector below to match whatever dark-mode mechanism your
+  app already uses (class on <html>, data attribute, prefers-color-scheme).
+*/
+
+:root {
+  --color-bubble-sent-bg: #2563eb;
+  --color-bubble-sent-text: #ffffff;
+  --color-bubble-received-bg: #f1f3f5;
+  --color-bubble-received-text: #1a1a1a;
+  --color-bubble-border: rgba(0, 0, 0, 0.06);
+  --color-bubble-meta: rgba(0, 0, 0, 0.45);
+  --color-bubble-meta-sent: rgba(255, 255, 255, 0.75);
+  --color-pill-bg: #ffffff;
+  --color-pill-border: rgba(0, 0, 0, 0.08);
+  --color-pill-text: #1a1a1a;
+  --color-read-tick: #38bdf8;
+}
+
+[data-theme="dark"] {
+  --color-bubble-sent-bg: #3b6fe0;
+  --color-bubble-sent-text: #f5f7fa;
+  --color-bubble-received-bg: #23262b;
+  --color-bubble-received-text: #e8e9eb;
+  --color-bubble-border: rgba(255, 255, 255, 0.08);
+  --color-bubble-meta: rgba(255, 255, 255, 0.5);
+  --color-bubble-meta-sent: rgba(255, 255, 255, 0.7);
+  --color-pill-bg: #1c1f24;
+  --color-pill-border: rgba(255, 255, 255, 0.1);
+  --color-pill-text: #e8e9eb;
+  --color-read-tick: #5ad1ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bubble-sent-bg: #3b6fe0;
+    --color-bubble-sent-text: #f5f7fa;
+    --color-bubble-received-bg: #23262b;
+    --color-bubble-received-text: #e8e9eb;
+    --color-bubble-border: rgba(255, 255, 255, 0.08);
+    --color-bubble-meta: rgba(255, 255, 255, 0.5);
+    --color-bubble-meta-sent: rgba(255, 255, 255, 0.7);
+    --color-pill-bg: #1c1f24;
+    --color-pill-border: rgba(255, 255, 255, 0.1);
+    --color-pill-text: #e8e9eb;
+    --color-read-tick: #5ad1ff;
+  }
+}
+
+.bubble-col {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+  min-width: 60px;
+}
+
+.bubble-col-start {
+  align-items: flex-start;
+}
+
+.bubble-col-end {
+  align-items: flex-end;
+}
+
+.chat-bubble {
+  position: relative;
+  padding: 8px 12px 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 0.5px solid var(--color-bubble-border);
+}
+
+/* The signature shape: one sharp corner, three rounded. */
+.chat-bubble-received {
+  background-color: var(--color-bubble-received-bg);
+  color: var(--color-bubble-received-text);
+  border-radius: 4px 16px 16px 16px;
+}
+
+.chat-bubble-sent {
+  background-color: var(--color-bubble-sent-bg);
+  color: var(--color-bubble-sent-text);
+  border-radius: 16px 4px 16px 16px;
+}
+
+.chat-attachment {
+  margin: 4px 0 6px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.chat-file-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.chat-bubble-sent .chat-file-link {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.chat-file-icon {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.chat-file-download {
+  font-size: 0.8rem;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 0.65rem;
+  color: var(--color-bubble-meta);
+}
+
+.chat-bubble-sent .chat-meta {
+  color: var(--color-bubble-meta-sent);
+}
+
+.chat-read {
+  color: var(--color-read-tick);
+}
+
+/* Reactions: a small pill sitting just under the bubble, not overlapping it. */
+.reaction-pill {
+  display: flex;
+  gap: 4px;
+  margin-top: -8px;
+  background: var(--color-pill-bg);
+  border: 0.5px solid var(--color-pill-border);
+  color: var(--color-pill-text);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.reaction-pill-start {
+  margin-left: 10px;
+}
+
+.reaction-pill-end {
+  margin-right: 10px;
+}
+
+.reaction-pill-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.reaction-pill-count {
+  font-size: 0.7rem;
+  color: var(--color-pill-text);
+  opacity: 0.7;
+}
+
+/* Reaction picker menu */
+.reaction-menu {
+  display: flex;
+  gap: 8px;
+  background: var(--color-pill-bg);
+  border: 0.5px solid var(--color-pill-border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  margin-top: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+}
+
+.reaction-menu-start {
+  align-self: flex-start;
+}
+
+.reaction-menu-end {
+  align-self: flex-end;
+}
+
+.reaction-menu-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.1s ease;
+}
+
+.reaction-menu-btn:hover {
+  transform: scale(1.2);
+}

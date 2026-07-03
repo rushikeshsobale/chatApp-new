@@ -272,6 +272,40 @@ module.exports = (io) => {
             }
         );
         // ==================================================
+        // DELETE
+        // ==================================================
+
+        socket.on(
+            "message:delete",
+            async ({ messageId, receiverId }, callback) => {
+                try {
+                    const message = await Message.findById(messageId);
+
+                    if (!message) {
+                        if (callback) callback({ status: "error", message: "Message not found" });
+                        return;
+                    }
+
+                    if (message.senderId !== socket.userId) {
+                        if (callback) callback({ status: "error", message: "Not authorized" });
+                        return;
+                    }
+
+                    message.isDeleted = true;
+                    message.deletedAt = new Date();
+                    await message.save();
+
+                    io.to(receiverId).emit("message:deleted", { messageId });
+
+                    if (callback) callback({ status: "ok" });
+                } catch (err) {
+                    console.error(err);
+                    if (callback) callback({ status: "error" });
+                }
+            }
+        );
+
+        // ==================================================
         // REACTIONS
         // ==================================================
 
