@@ -405,7 +405,7 @@ router.post("/verify-email", async (req, res) => {
       {
         userId: user._id,
       },
-      process.env.JWT_SECRET,
+      secretKey,
       {
         expiresIn: "7d",
       }
@@ -577,7 +577,7 @@ router.put(
       // Generate token
       const token = jwt.sign(
         { userId: updatedUser._id },
-        process.env.JWT_SECRET,
+        secretKey,
         {
           expiresIn: "7d",
         }
