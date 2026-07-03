@@ -31,7 +31,12 @@ api.interceptors.response.use(
     if (error.response) {
       switch (status) {
         case 401:
-          // Session expired mid-app (not during login) -> back to login
+          // Session expired or was never valid (e.g. stale localStorage
+          // from a previous session with no matching cookie). Clear the
+          // cached user so the app stops treating it as logged in and
+          // re-firing authenticated requests that will just 401 again.
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
           window.location.href = '/login';
           break;
         case 403:
