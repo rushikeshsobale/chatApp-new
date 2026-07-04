@@ -20,6 +20,8 @@ const io = socketIo(server, {
     credentials: true
   }
 });
+// Lets Express route handlers reach the same io instance via req.app.get('io')
+app.set('io', io);
 // Import and initialize Socket.IO logic
 require("./socket/socket")(io);
 // Error handling middleware

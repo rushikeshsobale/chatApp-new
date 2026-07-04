@@ -1,10 +1,8 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spinner, Button, Form, Alert } from 'react-bootstrap';
 import moment from 'moment';
-import axios from 'axios';
-import { createNotification } from '../services/notificationService';
-import { UserContext } from '../contexts/UserContext';
+import { getPostById, likePost, addComment } from '../services/profileService';
 const PostDetail = () => {
   const { postId } = useParams();
   const [post, setPost] = useState(null);
@@ -16,16 +14,13 @@ const PostDetail = () => {
   const [isLiking, setIsLiking] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
   const navigate = useNavigate();
-  const apiUrl = process.env.REACT_APP_API_URL;
-  const {socket} = useContext(UserContext)
   const currentUser = JSON.parse(localStorage.getItem('user'));
   const userId = currentUser?._id || currentUser?.userId;
 
   useEffect(() => {
     const fetchPostDetails = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/post/getPost/${postId}`);
-        const { data } = response;
+        const data = await getPostById(postId);
         if (data.success) {
           setPost(data.post);
           setLikes(data.post.likes || []);
@@ -51,28 +46,9 @@ const PostDetail = () => {
 
     setIsLiking(true);
     try {
-      const response = await axios.post(`${apiUrl}/post/likePost/${postId}`, {
-        userId: userId
-      });
-
-      if (response.data.success) {
-        setLikes(response.data.likes);
-        createNotification({
-          recipient: post.userId._id,
-          sender: userId,
-          type: 'like',
-          postId: postId,
-          message: `${currentUser?.userName || 'Someone'} liked your post`
-        });
-        socket.emit('emit_notification', {
-          recipient: post.userId._id,
-          sender: userId,
-          type: 'like',
-          postId: postId,
-          message: `${currentUser?.userName || 'Someone'} liked your post`
-        })
-          
-        
+      const data = await likePost(postId);
+      if (data.success) {
+        setLikes(data.likes);
       }
     } catch (error) {
       setError(error.response?.data?.message || 'Error liking post');
@@ -90,29 +66,10 @@ const PostDetail = () => {
 
     setIsCommenting(true);
     try {
-      const response = await axios.post(`${apiUrl}/post/posts/${postId}/comments`, {
-        userId: userId,
-        text: newComment.trim()
-      });
-
-      if (response.data.success) {
-        setComments(response.data.comments);
+      const data = await addComment(postId, newComment.trim());
+      if (data.success) {
+        setComments((prev) => [...prev, data.comment]);
         setNewComment('');
-        createNotification({
-          recipient: post.userId._id,
-          sender: userId,
-          type: 'comment',
-          postId: postId,
-          message: `${currentUser?.userName || 'Someone'} commented on your post: "${newComment.trim()}"`
-        });
-
-        socket.emit('emit_notification', {
-          recipient: post.userId._id,
-          sender: userId,
-          type: 'comment',
-          postId: postId,
-          message: `${currentUser?.userName || 'Someone'} commented on your post: "${newComment.trim()}"`
-        })
       }
     } catch (error) {
       setError(error.response?.data?.message || 'Error adding comment');

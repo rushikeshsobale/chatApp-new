@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/homeFeed.css';
 import moment from 'moment';
@@ -27,7 +28,7 @@ import {
   createStory,
   getStories,
 } from '../services/profileService';
-import { createNotification, getNotifications, updateNotification } from '../services/notificationService';
+import { selectUnreadNotificationCount } from '../store/notificationSlice';
 import StoryCircle from '../components/StoryCircle';
 import StoryViewer from '../components/StoryViewer';
 import CreateStory from '../components/CreateStory';
@@ -400,34 +401,6 @@ function usePosts(userId) {
   return { posts, setPosts, loading, loadingMore, hasMore, error, fetchPosts, fetchMorePosts, refreshPost, toggleLike, submitComment, removeComment, toggleSave };
 }
 
-function useNotifications(userId) {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchNotifications = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const data = await getNotifications(userId);
-      setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.read).length || 0);
-    } catch {
-      // Non-critical
-    }
-  }, [userId]);
-
-  const markRead = useCallback(async (notificationId) => {
-    try {
-      await updateNotification(notificationId, true);
-      setNotifications(prev => prev.map(n => n._id === notificationId ? { ...n, read: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {
-      // Non-critical
-    }
-  }, []);
-
-  return { notifications, unreadCount, fetchNotifications, markRead };
-}
-
 function useStories(userId) {
   const [storyGroups, setStoryGroups] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -442,27 +415,18 @@ function useStories(userId) {
     }
   }, [userId]);
 
-  const createNewStory = useCallback(async (storyData, { socket, user, onSuccess }) => {
+  const createNewStory = useCallback(async (storyData, { onSuccess } = {}) => {
     setUploading(true);
     try {
-      const data = await createStory(storyData);
+      await createStory(storyData);
       await fetchStories();
       onSuccess?.();
-      if (data && socket) {
-        socket.emit('emit_notification', {
-          sender: userId,
-          type: 'story',
-          message: `${user?.userName || 'Someone'} added a story`,
-          createdAt: new Date().toISOString(),
-          read: false,
-        });
-      }
     } catch {
       // Could add a toast here
     } finally {
       setUploading(false);
     }
-  }, [userId, fetchStories]);
+  }, [fetchStories]);
 
   return { storyGroups, setStoryGroups, uploading, fetchStories, createNewStory };
 }
@@ -470,11 +434,12 @@ function useStories(userId) {
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-const HomePage = ({ socket }) => {
+const HomePage = () => {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
-  const { user } = useContext(UserContext);
+  const { user, socket } = useContext(UserContext);
   const userId = user?._id;
+  const unreadCount = useSelector(selectUnreadNotificationCount);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showStoryViewer, setShowStoryViewer] = useState(false);
@@ -485,7 +450,6 @@ const HomePage = ({ socket }) => {
   const [viewerPost, setViewerPost] = useState(null);
 
   const { posts, setPosts, loading, loadingMore, hasMore, error, fetchPosts, fetchMorePosts, refreshPost, toggleLike, submitComment, removeComment, toggleSave } = usePosts(userId);
-  const { unreadCount, fetchNotifications, markRead } = useNotifications(userId);
   const { storyGroups, setStoryGroups, uploading, fetchStories, createNewStory } = useStories(userId);
 
   // Auth guard
@@ -498,27 +462,24 @@ const HomePage = ({ socket }) => {
   useEffect(() => {
     if (!userId) return;
     fetchPosts();
-    fetchNotifications();
     fetchStories();
-  }, [userId, fetchPosts, fetchNotifications, fetchStories]);
+  }, [userId, fetchPosts, fetchStories]);
 
-  // Socket sync
+  // A live "like"/"comment" notification means that post's data changed
+  // under us — refresh just that post. The notification itself is already
+  // handled globally (UserContext dispatches it into Redux).
   useEffect(() => {
     if (!socket) return;
 
     const handleSocketNotification = (data) => {
-      fetchNotifications();
       if (data.type === 'comment' || data.type === 'like') {
-        refreshPost(data.postId, data.type);
-      }
-      if (data.type === 'story') {
-        fetchStories();
+        refreshPost(data.post, data.type);
       }
     };
 
     socket.on('got_a_notification', handleSocketNotification);
     return () => socket.off('got_a_notification', handleSocketNotification);
-  }, [socket, fetchNotifications, refreshPost, fetchStories]);
+  }, [socket, refreshPost]);
 
   // Filtered feed — memoised
   const filteredPosts = useMemo(() =>
@@ -544,8 +505,6 @@ const HomePage = ({ socket }) => {
 
   const handleCreateStory = (storyData) => {
     createNewStory(storyData, {
-      socket,
-      user,
       onSuccess: () => setShowCreateStory(false),
     });
   };

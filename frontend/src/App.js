@@ -1,6 +1,5 @@
 import React, { useEffect, useContext, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { useDispatch } from "react-redux";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
@@ -12,7 +11,6 @@ import Navbar from "./components/Nav";
 import AuthForms from "./pages/AuthForms";
 import IncomingCall from "./components/videoCall/IncomingCall";
 
-import { updateNotifications } from "./store/notificationSlice";
 import { getUserData } from "./services/profileService";
 
 // Lazy loaded routes
@@ -48,7 +46,6 @@ const ManagedNavbar = () => {
 };
 
 function App() {
-  const dispatch = useDispatch();
   const isDark = useContext(ThemeContext).isDark;
 
   // ✅ FIX 1: Rename the Redux variable to avoid shadowing your authentication context
@@ -89,12 +86,6 @@ function App() {
   // Realtime VoIP Signaling Layer Overlay
   useEffect(() => {
     if (socket) {
-      socket.on('friendRequestNotification', (data) => {
-        dispatch(updateNotifications(data));
-        const audio = new Audio('/mixkit-bell-notification-933.wav');
-        audio.play().catch(e => console.log("Audio autoplay deferred:", e));
-      });
-
       socket.on('recievedMessage', () => {
         loadUnseenMessages();
       });
@@ -102,11 +93,10 @@ function App() {
 
     return () => {
       if (socket) {
-        socket.off('friendRequestNotification');
         socket.off('recievedMessage');
       }
     };
-  }, [socket, dispatch, loadUnseenMessages]);
+  }, [socket, loadUnseenMessages]);
 
   // Clean Socket Disconnection Teardown
   useEffect(() => {

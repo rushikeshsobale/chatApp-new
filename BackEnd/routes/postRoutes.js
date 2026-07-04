@@ -10,6 +10,7 @@ const Media = require("../Modules/Media.js");
 const Post = require("../Modules/Post.js");
 const Relationship = require("../Modules/relationships.js");
 const { uploadToS3, deleteFromS3 } = require("../utils/s3Upload");
+const { notify } = require("../utils/notify");
 const verifyToken = require("./verifyToken.js");
 const upload = multer({ storage: multer.memoryStorage() });
 router.post("/mediaPost", verifyToken, upload.single("media"), async (req, res) => {
@@ -197,6 +198,14 @@ router.post("/:postId/comments", verifyToken, async (req, res) => {
       comment: populatedComment.comments[0]
     });
 
+    notify(req.app.get('io'), {
+      recipient: post.userId,
+      sender: userId,
+      type: 'comment',
+      post: postId,
+      verb: `commented on your post: "${commentText}"`,
+    }).catch((err) => console.error('Error notifying comment:', err));
+
   } catch (error) {
     console.error("Error adding comment:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -238,6 +247,14 @@ router.post("/likePost/:postId", verifyToken,  async (req, res) => {
     post.likes.push({ userId });
     await post.save();
     res.status(201).json({ success: true, likes: post.likes });
+
+    notify(req.app.get('io'), {
+      recipient: post.userId,
+      sender: userId,
+      type: 'like',
+      post: postId,
+      verb: 'liked your post',
+    }).catch((err) => console.error('Error notifying like:', err));
   } catch (error) {
     console.error("Error liking post:", error);
     res.status(500).json({ success: false, message: "Internal server error" });

@@ -1,5 +1,6 @@
 const Message = require("../Modules/Messages");
 const Conversation = require("../Modules/conversations");
+const { notify } = require("../utils/notify");
 // userId -> Set<socketId>. A user can have more than one tab/device
 // connected at once, so presence is only "offline" once every socket for
 // that user has disconnected — not just the first one to close.
@@ -128,6 +129,19 @@ module.exports = (io) => {
                     "conversation:update",
                     payload
                 );
+
+                // Calls get their own call:incoming signal — a notification
+                // row for the call_log message would just be noise.
+                if (message.messageType !== "call_log") {
+                    notify(io, {
+                        recipient: receiverId,
+                        sender: message.senderId,
+                        type: "message",
+                        verb: "sent you a message",
+                    }).catch((err) =>
+                        console.error("Error notifying message:", err)
+                    );
+                }
             }
         );
 

@@ -6,6 +6,7 @@ import {
 import { IoGridSharp } from "react-icons/io5";
 import { PiSlideshowFill } from "react-icons/pi";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { UserContext } from "../contexts/UserContext";
 import moment from "moment";
@@ -22,7 +23,6 @@ import SavedPosts from "./SavedPosts";
 import {
   getPostById,
   getUserPosts,
-  getNotifications as getProfileNotifications,
   getUserStories,
   createStory,
   updateUserProfile,
@@ -38,7 +38,11 @@ import {
   fetchSuggestions,
   getUserProfilePage,
 } from "../services/profileService";
-import { updateNotification } from "../services/notificationService";
+import {
+  markNotificationRead,
+  removeNotification,
+  selectUnreadNotificationCount,
+} from "../store/notificationSlice";
 import { getFollowers, getFollowing, sendFollowRequest, unfollowUser as unfollowRelationship } from "../services/relationships";
 import tokens from "../styles/designTokens";
 
@@ -138,10 +142,12 @@ const isVideoPost = (post) =>
 
 /* ─── main component ─────────────────────────────────────────────── */
 const ProfilePage = () => {
+  const dispatch = useDispatch();
   const { isDark } = useContext(ThemeContext);
   const { socket } = useContext(UserContext);
   const { user, setUser } = useContext(UserContext);
   const loggedInUserId = user?._id;
+  const unreadCount = useSelector(selectUnreadNotificationCount);
 
   const { userId: routeUserId } = useParams();
   const navigate = useNavigate();
@@ -159,8 +165,6 @@ const ProfilePage = () => {
   const [postsLoading, setPostsLoading] = useState(true);
   const [stories, setStories] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [storyGroups, setStoryGroups] = useState([]);
 
   const [activeTab, setActiveTab] = useState("grid");
@@ -183,7 +187,6 @@ const ProfilePage = () => {
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastScrollY = useRef(0);
 
-  const token = localStorage.getItem("token");
   const apiUrl = process.env.REACT_APP_API_URL;
 
   const d = isDark; // shorthand
@@ -242,17 +245,6 @@ const ProfilePage = () => {
     );
   };
 
-  const fetchNotifications = async () => {
-    if (!user) return;
-    try {
-      const notifs = await getProfileNotifications(user?._id);
-      setNotifications(notifs || []);
-      setUnreadCount(notifs?.filter((n) => !n.read).length || 0);
-    } catch (e) {
-      console.error("Error fetching notifications:", e);
-    }
-  };
-
   const fetchStories = async () => {
     if (!profileUserId) return;
     try {
@@ -301,10 +293,6 @@ const ProfilePage = () => {
   }, [profileUserId, profileUser?.isLocked]);
 
   useEffect(() => {
-    if (user) fetchNotifications();
-  }, []);
-
-  useEffect(() => {
     if (!isOwnProfile) {
       setSuggestions([]);
       return;
@@ -319,13 +307,16 @@ const ProfilePage = () => {
     })();
   }, [isOwnProfile]);
 
+  // A live "like"/"comment" notification means that post's data changed
+  // under us — refresh just that post. The notification itself is already
+  // handled globally (UserContext dispatches it into Redux).
   useEffect(() => {
     if (!socket) return;
-    socket.on("got_a_notification", (data) => {
-      fetchNotifications();
-      if (data.type === "comment" || data.type === "like") fetchPostById(data.postId, data.type);
-    });
-    return () => socket.off("got_a_notification");
+    const handleSocketNotification = (data) => {
+      if (data.type === "comment" || data.type === "like") fetchPostById(data.post, data.type);
+    };
+    socket.on("got_a_notification", handleSocketNotification);
+    return () => socket.off("got_a_notification", handleSocketNotification);
   }, [socket]);
 
   /* ── handlers ── */
@@ -439,20 +430,12 @@ const ProfilePage = () => {
     }
   };
 
-  const handleMarkNotificationAsRead = async (notificationId) => {
-    try {
-      await updateNotification(notificationId, true);
-      setNotifications((prev) => prev?.map((n) => (n._id === notificationId ? { ...n, read: true } : n)));
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (e) { console.error(e); }
+  const handleMarkNotificationAsRead = (notificationId) => {
+    dispatch(markNotificationRead(notificationId));
   };
 
-  const handleDeleteNotification = async (notificationId) => {
-    try {
-      await fetch(`${apiUrl}/notifications/${notificationId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` }, credentials: "include" });
-      setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (e) { console.error(e); }
+  const handleDeleteNotification = (notificationId) => {
+    dispatch(removeNotification(notificationId));
   };
 
   const handleSave = async (profileData) => {
@@ -468,7 +451,6 @@ const ProfilePage = () => {
       await createStory(storyData);
       await fetchStories();
       setShowCreateStory(false);
-      socket.emit("emit_notification", { sender: loggedInUserId, type: "story", message: `${user?.userName} added a story`, createdAt: new Date().toISOString(), read: false });
     } catch (e) { console.error(e); }
   };
 

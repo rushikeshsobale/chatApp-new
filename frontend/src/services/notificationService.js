@@ -1,19 +1,8 @@
 import api from '../api';
 
-export const createNotification = async (notificationData) => {
-  
-    try {
-        const response = await api.post('/notifications/create', notificationData);
-        return response.data;
-    } catch (error) {
-        throw new Error("Failed to create notification");
-    }
-};
-
 export const getNotifications = async (id) => {
-   console.log('Fetching notifications for user ID:', id);
    if(!id) return [];
-  
+
     try {
         const response = await api.get(`/notifications/fetch/${id}`);
         return response.data;

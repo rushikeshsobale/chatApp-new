@@ -80,16 +80,6 @@ export const getPostById =async(postId)=>{
      throw new Error("failed to fetch the post by id")
     }
 }
-// Get notifications
-export const getNotifications = async (id) => {
-    if(!id) return [];
-    try {
-        const response = await api.get(`/notifications/fetch/${id}`);
-        return response.data;
-    } catch (error) {
-        throw new Error("Failed to fetch notifications");
-    }
-};
 // Get stories
 export const getStories = async (followers) => {
     try {

@@ -1,9 +1,7 @@
 
 import React, { useContext, useState, useEffect } from "react";
 import { FaUserPlus, FaUserCheck, FaUserClock } from "react-icons/fa";
-import { createNotification } from "../services/notificationService";
 import { useNavigate } from "react-router-dom";
-import { UserContext } from "../contexts/UserContext";
 import { sendFollowRequest, getRelationshipStatus } from "../services/relationships";
 import { fetchSuggestions } from "../services/profileService";
 
@@ -81,10 +79,8 @@ const FriendSuggestion = ({ loadData }) => {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 992);
   const [loadingId, setLoadingId] = useState(null);
 
-  const { socket } = useContext(UserContext);
   const navigate = useNavigate();
   const currentUser = JSON.parse(localStorage.getItem("user"));
-  const userId = currentUser?._id || currentUser?.userId;
 
   /* fetch suggestions */
   useEffect(() => {
@@ -131,17 +127,6 @@ const FriendSuggestion = ({ loadData }) => {
       if (!result) return;
       const newState = result.status === "pending" ? "requested" : "following";
       setFollowStatus((prev) => ({ ...prev, [user._id]: newState }));
-
-      const notif = {
-        recipient: user._id, sender: userId,
-        type: user.isPrivate ? "follow_request" : "follow",
-        message: user.isPrivate
-          ? `${currentUser?.userName || "Someone"} sent you a follow request`
-          : `${currentUser?.userName || "Someone"} started following you`,
-        createdAt: new Date().toISOString(), read: false,
-      };
-      await createNotification(notif);
-      socket?.emit("emit_notification", notif);
       loadData?.();
     } catch (e) {
       console.error("Follow error:", e);

@@ -1,10 +1,15 @@
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { UserContext } from '../contexts/UserContext';
 import { ThemeContext } from '../contexts/ThemeContext';
 import NotificationModal from '../components/Notification';
 import EditProfile from './EditProfile';
-import { updateNotification, deleteNotification } from '../services/notificationService';
+import {
+  markNotificationRead,
+  removeNotification,
+  selectUnreadNotificationCount,
+} from '../store/notificationSlice';
 import { updateUserProfile } from '../services/profileService';
 
 console.count("NavBAr");
@@ -254,10 +259,11 @@ const styles = `
 /* ─── Component ──────────────────────────────────────────────────────── */
 const Navbar = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const notifications = useSelector((state) => state.notifications.items);
+  const unreadCount = useSelector(selectUnreadNotificationCount);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -270,28 +276,12 @@ const Navbar = () => {
       .filter(Boolean)
   ).size;
 
-  const handleMarkNotificationAsRead = async (notificationId) => {
-    try {
-      await updateNotification(notificationId, true);
-      setNotifications(prev =>
-        prev.map(n => n._id === notificationId ? { ...n, read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Error marking notification as read:', err);
-    }
+  const handleMarkNotificationAsRead = (notificationId) => {
+    dispatch(markNotificationRead(notificationId));
   };
 
-  const handleDeleteNotification = async (notificationId) => {
-    try {
-      const response = await deleteNotification(notificationId);
-      if (response.ok) {
-        setNotifications(prev => prev.filter(n => n._id !== notificationId));
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
-    } catch (err) {
-      console.error('Error deleting notification:', err);
-    }
+  const handleDeleteNotification = (notificationId) => {
+    dispatch(removeNotification(notificationId));
   };
 
   const handleSave = async (profileData) => {

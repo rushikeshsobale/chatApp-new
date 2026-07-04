@@ -1,9 +1,16 @@
 import React, { createContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { io } from 'socket.io-client';
+import { useDispatch } from 'react-redux';
 import { initializeSocket, disconnectSocket } from '../utils/socket';
+import {
+  fetchNotifications,
+  notificationReceived,
+  clearNotifications,
+} from '../store/notificationSlice';
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
+  const dispatch = useDispatch();
   const [socket, setSocket] = useState(null);
   const [activeUsers, setActiveUsers] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(null);
@@ -34,6 +41,7 @@ export const UserProvider = ({ children }) => {
     if (!user?._id) {
       disconnectSocket();
       setSocket(null);
+      dispatch(clearNotifications());
       return;
     }
 
@@ -41,6 +49,12 @@ export const UserProvider = ({ children }) => {
     const socketConnection = initializeSocket(user._id);
     setSocket(socketConnection);
     socketConnection.emit('user:init', user._id);
+
+    dispatch(fetchNotifications(user._id));
+    socketConnection.on('got_a_notification', (data) => {
+      dispatch(notificationReceived(data));
+    });
+
     socketConnection.on('user:status_changed', (data) => {
       setActiveUsers((prev) => {
         const exists = prev.some((u) => (u.userId ?? u) === data.userId);

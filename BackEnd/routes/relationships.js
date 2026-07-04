@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Relationship = require("../Modules/relationships");
+const { notify } = require("../utils/notify");
 const verifyToken = require("./verifyToken.js");
 router.post("/", verifyToken , async (req, res) => {
   try {
@@ -10,7 +11,7 @@ router.post("/", verifyToken , async (req, res) => {
       return res.status(400).json({ message: "Cannot connect with yourself" });
     const existing = await Relationship.findOne({
       requester,
-      recipient: recipientId, 
+      recipient: recipientId,
       type,
     });
     if (existing)
@@ -23,6 +24,13 @@ router.post("/", verifyToken , async (req, res) => {
       status,
     });
     res.json(relationship);
+
+    notify(req.app.get('io'), {
+      recipient: recipientId,
+      sender: requester,
+      type: status === "accepted" ? "follow" : "follow_request",
+      verb: status === "accepted" ? "started following you" : "sent you a follow request",
+    }).catch((err) => console.error('Error notifying follow:', err));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -42,6 +50,13 @@ router.patch("/:id/accept", verifyToken, async (req, res) => {
     await relationship.save();
 
     res.json(relationship);
+
+    notify(req.app.get('io'), {
+      recipient: relationship.requester,
+      sender: req.decoded.userId,
+      type: 'follow',
+      verb: 'accepted your follow request',
+    }).catch((err) => console.error('Error notifying follow accept:', err));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
