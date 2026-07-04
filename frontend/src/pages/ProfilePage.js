@@ -466,6 +466,22 @@ const ProfilePage = () => {
     lastScrollY.current = cur;
   };
 
+  // Below the 991px breakpoint .main-scroll switches to overflow-y: unset
+  // (see the <style> block at the bottom of this component) and the
+  // window scrolls instead of that div, so the onScroll handler attached
+  // to .main-scroll never fires there — the floating dock's hide-on-
+  // scroll never triggered on mobile. Covers that case; harmless on
+  // desktop since .main-scroll's own scrolling means the window doesn't.
+  useEffect(() => {
+    const handleWindowScroll = () => {
+      const cur = window.scrollY;
+      setIsNavVisible(cur <= lastScrollY.current || cur <= 50);
+      lastScrollY.current = cur;
+    };
+    window.addEventListener("scroll", handleWindowScroll);
+    return () => window.removeEventListener("scroll", handleWindowScroll);
+  }, []);
+
   const tabs = [
     { id: "grid", label: "Posts", icon: <IoGridSharp size={14} /> },
     { id: "slideshow", label: "Reels", icon: <PiSlideshowFill size={14} /> },
@@ -925,30 +941,51 @@ const ProfilePage = () => {
       {isOwnProfile && (
         <div style={{
           position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", marginBottom: 16,
-          display: "flex", alignItems: "center", gap: 20, padding: "10px 24px",
-          background: d ? "rgba(17,17,17,0.88)" : "rgba(255,255,255,0.88)",
+          display: "flex", alignItems: "center", gap: 10, padding: "8px",
+          background: d ? "rgba(28,28,32,0.88)" : "rgba(255,255,255,0.88)",
           backdropFilter: "blur(12px)", borderRadius: tokens.radius.full, border: tokens.border(d),
           boxShadow: d ? "0 4px 24px rgba(0,0,0,0.5)" : "0 4px 24px rgba(0,0,0,0.1)",
           zIndex: 1000, opacity: isNavVisible ? 1 : 0, transition: "opacity 0.25s", pointerEvents: isNavVisible ? "auto" : "none",
         }} className=" d-flex">
-          <button onClick={() => setShowCreateStory(true)} title="Create story" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0 }}>
+          <button
+            onClick={() => setShowCreateStory(true)}
+            title="Create story"
+            style={{
+              background: tokens.surfaceAlt(d), color: tokens.textMuted(d), border: "none",
+              width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center",
+              justifyContent: "center", cursor: "pointer", fontSize: 16,
+            }}
+          >
             <FaCamera />
           </button>
-          <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
-          <button onClick={() => setShowModal(true)} title="Create post" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0 }}>
+
+          <button
+            onClick={() => setShowModal(true)}
+            title="Create post"
+            style={{
+              background: tokens.gradient, color: "#fff", border: "none",
+              width: 44, height: 44, borderRadius: "50%", display: "flex", alignItems: "center",
+              justifyContent: "center", cursor: "pointer", fontSize: 17,
+              boxShadow: "0 4px 14px rgba(99,102,241,0.45)",
+            }}
+          >
             <FaPencilAlt />
           </button>
 
           {unreadCount > 0 && (
-            <>
-              <div style={{ width: 1, height: 16, background: d ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
-              <button title="Notifications" style={{ background: "none", border: "none", cursor: "pointer", color: tokens.textMuted(d), fontSize: 18, padding: 0, position: "relative" }}>
-                <FaBell />
-                <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, background: tokens.danger, borderRadius: "50%", fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              </button>
-            </>
+            <button
+              title="Notifications"
+              style={{
+                background: tokens.surfaceAlt(d), color: tokens.textMuted(d), border: "none",
+                width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center",
+                justifyContent: "center", cursor: "pointer", fontSize: 16, position: "relative",
+              }}
+            >
+              <FaBell />
+              <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, background: tokens.danger, borderRadius: "50%", fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            </button>
           )}
         </div>
       )}
