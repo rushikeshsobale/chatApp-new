@@ -1,13 +1,9 @@
 import React, { useState, useContext } from "react";
-import { UserContext } from "../contexts/UserContext";
 import { ThemeContext } from "../contexts/ThemeContext";
-import { useDispatch } from 'react-redux';
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   FaLock,
   FaEnvelope,
-  FaBirthdayCake,
-  FaTransgender,
   FaGoogle,
   FaEye,
   FaEyeSlash,
@@ -15,21 +11,26 @@ import {
   FaMoon,
 } from "react-icons/fa";
 
-import api from "../api";
 import {
-  register,
   login,
   verifyEmail,
   sendVerification,
 } from "../services/authService";
-import { SET_USER } from "../store/action";
+import tokens from "../styles/designTokens";
 
 import "bootstrap/dist/css/bootstrap.min.css";
-import "../css/AuthForms.css";
+
+const badgeStyle = {
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  background: "rgba(255,255,255,0.16)",
+  border: "1px solid rgba(255,255,255,0.3)",
+  borderRadius: "999px",
+  padding: "6px 12px",
+  backdropFilter: "blur(6px)",
+};
 
 const AuthPage = () => {
-  const dispatch = useDispatch();
-  const { setUser } = useContext(UserContext);
   const { isDark, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
 
@@ -43,11 +44,6 @@ const AuthPage = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    username: "",
-    fullName: "",
-    phone: "",
-    birthDate: "",
-    gender: "other",
   });
 
   const handleChange = (e) => {
@@ -66,11 +62,6 @@ const AuthPage = () => {
     if (isLogin && !formData.password) {
       newErrors.password = "Please enter your password.";
     }
-    if (authStep === 3) {
-      if (!formData.username) newErrors.username = "Please choose a username.";
-      if (!formData.password) newErrors.password = "Please set a password.";
-      else if (formData.password.length < 8) newErrors.password = "Password must be at least 8 characters.";
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -82,42 +73,30 @@ const AuthPage = () => {
 
     try {
       if (isLogin) {
-        // 1. Submit email/password to the updated backend router
         const response = await login({
           email: formData.email,
           password: formData.password,
         });
         if (response.success) {
-          navigate(
-            response.redirectTo || "/home"
-          );
+          navigate(response.redirectTo || "/home");
+        }
+      } else if (authStep === 1) {
+        await sendVerification(formData.email);
+        setAuthStep(2);
+      } else if (authStep === 2) {
+        if (!verificationCode || verificationCode.length < 6) {
+          setErrors({ form: "Please enter the 6-digit code sent to your email." });
+          setLoading(false);
+          return;
         }
 
-      } else {
-        if (authStep === 1) {
-          await sendVerification(formData.email);
-          setAuthStep(2);
-        } else if (authStep === 2) {
-          if (!verificationCode || verificationCode.length < 6) {
-            setErrors({ form: "Please enter the 6-digit code sent to your email." });
-            setLoading(false);
-            return;
-          }
+        const response = await verifyEmail({
+          email: formData.email,
+          code: verificationCode,
+        });
 
-          const response =
-            await verifyEmail({
-              email: formData.email,
-              code: verificationCode,
-            });
-
-          if (response.success) {
-            console.log("Email verified successfully. Proceeding to complete profile.", response);
-
-            navigate(
-              response.redirectTo ||
-              "/onboarding"
-            );
-          }
+        if (response.success) {
+          navigate(response.redirectTo || "/onboarding");
         }
       }
     } catch (error) {
@@ -133,9 +112,9 @@ const AuthPage = () => {
         EXPIRED_VERIFICATION_CODE: { form: "That code has expired. Please request a new one." },
         SERVER_ERROR: { form: "Something went wrong on our end. Please try again in a moment." },
       };
-     
+
       const mapped = friendlyErrors[code];
-      
+
       if (mapped) {
         setErrors(mapped);
       } else {
@@ -159,257 +138,257 @@ const AuthPage = () => {
   };
 
   const handleSocialLogin = (provider) => {
-    // Hits the passport routing endpoint directly
     window.location.href = `${process.env.REACT_APP_API_URL}/auth/${provider}`;
   };
 
-  return (
-    <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary py-5 position-relative">
-      <button
-        onClick={toggleTheme}
-        type="button"
-        className={`btn position-absolute top-0 end-0 m-4 shadow-sm border rounded-circle d-flex align-items-center justify-content-center ${isDark ? 'btn-dark border-secondary' : 'btn-white border-muted'}`}
-        style={{ width: "42px", height: "42px", transition: "all 0.25s ease" }}
-        aria-label="Toggle structural interface theme"
-      >
-        {isDark ? <FaSun className="text-warning" size={16} /> : <FaMoon className="text-secondary" size={16} />}
-      </button>
+  const t = tokens;
+  const d = isDark;
 
-      <div className={`card border-0 p-4 p-sm-5 ${isDark ? 'shadow-lg bg-dark' : 'shadow-sm bg-white'}`} style={{ maxWidth: "460px", width: "100%", borderRadius: "20px" }}>
-        <div className="text-center mb-4">
-          <span
-            className="badge mb-2 text-uppercase tracking-wider fw-bold px-3 py-15"
-            style={{
-              fontSize: '0.75rem',
-              backgroundColor: isDark ? 'rgba(13, 202, 240, 0.18)' : 'rgba(13, 202, 240, 0.1)',
-              color: '#0dcaf0'
-            }}
-          >
-            {isLogin ? "Secure Entry" : `Step ${authStep} of 3`}
-          </span>
-          <h2 className="fw-bold h3 mt-1">
-            {isLogin ? "Welcome Back" : authStep === 1 ? "Create Account" : authStep === 2 ? "Verify Email" : "Complete Profile"}
-          </h2>
-          <p className="text-muted small">
-            {isLogin ? "Please sign in to continue your session." : authStep === 3 ? "Just a few more details to customize your dashboard." : "Get started with your security credentials."}
-          </p>
+  return (
+    <div
+      className="min-vh-100 d-flex align-items-center justify-content-center p-3"
+      style={{ background: t.page(d) }}
+    >
+      <div
+        className="d-flex w-100 overflow-hidden"
+        style={{
+          maxWidth: "920px",
+          minHeight: "560px",
+          borderRadius: "20px",
+          background: t.surface(d),
+          boxShadow: t.shadow(d),
+        }}
+      >
+        {/* Brand panel */}
+        <div
+          className="d-none d-md-flex flex-column justify-content-between position-relative"
+          style={{ flex: "1 1 45%", background: t.gradient, color: "#fff", padding: "44px 40px", overflow: "hidden" }}
+        >
+          <div style={{ position: "absolute", inset: 0, opacity: 0.5, pointerEvents: "none" }}>
+            <span style={{ position: "absolute", width: 260, height: 260, right: -90, top: -80, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.35)" }} />
+            <span style={{ position: "absolute", width: 170, height: 170, right: 30, bottom: -60, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.35)" }} />
+            <span style={{ position: "absolute", width: 110, height: 110, right: -20, bottom: 50, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.22)" }} />
+          </div>
+
+          <div style={{ position: "relative", zIndex: 1, fontSize: "1.2rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
+            HiBuddy
+          </div>
+
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <h2 style={{ fontSize: "1.7rem", fontWeight: 800, lineHeight: 1.25, marginBottom: 12 }}>
+              {isLogin ? (
+                <>Real conversations,<br />actually private.</>
+              ) : (
+                <>Join in under<br />a minute.</>
+              )}
+            </h2>
+            <p style={{ fontSize: "0.9rem", lineHeight: 1.6, opacity: 0.92, maxWidth: "30ch", margin: 0 }}>
+              {isLogin
+                ? "End-to-end encrypted chat, stories, and calls with the people you actually talk to."
+                : "Email, a quick code, then you're in."}
+            </p>
+          </div>
+
+          <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {isLogin ? (
+              <>
+                <span style={badgeStyle}>🔒 End-to-end encrypted</span>
+                <span style={badgeStyle}>⚡ Real-time</span>
+              </>
+            ) : (
+              <span style={badgeStyle}>Step {authStep} of 2</span>
+            )}
+          </div>
         </div>
 
-        {errors.form && (
-          <div className={`alert py-2 px-3 small border-0 rounded-3 text-center mb-3 ${errors.form.startsWith("✓") ? "alert-success" : "alert-danger"}`}>
-            {errors.form}
-          </div>
-        )}
+        {/* Form panel */}
+        <div
+          className="flex-grow-1 position-relative d-flex flex-column justify-content-center"
+          style={{ padding: "44px", color: t.text(d) }}
+        >
+          <button
+            onClick={toggleTheme}
+            type="button"
+            className="btn position-absolute rounded-circle d-flex align-items-center justify-content-center"
+            style={{ top: 20, right: 20, width: 36, height: 36, background: t.surfaceAlt(d), border: t.border(d) }}
+            aria-label="Toggle theme"
+          >
+            {d ? <FaSun className="text-warning" size={14} /> : <FaMoon size={14} style={{ color: t.textMuted(d) }} />}
+          </button>
 
-        <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
-          {authStep === 1 && (
-            <>
+          <div className="mb-4">
+            <p
+              className="mb-1"
+              style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: t.accent }}
+            >
+              {isLogin ? "Welcome back" : `Step ${authStep} of 2`}
+            </p>
+            <h3 className="fw-bold mb-1" style={{ fontSize: "1.4rem" }}>
+              {isLogin ? "Sign in to HiBuddy" : authStep === 1 ? "Create your account" : "Verify your email"}
+            </h3>
+            <p className="mb-0" style={{ fontSize: "0.88rem", color: t.textMuted(d) }}>
+              {isLogin ? (
+                "Pick up your conversations where you left off."
+              ) : authStep === 1 ? (
+                "We'll send a verification code to this address."
+              ) : (
+                <>A code was sent to <strong style={{ color: t.text(d) }}>{formData.email}</strong></>
+              )}
+            </p>
+          </div>
+
+          {errors.form && (
+            <div
+              className="py-2 px-3 small rounded-3 text-center mb-3"
+              style={{
+                background: errors.form.startsWith("✓") ? "rgba(29,158,117,0.12)" : "rgba(226,75,74,0.12)",
+                color: errors.form.startsWith("✓") ? t.success : t.danger,
+              }}
+            >
+              {errors.form}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
+            {(isLogin || authStep === 1) && (
               <div>
-                <label className="form-label small fw-semibold text-secondary mb-1">Email Address</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-body border-end-0 text-secondary">
-                    <FaEnvelope size={14} />
-                  </span>
+                <label className="d-block small fw-bold mb-1" style={{ color: t.textMuted(d) }}>
+                  Email address
+                </label>
+                <div
+                  className="d-flex align-items-center gap-2 px-3 py-2"
+                  style={{ background: t.surfaceAlt(d), borderRadius: 12, border: errors.email ? `1px solid ${t.danger}` : t.border(d) }}
+                >
+                  <FaEnvelope size={13} style={{ color: t.textMuted(d) }} />
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="username@domain.com"
-                    className={`form-control bg-body border-start-0 py-2 ${errors.email ? "is-invalid" : ""}`}
-                    style={{ fontSize: "0.9rem" }}
-                  />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
-                </div>
-              </div>
-
-              {isLogin && (
-                <div>
-                  <label className="form-label small fw-semibold text-secondary mb-1">Password</label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-body border-end-0 text-secondary">
-                      <FaLock size={14} />
-                    </span>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      placeholder="••••••••"
-                      className={`form-control bg-body border-start-0 border-end-0 py-2 ${errors.password ? "is-invalid" : ""}`}
-                      style={{ fontSize: "0.9rem" }}
-                    />
-                    <button
-                      type="button"
-                      className="input-group-text bg-body border-start-0 text-secondary px-3"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-                    </button>
-                    {errors.password && <div className="invalid-feedback">{errors.password}</div>}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {authStep === 2 && (
-            <div className="text-center py-2">
-              <p className="text-muted small mb-3">
-                A verification code was sent to <strong className="text-body d-block">{formData.email}</strong>
-              </p>
-              <input
-                type="text"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder="000000"
-                className="form-control form-control-lg text-center tracking-widest fw-bold bg-body border-0 py-2.5 mb-2"
-                maxLength="6"
-                style={{ fontSize: "1.5rem", letterSpacing: "6px" }}
-              />
-              <div className="d-flex justify-content-between px-1 mt-3">
-                <button type="button" className="btn btn-link p-0 text-info text-decoration-none small fw-medium" onClick={() => setAuthStep(1)}>
-                  Change Email
-                </button>
-                <button type="button" className="btn btn-link p-0 text-muted text-decoration-none small fw-medium" onClick={handleResendCode}>
-                  Resend Code
-                </button>
-              </div>
-            </div>
-          )}
-
-          {authStep === 3 && (
-            <div className="d-flex flex-column gap-3">
-              <div>
-                <label className="form-label small fw-semibold text-secondary mb-1">Username</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-body border-end-0 text-secondary fw-bold">@</span>
-                  <input
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    placeholder="unique_handle"
-                    className={`form-control bg-body border-start-0 py-2 ${errors.username ? "is-invalid" : ""}`}
-                    style={{ fontSize: "0.9rem" }}
-                  />
-                  {errors.username && <div className="invalid-feedback">{errors.username}</div>}
-                </div>
-              </div>
-
-              <div>
-                <label className="form-label small fw-semibold text-secondary mb-1">Birth Date</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-body border-end-0 text-secondary">
-                    <FaBirthdayCake size={14} />
-                  </span>
-                  <input
-                    type="date"
-                    name="birthDate"
-                    value={formData.birthDate}
-                    onChange={handleChange}
-                    className="form-control bg-body border-start-0 py-2"
-                    style={{ fontSize: "0.9rem" }}
+                    className="border-0 flex-grow-1"
+                    style={{ background: "transparent", outline: "none", fontSize: "0.9rem", color: t.text(d) }}
                   />
                 </div>
+                {errors.email && <div className="small mt-1" style={{ color: t.danger }}>{errors.email}</div>}
               </div>
+            )}
 
+            {isLogin && (
               <div>
-                <label className="form-label small fw-semibold text-secondary mb-1">Gender Identification</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-body border-end-0 text-secondary">
-                    <FaTransgender size={14} />
-                  </span>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    className="form-select bg-body border-start-0 py-2"
-                    style={{ fontSize: "0.9rem" }}
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other Identity</option>
-                    <option value="prefer-not-to-say">Prefer not to say</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="form-label small fw-semibold text-secondary mb-1">Password</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-body border-end-0 text-secondary"><FaLock size={14} /></span>
+                <label className="d-block small fw-bold mb-1" style={{ color: t.textMuted(d) }}>
+                  Password
+                </label>
+                <div
+                  className="d-flex align-items-center gap-2 px-3 py-2"
+                  style={{ background: t.surfaceAlt(d), borderRadius: 12, border: errors.password ? `1px solid ${t.danger}` : t.border(d) }}
+                >
+                  <FaLock size={13} style={{ color: t.textMuted(d) }} />
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Configure secure password"
-                    className={`form-control bg-body border-start-0 border-end-0 py-2 ${errors.password ? 'is-invalid' : ''}`}
-                    style={{ fontSize: "0.9rem" }}
+                    placeholder="••••••••"
+                    className="border-0 flex-grow-1"
+                    style={{ background: "transparent", outline: "none", fontSize: "0.9rem", color: t.text(d) }}
                   />
                   <button
                     type="button"
-                    className="input-group-text bg-body border-start-0 text-secondary"
+                    className="btn p-0 border-0"
+                    style={{ color: t.textMuted(d) }}
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                    {showPassword ? <FaEyeSlash size={13} /> : <FaEye size={13} />}
                   </button>
-                  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+                </div>
+                {errors.password && <div className="small mt-1" style={{ color: t.danger }}>{errors.password}</div>}
+              </div>
+            )}
+
+            {!isLogin && authStep === 2 && (
+              <div className="text-center py-2">
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  placeholder="000000"
+                  maxLength="6"
+                  className="text-center fw-bold border-0 w-100 mb-2"
+                  style={{ background: t.surfaceAlt(d), borderRadius: 12, padding: "14px", fontSize: "1.5rem", letterSpacing: "6px", color: t.text(d) }}
+                />
+                <div className="d-flex justify-content-between px-1 mt-2">
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 small fw-bold text-decoration-none"
+                    style={{ color: t.accent }}
+                    onClick={() => setAuthStep(1)}
+                  >
+                    Change Email
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 small fw-bold text-decoration-none"
+                    style={{ color: t.textMuted(d) }}
+                    onClick={handleResendCode}
+                  >
+                    Resend Code
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="btn btn-info text-white fw-bold w-100 py-2.5 mt-2 transition-all shadow-sm"
-            disabled={loading}
-            style={{ borderRadius: '8px', letterSpacing: '0.3px', background: 'linear-gradient(135deg, #0dcaf0, #0aa2c0)', border: 'none' }}
-          >
-            {loading ? (
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            ) : isLogin ? (
-              "Sign In"
-            ) : authStep === 1 ? (
-              "Send Verification Code"
-            ) : authStep === 2 ? (
-              "Verify Email"
-            ) : (
-              "Create Account"
             )}
-          </button>
 
-          <p className="small text-center text-secondary mt-2 mb-0">
-            {isLogin ? "New to our ecosystem? " : "Already verified? "}
-            <span
-              className="text-info fw-bold"
-              style={{ cursor: 'pointer', textDecoration: 'underline' }}
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setAuthStep(1);
-                setErrors({});
-              }}
+            <button
+              type="submit"
+              className="btn w-100 fw-bold border-0"
+              disabled={loading}
+              style={{ background: t.gradient, color: "#fff", borderRadius: 12, padding: "13px" }}
             >
-              {isLogin ? "Sign Up" : "Log In"}
+              {loading ? (
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              ) : isLogin ? (
+                "Sign In"
+              ) : authStep === 1 ? (
+                "Send Verification Code"
+              ) : (
+                "Verify Email"
+              )}
+            </button>
+
+            <p className="small text-center mb-0" style={{ color: t.textMuted(d) }}>
+              {isLogin ? "New to HiBuddy? " : "Already verified? "}
+              <span
+                className="fw-bold"
+                style={{ cursor: "pointer", color: t.accent }}
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setAuthStep(1);
+                  setErrors({});
+                }}
+              >
+                {isLogin ? "Create an account" : "Log in"}
+              </span>
+            </p>
+          </form>
+
+          <div className="d-flex align-items-center my-4">
+            <div className="flex-grow-1" style={{ borderTop: t.border(d) }} />
+            <span
+              className="mx-3 small fw-bold text-uppercase"
+              style={{ fontSize: "0.68rem", letterSpacing: "0.06em", color: t.textMuted(d) }}
+            >
+              or continue with
             </span>
-          </p>
-        </form>
+            <div className="flex-grow-1" style={{ borderTop: t.border(d) }} />
+          </div>
 
-        <div className="d-flex align-items-center my-4">
-          <div className="flex-grow-1" style={{ height: '1px', backgroundColor: 'var(--bs-border-color)' }}></div>
-          <span className="mx-3 text-muted extra-small fw-bold text-uppercase tracking-widest" style={{ fontSize: '0.7rem' }}>Third-Party Provider</span>
-          <div className="flex-grow-1" style={{ height: '1px', backgroundColor: 'var(--bs-border-color)' }}></div>
-        </div>
-
-        <div className="d-grid">
           <button
             type="button"
-            className={`btn d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold ${isDark ? 'btn-outline-secondary text-white' : 'btn-outline-muted border text-dark bg-white'}`}
+            className="btn w-100 d-flex align-items-center justify-content-center gap-2 fw-bold"
+            style={{ background: t.surface(d), border: t.border(d), borderRadius: 12, padding: "11px", color: t.text(d) }}
             onClick={() => handleSocialLogin("google")}
-            style={{ fontSize: "0.85rem", borderRadius: "8px" }}
           >
-            <FaGoogle className="text-danger" /> Connect Google Account
+            <FaGoogle className="text-danger" /> Continue with Google
           </button>
         </div>
       </div>
