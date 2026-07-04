@@ -399,18 +399,21 @@ const Navbar = () => {
             />
           </div>
         </div>
-
-        {/* Notification panel */}
-        <NotificationModal
-          notifications={notifications}
-          unreadCount={unreadCount}
-          show={showNotifications}
-          onToggle={() => setShowNotifications(v => !v)}
-          onMarkRead={handleMarkNotificationAsRead}
-          onDelete={handleDeleteNotification}
-          theme={theme}
-        />
       </nav>
+
+      {/* Notification panel — rendered outside <nav> because .nb-root's
+          backdrop-filter creates a new containing block for position:fixed
+          descendants, which confined this modal to the (short) navbar box
+          instead of the viewport. */}
+      <NotificationModal
+        notifications={notifications}
+        unreadCount={unreadCount}
+        show={showNotifications}
+        onToggle={() => setShowNotifications(v => !v)}
+        onMarkRead={handleMarkNotificationAsRead}
+        onDelete={handleDeleteNotification}
+        theme={theme}
+      />
 
       {/* Edit profile modal */}
       {showProfileModal && user && (
