@@ -131,8 +131,12 @@ module.exports = (io) => {
                 );
 
                 // Calls get their own call:incoming signal — a notification
-                // row for the call_log message would just be noise.
-                if (message.messageType !== "call_log") {
+                // row for the call_log message would just be noise. Muted
+                // conversations skip the notification entirely.
+                const isMuted = conversation.mutedBy?.get(
+                    String(receiverId)
+                );
+                if (!isMuted && message.messageType !== "call_log") {
                     notify(io, {
                         recipient: receiverId,
                         sender: message.senderId,

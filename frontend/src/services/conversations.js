@@ -80,6 +80,26 @@ export const markConversationAsRead = async (conversationId) => {
   }
 };
 
+export const muteConversation = async (conversationId, muted) => {
+  try {
+    const res = await api.patch(`/conversations/${conversationId}/mute`, { muted });
+    return res.data;
+  } catch (error) {
+    console.error("Failed to update mute state", error);
+    throw error;
+  }
+};
+
+export const archiveConversation = async (conversationId, archived) => {
+  try {
+    const res = await api.patch(`/conversations/${conversationId}/archive`, { archived });
+    return res.data;
+  } catch (error) {
+    console.error("Failed to update archive state", error);
+    throw error;
+  }
+};
+
 export const getFriendsforGroupCreation = async () => {
   try {
     const res = await api.get("/users/friends");

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { ThemeContext } from "../contexts/ThemeContext";
 import CryptoUtils from "../utils/CryptoUtils";
-import { FaCheck, FaCheckDouble, FaCog, FaArrowLeft, FaSearch } from "react-icons/fa";
+import { FaCheck, FaCheckDouble, FaCog, FaArrowLeft, FaSearch, FaArchive } from "react-icons/fa";
 import { UserContext } from "../contexts/UserContext";
 import { fetchConversations, fetchConversationById } from "../services/conversations";
 import ChatUi from "./ChatUi";
@@ -23,6 +23,7 @@ const ConversationList = ({
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [msgCounts, setMsgCounts] = useState({});
   const [showSearch, setShowSearch] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const currentUserId = user?._id;
   // Kept in sync with `conversations` so the socket handler below can check
   // "do we already know about this conversation?" without a stale closure.
@@ -69,16 +70,18 @@ const ConversationList = ({
     conversationIdsRef.current = new Set(conversations.map(c => c._id));
   }, [conversations]);
 
-  // A freshly-started chat (via UserSearchBox) only becomes known to
-  // ChatUi/ConversationList once the first message round-trips and
-  // ChatUi calls setSelectedConversation — sync it into the list here
-  // instead of waiting on the socket update, which may arrive discarded
-  // if this effect hasn't registered the id yet.
+  // Keeps the list in sync with the currently open conversation: a freshly
+  // started chat (via UserSearchBox) only becomes known here once the
+  // first message round-trips and ChatUi calls setSelectedConversation,
+  // and a mute/archive toggle from ChatUi's menu needs to be reflected
+  // immediately without waiting on a refetch — so this upserts rather
+  // than only inserting.
   useEffect(() => {
     if (!selectedConversation?._id) return;
     setConversations(prev => {
-      if (prev.some(c => c._id === selectedConversation._id)) return prev;
-      return [selectedConversation, ...prev];
+      const exists = prev.some(c => c._id === selectedConversation._id);
+      if (!exists) return [selectedConversation, ...prev];
+      return prev.map(c => c._id === selectedConversation._id ? selectedConversation : c);
     });
   }, [selectedConversation]);
 
@@ -283,6 +286,10 @@ const ConversationList = ({
     setSelectedConversation(null)
   }
 
+  const visibleConversations = conversations.filter(
+    (c) => !!c.archivedBy?.[currentUserId] === showArchived
+  );
+
   return (
     <>
 
@@ -312,8 +319,16 @@ const ConversationList = ({
               </div>
 
               <div className="col-8 text-center">
-                <h5 className="mb-0 fw-bold">Messages</h5>
+                <h5 className="mb-0 fw-bold">{showArchived ? "Archived" : "Messages"}</h5>
               </div>
+
+              <button
+                className={`btn btn-sm rounded-circle me-2 ${showArchived ? "btn-secondary" : "btn-outline-secondary"}`}
+                title={showArchived ? "Back to conversations" : "Archived chats"}
+                onClick={() => setShowArchived(prev => !prev)}
+              >
+                <FaArchive />
+              </button>
 
               <button
                 className="btn btn-sm btn-outline-secondary rounded-circle"
@@ -328,12 +343,12 @@ const ConversationList = ({
                 <UserSearchBox  onUserSelect={handleUserSelect}/>
               </div>
             )}
-            {conversations.length === 0 ? (
+            {visibleConversations.length === 0 ? (
               <div className="d-flex align-items-center justify-content-center h-100 text-muted small">
-                <span>No conversations available</span>
+                <span>{showArchived ? "No archived chats" : "No conversations available"}</span>
               </div>
             ) : (
-              conversations.map((conversation) => {
+              visibleConversations.map((conversation) => {
                 if (!conversation?._id) return null;
 
                 // Strict Peer-to-Peer relational extraction

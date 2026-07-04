@@ -132,6 +132,42 @@ router.patch("/:id/read", auth, async (req, res) => {
 
   res.json({ success: true });
 });
+router.patch("/:id/mute", auth, async (req, res) => {
+  const userId = req.decoded.userId;
+  const { muted } = req.body;
+
+  const conversation = await Conversation.findOneAndUpdate(
+    { _id: req.params.id, participants: userId },
+    { $set: { [`mutedBy.${userId}`]: !!muted } },
+    { new: true }
+  )
+    .populate({ path: "participants", select: "userName profilePicture publicKey" })
+    .populate("lastMessage");
+
+  if (!conversation) {
+    return res.status(404).json({ message: "Not found" });
+  }
+
+  res.json(conversation);
+});
+router.patch("/:id/archive", auth, async (req, res) => {
+  const userId = req.decoded.userId;
+  const { archived } = req.body;
+
+  const conversation = await Conversation.findOneAndUpdate(
+    { _id: req.params.id, participants: userId },
+    { $set: { [`archivedBy.${userId}`]: !!archived } },
+    { new: true }
+  )
+    .populate({ path: "participants", select: "userName profilePicture publicKey" })
+    .populate("lastMessage");
+
+  if (!conversation) {
+    return res.status(404).json({ message: "Not found" });
+  }
+
+  res.json(conversation);
+});
 router.delete("/:id", auth, async (req, res) => {
   await Conversation.deleteOne({
     _id: req.params.id,

@@ -6,6 +6,7 @@ import '../css/chat-bubbles.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { clearChat } from '../services/messageService';
 import { blockUser, unblockUser, getBlockStatus } from '../services/relationships';
+import { muteConversation, archiveConversation } from '../services/conversations';
 import { ThemeContext } from "../contexts/ThemeContext";
 import {
   FaArrowLeft,
@@ -15,6 +16,9 @@ import {
   FaUserCircle,
   FaBan,
   FaTrashAlt,
+  FaBellSlash,
+  FaBell,
+  FaArchive,
 
 } from "react-icons/fa";
 import {
@@ -438,6 +442,29 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
     }
   };
 
+  const handleToggleMute = async () => {
+    setShowHeaderMenu(false);
+    if (!conversation?._id) return;
+    try {
+      const updated = await muteConversation(conversation._id, !isMuted);
+      setSelectedConversation(updated);
+    } catch (error) {
+      console.error("Failed to toggle mute state:", error);
+    }
+  };
+
+  const handleToggleArchive = async () => {
+    setShowHeaderMenu(false);
+    if (!conversation?._id) return;
+    try {
+      const updated = await archiveConversation(conversation._id, !isArchived);
+      setSelectedConversation(updated);
+      onBack();
+    } catch (error) {
+      console.error("Failed to toggle archive state:", error);
+    }
+  };
+
   const handleDeleteMessage = (message) => {
     if (!socket) return;
     if (!window.confirm("Delete this message?")) return;
@@ -478,6 +505,8 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
     );
   };
   const isBlocked = blockStatus.blockedByMe || blockStatus.blockedMe;
+  const isMuted = !!conversation?.mutedBy?.[userId];
+  const isArchived = !!conversation?.archivedBy?.[userId];
   const { isDark } = useContext(ThemeContext);
   const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
   const headerFooterBg = isDark ? "bg-secondary text-white border-secondary" : "bg-light text-dark border-light";
@@ -571,6 +600,18 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
                     onClick={handleClearChat}
                   >
                     <FaTrashAlt /> Clear Chat
+                  </button>
+                  <button
+                    className="d-flex align-items-center gap-2 p-2 rounded btn btn-link text-decoration-none w-100 text-start text-reset"
+                    onClick={handleToggleMute}
+                  >
+                    {isMuted ? <FaBell /> : <FaBellSlash />} {isMuted ? "Unmute Notifications" : "Mute Notifications"}
+                  </button>
+                  <button
+                    className="d-flex align-items-center gap-2 p-2 rounded btn btn-link text-decoration-none w-100 text-start text-reset"
+                    onClick={handleToggleArchive}
+                  >
+                    <FaArchive /> {isArchived ? "Unarchive Chat" : "Archive Chat"}
                   </button>
                   <button
                     className="d-flex align-items-center gap-2 p-2 rounded btn btn-link text-decoration-none w-100 text-start text-danger"
