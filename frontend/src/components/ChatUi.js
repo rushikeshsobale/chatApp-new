@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useRef, useContext } from 'react';
+import React, { useEffect, useState, useRef, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
-import '../css/Chat.css';
 import '../css/chat-bubbles.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { clearChat } from '../services/messageService';
@@ -41,6 +40,31 @@ import { callSendMessage } from '../services/messageService';
 import OutGoingCall from './videoCall/OutGoingCall';
 import MessageReactions from './MessageReactions';
 import ReactionMenu from './ReactionMenu';
+
+// Groups consecutive messages from the same side into one visual "burst"
+// (a single card) as long as they're within a few minutes of each other —
+// a derived view only, the underlying flat `messages` state/handlers are
+// untouched.
+const BURST_GAP_MS = 5 * 60 * 1000;
+
+function groupMessagesIntoBursts(messages, userId) {
+  const bursts = [];
+  for (const message of messages) {
+    const isReceived = (message.receiverId?._id || message.receiverId) === userId;
+    const time = new Date(message?.timestamp || message.createdAt).getTime();
+    const last = bursts[bursts.length - 1];
+    const sameSide = last && last.isReceived === isReceived;
+    const withinGap = last && time - last.lastTime <= BURST_GAP_MS;
+
+    if (sameSide && withinGap) {
+      last.messages.push(message);
+      last.lastTime = time;
+    } else {
+      bursts.push({ isReceived, messages: [message], lastTime: time });
+    }
+  }
+  return bursts;
+}
 
 const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation }) => {
   const { socket, user } = useContext(UserContext);
@@ -508,17 +532,15 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
   const isMuted = !!conversation?.mutedBy?.[userId];
   const isArchived = !!conversation?.archivedBy?.[userId];
   const { isDark } = useContext(ThemeContext);
-  const themeBg = isDark ? "bg-dark text-light" : "bg-white text-dark";
-  const headerFooterBg = isDark ? "bg-secondary text-white border-secondary" : "bg-light text-dark border-light";
-  const messagesAreaBg = isDark ? "#121212" : "#f0f2f5";
-  const sentBubbleBg = isDark ? "#005c4b" : "#d9fdd3";
-  const receivedBubbleBg = isDark ? "#202c33" : "#ffffff";
-  const bubbleTextColor = isDark ? "text-white" : "text-dark";
+  const messageBursts = useMemo(
+    () => groupMessagesIntoBursts(messages, userId),
+    [messages, userId]
+  );
 
   return (
-    <div className={`d-flex flex-column w-100 ${themeBg}`} style={{ height: "100vh", overflow: "hidden" }}>
+    <div className="chat-surface d-flex flex-column w-100" style={{ height: "100vh", overflow: "hidden" }}>
       {/* Header Row */}
-      <div className={`d-flex align-items-center justify-content-between p-2 border-bottom ${headerFooterBg}`} style={{ height: '60px' }}>
+      <div className="chat-surface d-flex align-items-center justify-content-between p-2 border-bottom chat-surface-line" style={{ height: '60px' }}>
         <div className="d-flex align-items-center justify-content-between w-100">
 
           <div className="d-flex align-items-center gap-2">
@@ -527,23 +549,8 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
             </button>
 
             <div className="d-flex align-items-center gap-2">
-              <div
-                className="position-relative"
-                style={{ width: "40px", height: "40px" }}
-              >
-                <img
-                  className="rounded-circle w-100 h-100"
-                  style={{ objectFit: "cover" }}
-                  src={member?.profilePicture}
-                  alt="user"
-                />
-
-                {typingUser && (
-                  <div
-                    className="position-absolute bottom-0 end-0 bg-success rounded-circle"
-                    style={{ width: "10px", height: "10px" }}
-                  />
-                )}
+              <div className="avatar-ring is-online" style={{ width: "40px", height: "40px" }}>
+                <img src={member?.profilePicture} alt="user" />
               </div>
 
               <div>
@@ -554,7 +561,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
                   {member?.userName}
                 </h6>
 
-                <small className={isDark ? "text-light-50" : "text-muted"}>
+                <small style={{ color: "var(--color-ink-muted)" }}>
                   {typingUser ? "typing..." : "online"}
                 </small>
               </div>
@@ -563,31 +570,31 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
 
           <div className="d-flex align-items-center gap-2">
             <button
-              className="btn btn-sm"
+              className="chat-icon-btn"
               onClick={() => setOutgoingCallType("audio")}
             >
-              <FaPhone size={16} />
+              <FaPhone size={14} />
             </button>
 
             <button
-              className="btn btn-sm"
+              className="chat-icon-btn"
               onClick={() => setOutgoingCallType("video")}
             >
-              <FaVideo size={16} />
+              <FaVideo size={14} />
             </button>
 
             <div ref={headerMenuRef} className="position-relative">
               <button
-                className="btn btn-sm"
+                className="chat-icon-btn"
                 onClick={() => setShowHeaderMenu((prev) => !prev)}
               >
-                <FaEllipsisV size={16} />
+                <FaEllipsisV size={14} />
               </button>
 
               {showHeaderMenu && (
                 <div
-                  className={`position-absolute end-0 shadow-lg rounded border p-2 ${isDark ? "bg-dark border-secondary" : "bg-white border-light"}`}
-                  style={{ top: "36px", width: "200px", zIndex: 1050 }}
+                  className="chat-surface position-absolute end-0 shadow-lg rounded border chat-surface-line p-2"
+                  style={{ top: "40px", width: "200px", zIndex: 1050 }}
                 >
                   <button
                     className="d-flex align-items-center gap-2 p-2 rounded btn btn-link text-decoration-none w-100 text-start text-reset"
@@ -630,7 +637,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
       </div>
 
       {(blockStatus.blockedByMe || blockStatus.blockedMe) && (
-        <div className={`text-center small py-1 ${isDark ? "bg-secondary text-light" : "bg-light text-muted"}`}>
+        <div className="chat-surface-muted text-center small py-1">
           {blockStatus.blockedByMe
             ? "You have blocked this user. Unblock to send messages."
             : "You can no longer message this user."}
@@ -638,119 +645,122 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
       )}
 
       {/* Message Area */}
-      <div className="flex-grow-1 p-3 overflow-y-auto" style={{ background: messagesAreaBg }}>
-        {messages?.length === 0 ? (
+      <div className="chat-surface-muted flex-grow-1 p-3 overflow-y-auto">
+        {messageBursts.length === 0 ? (
           <div className="d-flex align-items-center justify-content-center h-100 text-muted">
             <p>Start a conversation with {member?.userName}!</p>
           </div>
         ) : (
 
-          messages?.map((message, index) => {
-            const isReceived = (message.receiverId?._id || message.receiverId) === userId;
+          messageBursts.map((burst, burstIndex) => {
+            const lastMessage = burst.messages[burst.messages.length - 1];
             return (
               <div
-                key={message._id || index}
-                className={`d-flex mb-2 ${isReceived ? "justify-content-start" : "justify-content-end"}`}
+                key={burst.messages[0]._id || burstIndex}
+                className={`d-flex ${burst.isReceived ? "justify-content-start" : "justify-content-end"}`}
               >
-                <div className={isReceived ? "bubble-col bubble-col-start" : "bubble-col bubble-col-end"}>
-                  <div className={`chat-bubble ${isReceived ? "chat-bubble-received" : "chat-bubble-sent"}`}>
+                <div className={`msg-burst ${burst.isReceived ? "" : "msg-burst-self"}`}>
+                  {burst.isReceived && (
+                    <p className="msg-burst-label">{member?.userName}</p>
+                  )}
 
-                    {decryptedMessages[message._id] && (
-                      <div className="small text-break mb-1">
-                        {decryptedMessages[message._id]}
-                      </div>
-                    )}
+                  <div className="msg-burst-body">
+                    {burst.messages.map((message) => (
+                      <div key={message._id} className="msg-line">
+                        {decryptedMessages[message._id] && (
+                          <p className="msg-line-text">
+                            {decryptedMessages[message._id]}
+                          </p>
+                        )}
 
-                    {message?.attachment && (
-                      <div className="chat-attachment">
-                        {message.attachment.type === "image" && (
-                          <img
-                            src={message.attachment.name}
-                            alt="Attachment"
-                            className="img-fluid w-100"
-                            style={{ maxHeight: "200px", objectFit: "cover", display: "block" }}
+                        {message?.attachment && (
+                          <div className="chat-attachment">
+                            {message.attachment.type === "image" && (
+                              <img
+                                src={message.attachment.name}
+                                alt="Attachment"
+                                className="img-fluid w-100"
+                                style={{ maxHeight: "200px", objectFit: "cover", display: "block" }}
+                              />
+                            )}
+                            {message.attachment.type === "video" && (
+                              <video controls className="w-100" style={{ maxHeight: "200px" }}>
+                                <source src={message.attachment.name} type="video/mp4" />
+                              </video>
+                            )}
+                            {(!message.attachment.type || message.attachment.type === "file") && (
+                              <a
+                                href={message.attachment.name}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="chat-file-link"
+                              >
+                                <span className="chat-file-icon">
+                                  <FontAwesomeIcon icon={faFileAlt} />
+                                </span>
+                                <span className="text-truncate flex-grow-1">
+                                  {message.attachment.name || "Download File"}
+                                </span>
+                                <FontAwesomeIcon icon={faDownload} className="chat-file-download" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {message.messageType === "call_log" && <CallMessage message={message} />}
+
+                        <div className="msg-line-actions">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveReactionMessage((prev) =>
+                                prev === message._id ? null : message._id
+                              )
+                            }
+                            aria-label="React to message"
+                          >
+                            <FontAwesomeIcon icon={faSmile} />
+                          </button>
+
+                          {!burst.isReceived && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(message)}
+                              aria-label="Delete message"
+                            >
+                              <FaTrashAlt />
+                            </button>
+                          )}
+                        </div>
+
+                        <MessageReactions reactions={message.reactions} isReceived={burst.isReceived} />
+
+                        {activeReactionMessage === message._id && (
+                          <ReactionMenu
+                            isReceived={burst.isReceived}
+                            onSelect={(emoji) => {
+                              handleReaction(message, emoji);
+                              setActiveReactionMessage(null);
+                            }}
                           />
                         )}
-                        {message.attachment.type === "video" && (
-                          <video controls className="w-100" style={{ maxHeight: "200px" }}>
-                            <source src={message.attachment.name} type="video/mp4" />
-                          </video>
-                        )}
-                        {(!message.attachment.type || message.attachment.type === "file") && (
-                          <a
-                            href={message.attachment.name}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="chat-file-link"
-                          >
-                            <span className="chat-file-icon">
-                              <FontAwesomeIcon icon={faFileAlt} />
-                            </span>
-                            <span className="text-truncate flex-grow-1">
-                              {message.attachment.name || "Download File"}
-                            </span>
-                            <FontAwesomeIcon icon={faDownload} className="chat-file-download" />
-                          </a>
-                        )}
                       </div>
-                    )}
+                    ))}
+                  </div>
 
-                    {message.messageType === "call_log" && <CallMessage message={message} />}
-
-                    <div className="chat-meta">
-                      <span>
-                        {new Date(message?.timestamp || message.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                  <div className="chat-meta">
+                    <span>
+                      {new Date(lastMessage?.timestamp || lastMessage.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {!burst.isReceived && (
+                      <span className={lastMessage?.status === "read" ? "chat-read" : ""}>
+                        <FontAwesomeIcon icon={lastMessage?.status === "read" ? faCheckDouble : faCheck} />
                       </span>
-                      {!isReceived && (
-                        <span className={message?.status === "read" ? "chat-read" : ""}>
-                          <FontAwesomeIcon icon={message?.status === "read" ? faCheckDouble : faCheck} />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <MessageReactions reactions={message.reactions} isReceived={isReceived} />
-
-                  <div className="d-flex align-items-center gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-sm p-0 border-0 bg-transparent text-muted"
-                      style={{ fontSize: "0.75rem", opacity: 0.6 }}
-                      onClick={() =>
-                        setActiveReactionMessage((prev) =>
-                          prev === message._id ? null : message._id
-                        )
-                      }
-                      aria-label="React to message"
-                    >
-                      <FontAwesomeIcon icon={faSmile} />
-                    </button>
-
-                    {!isReceived && (
-                      <button
-                        type="button"
-                        className="btn btn-sm p-0 border-0 bg-transparent text-muted"
-                        style={{ fontSize: "0.75rem", opacity: 0.6 }}
-                        onClick={() => handleDeleteMessage(message)}
-                        aria-label="Delete message"
-                      >
-                        <FaTrashAlt />
-                      </button>
                     )}
                   </div>
-
-                  {activeReactionMessage === message._id && (
-                    <ReactionMenu
-                      isReceived={isReceived}
-                      onSelect={(emoji) => {
-                        handleReaction(message, emoji);
-                        setActiveReactionMessage(null);
-                      }}
-                    />
-                  )}
                 </div>
               </div>
             );
@@ -759,9 +769,9 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
         <div ref={messagesEndRef} />
       </div>
       {/* Input Dock Panel */}
-      <div className={`p-2 border-top position-relative ${headerFooterBg}`}>
+      <div className="chat-surface p-2 border-top chat-surface-line position-relative">
         {showAttachmentPopup && (
-          <div className={`position-absolute bottom-100 start-0 m-2 p-2 rounded shadow ${isDark ? 'bg-secondary' : 'bg-white'}`} style={{ zIndex: 1050 }}>
+          <div className="chat-surface position-absolute bottom-100 start-0 m-2 p-2 rounded shadow" style={{ zIndex: 1050 }}>
             <div className="d-flex flex-column gap-1">
               <button className="btn btn-sm text-start text-reset" onClick={() => handleFileSelect("image")}>
                 <FontAwesomeIcon icon={faImage} className="me-2" /> Photo
@@ -782,30 +792,29 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
           </div>
         )}
 
-        <div className="d-flex align-items-center gap-1">
-          <button className="btn border-0 p-2 text-reset" onClick={() => setShowAttachmentPopup(!showAttachmentPopup)} disabled={isBlocked}>
+        <div className="d-flex align-items-center gap-2">
+          <button className="chat-icon-btn" onClick={() => setShowAttachmentPopup(!showAttachmentPopup)} disabled={isBlocked}>
             <FontAwesomeIcon icon={faPaperclip} />
           </button>
 
           <input
             type="text"
             ref={inputRef}
-            className={`form-control form-control-sm border-0 ${isDark ? 'bg-dark text-white' : 'bg-white text-dark'}`}
+            className="chat-pill-input"
             placeholder={isBlocked ? "You can't send messages in this chat" : "Type a message..."}
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             onFocus={handleTyping}
             onBlur={handleBlur}
-            style={{ borderRadius: "20px" }}
             disabled={isBlocked}
           />
 
-          <button className="btn border-0 p-2 text-reset" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={isBlocked}>
+          <button className="chat-icon-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={isBlocked}>
             <FontAwesomeIcon icon={faSmile} />
           </button>
 
-          <button className="btn btn-success rounded-circle d-flex align-items-center justify-content-center p-2" onClick={() => sendMessage(selectedFile)} disabled={isBlocked || (!messageInput.trim() && !selectedFile)} style={{ width: "36px", height: "36px" }}>
-            <FontAwesomeIcon icon={faPaperPlane} size="sm" className="text-white" />
+          <button className="chat-send-btn" onClick={() => sendMessage(selectedFile)} disabled={isBlocked || (!messageInput.trim() && !selectedFile)}>
+            <FontAwesomeIcon icon={faPaperPlane} size="sm" />
           </button>
         </div>
 

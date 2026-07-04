@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { ThemeContext } from "../contexts/ThemeContext";
 import CryptoUtils from "../utils/CryptoUtils";
+import "../css/chat-bubbles.css";
 import { FaCheck, FaCheckDouble, FaCog, FaArrowLeft, FaSearch, FaArchive } from "react-icons/fa";
 import { UserContext } from "../contexts/UserContext";
 import { fetchConversations, fetchConversationById } from "../services/conversations";
@@ -28,14 +29,12 @@ const ConversationList = ({
   // Kept in sync with `conversations` so the socket handler below can check
   // "do we already know about this conversation?" without a stale closure.
   const conversationIdsRef = useRef(new Set());
-  const themeBg = isDark ? "bg-dark" : "bg-white";
-  const themeBorder = isDark ? "border-secondary" : "border-light-subtle";
   const nameColorDefault = isDark ? "text-light-emphasis" : "text-dark-emphasis";
   const nameColorUnread = isDark ? "text-white" : "text-dark";
   const previewColorDefault = isDark ? "text-secondary" : "text-muted";
   const previewColorUnread = isDark ? "text-light" : "text-dark fw-medium";
-  const selectedBgColor = isDark ? "#161616" : "#e9ecef";
-  const hoverBgColor = isDark ? "#0a0a0a" : "#f8f9fa";
+  const selectedBgColor = "var(--color-surface-muted)";
+  const hoverBgColor = "var(--color-surface-muted)";
 
   useEffect(() => {
     const initializeKey = async () => {
@@ -294,7 +293,7 @@ const ConversationList = ({
     <>
 
 
-      <div className={`h-100 d-flex ${themeBg}`}>
+      <div className="chat-surface h-100 d-flex">
 
         {/* Conversation List */}
         {(!isMobileView || !selectedFriend) && (
@@ -302,16 +301,13 @@ const ConversationList = ({
             className={`
         ${isMobileView ? "w-100" : "col-md-4 col-lg-4"}
         h-100
-        
+
       `}
           >
-            <div
-              className={`px-3 py-3 d-flex align-items-center ${themeBorder}`}
-              style={{ backgroundColor: themeBg === "bg-dark" ? "#000000" : "#ffffff" }}
-            >
+            <div className="chat-surface px-3 py-3 d-flex align-items-center border-bottom chat-surface-line">
               <div className="col-2">
                 <button
-                  className="btn btn-sm btn-outline-secondary rounded-circle"
+                  className="chat-icon-btn"
                   onClick={() => navigate(-1)}
                 >
                   <FaArrowLeft />
@@ -323,15 +319,16 @@ const ConversationList = ({
               </div>
 
               <button
-                className={`btn btn-sm rounded-circle me-2 ${showArchived ? "btn-secondary" : "btn-outline-secondary"}`}
+                className="chat-icon-btn me-2"
                 title={showArchived ? "Back to conversations" : "Archived chats"}
                 onClick={() => setShowArchived(prev => !prev)}
+                style={showArchived ? { background: "var(--color-brand-gradient)", color: "#fff" } : undefined}
               >
                 <FaArchive />
               </button>
 
               <button
-                className="btn btn-sm btn-outline-secondary rounded-circle"
+                className="chat-icon-btn"
                 onClick={() => setShowSearch(prev => !prev)}
               >
                 <FaSearch />
@@ -371,7 +368,7 @@ const ConversationList = ({
                   <div
                     key={conversation._id}
                     onClick={() => handleConversationSelect(conversation)}
-                    className={`d-flex align-items-center px-3 py-2 border-bottom ${themeBorder} gap-3 w-100`}
+                    className="chat-surface-line d-flex align-items-center px-3 py-2 border-bottom gap-3 w-100"
                     style={{
                       cursor: "pointer",
                       transition: "background 0.2s ease",
@@ -386,14 +383,8 @@ const ConversationList = ({
                     }}
                   >
                     {/* Profile Avatar Wrapper */}
-                    <div className="position-relative flex-shrink-0">
-                      <img src={avatar} alt="" className="rounded-circle object-fit-cover bg-secondary" style={{ width: "44px", height: "44px" }} />
-                      {isActive && (
-                        <div
-                          className={`position-absolute bg-success rounded-circle border ${isDark ? "border-dark" : "border-white"}`}
-                          style={{ width: "10px", height: "10px", bottom: "2px", right: "2px" }}
-                        />
-                      )}
+                    <div className={`avatar-ring flex-shrink-0 ${isActive ? "is-online" : ""}`} style={{ width: "44px", height: "44px" }}>
+                      <img src={avatar} alt="" />
                     </div>
 
                     {/* Conversational Text Data Node */}
@@ -447,9 +438,9 @@ const ConversationList = ({
         {(!isMobileView || selectedFriend) && (
           <div
             className={`
+        chat-surface
         ${isMobileView ? "w-100" : "col-md-8 col-lg-8"}
         d-flex flex-column h-100
-        ${themeBg}
       `}
           >
             {selectedFriend ? (
@@ -465,15 +456,13 @@ const ConversationList = ({
                 onBack={() => setSelectedFriend(null)}
               />
             ) : (
-              <div className="h-100 d-flex flex-column align-items-center justify-content-center text-center px-4 " style={{backgroundColor: isDark ? "#000000" : "#f8f9fa"}}>
+              <div className="chat-surface-muted h-100 d-flex flex-column align-items-center justify-content-center text-center px-4">
                 <div
                   className="rounded-circle d-flex align-items-center justify-content-center mb-4"
                   style={{
                     width: "120px",
                     height: "120px",
-                    background: isDark
-                      ? "rgba(0, 0, 0, 0.05)"
-                      : "rgba(0,0,0,0.05)",
+                    background: "var(--color-brand-gradient)",
                     fontSize: "3rem",
                   }}
                 >
@@ -485,9 +474,8 @@ const ConversationList = ({
                 </h3>
 
                 <p
-                  className={`mb-4 ${isDark ? "text-secondary" : "text-muted"
-                    }`}
-                  style={{ maxWidth: "450px" }}
+                  className="mb-4"
+                  style={{ maxWidth: "450px", color: "var(--color-ink-muted)" }}
                 >
                   Select a conversation from the sidebar to start chatting.
                   Messages are delivered instantly and protected with
@@ -496,7 +484,7 @@ const ConversationList = ({
 
                 <div className="d-flex gap-3 flex-wrap justify-content-center">
                   <div
-                    className={`p-3 rounded border ${themeBorder}`}
+                    className="chat-surface chat-surface-line p-3 rounded border"
                     style={{ minWidth: "130px" }}
                   >
                     <div className="fs-4 mb-2">⚡</div>
@@ -506,7 +494,7 @@ const ConversationList = ({
                   </div>
 
                   <div
-                    className={`p-3 rounded border ${themeBorder}`}
+                    className="chat-surface chat-surface-line p-3 rounded border"
                     style={{ minWidth: "130px" }}
                   >
                     <div className="fs-4 mb-2">🔒</div>
@@ -516,7 +504,7 @@ const ConversationList = ({
                   </div>
 
                   <div
-                    className={`p-3 rounded border ${themeBorder}`}
+                    className="chat-surface chat-surface-line p-3 rounded border"
                     style={{ minWidth: "130px" }}
                   >
                     <div className="fs-4 mb-2">📱</div>
