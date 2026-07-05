@@ -415,14 +415,14 @@ function useStories(userId) {
     }
   }, [userId]);
 
-  const createNewStory = useCallback(async (storyData, { onSuccess } = {}) => {
+  const createNewStory = useCallback(async (storyData, { onSuccess, onError } = {}) => {
     setUploading(true);
     try {
       await createStory(storyData);
       await fetchStories();
       onSuccess?.();
     } catch {
-      // Could add a toast here
+      onError?.();
     } finally {
       setUploading(false);
     }
@@ -445,6 +445,7 @@ const HomePage = () => {
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [selectedStoryGroup, setSelectedStoryGroup] = useState(null);
   const [showCreateStory, setShowCreateStory] = useState(false);
+  const [storyError, setStoryError] = useState(null);
   const [toast, setToast] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'feed'
   const [viewerPost, setViewerPost] = useState(null);
@@ -504,8 +505,10 @@ const HomePage = () => {
   };
 
   const handleCreateStory = (storyData) => {
+    setStoryError(null);
     createNewStory(storyData, {
       onSuccess: () => setShowCreateStory(false),
+      onError: () => setStoryError('Could not upload story. Please try again.'),
     });
   };
 
@@ -778,6 +781,9 @@ const HomePage = () => {
         show={showCreateStory}
         onHide={() => setShowCreateStory(false)}
         onCreateStory={handleCreateStory}
+        isSubmitting={uploading}
+        error={storyError}
+        currentUser={user}
       />
 
       {/* Full-screen post viewer (grid tap-through) */}

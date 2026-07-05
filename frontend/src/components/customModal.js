@@ -1,12 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { FaImage, FaTimes, FaRegSmile, FaChartBar, FaGlobeAmericas, FaChevronDown, FaSpinner } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+import EmojiPicker from 'emoji-picker-react';
+import { ThemeContext } from '../contexts/ThemeContext';
+import tokens from '../styles/designTokens';
 
-const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initialText = '', isSubmitting = false, error = null }) => {
+const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initialText = '', isSubmitting = false, error = null, currentUser = null }) => {
+  const { isDark } = useContext(ThemeContext);
+  const d = isDark;
+  const t = tokens;
   const isEdit = mode === 'edit';
   const [text, setText] = useState(initialText);
   const [media, setMedia] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
+  const emojiWrapperRef = useRef(null);
 
   // Auto-focus logic; reset the draft each time the modal opens
   const textareaRef = useRef(null);
@@ -14,6 +22,7 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
     if (showModal) {
       setText(initialText);
       setMedia(null);
+      setShowEmojiPicker(false);
       textareaRef.current?.focus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -26,38 +35,69 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
     }
   };
 
+  const handleEmojiClick = (emojiData) => {
+    setText((prev) => prev + emojiData.emoji);
+  };
+
+  // Escape closes the emoji picker first, then the composer itself
+  useEffect(() => {
+    if (!showModal) return;
+    const handleKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (showEmojiPicker) { setShowEmojiPicker(false); return; }
+      if (!isSubmitting) onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showModal, isSubmitting, onClose, showEmojiPicker]);
+
+  // Close the emoji picker on an outside click without dismissing the whole modal
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handleClick = (e) => {
+      if (emojiWrapperRef.current && !emojiWrapperRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showEmojiPicker]);
+
   if (!showModal) return null;
 
   return (
     <AnimatePresence>
-      <motion.div 
+      <motion.div
         className="studio-modal-overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        onClick={() => !isSubmitting && onClose()}
       >
-        <motion.div 
+        <motion.div
           className="studio-card"
           initial={{ scale: 0.9, y: 20 }}
           animate={{ scale: 1, y: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Top Navigation */}
           <div className="studio-nav">
-            <button onClick={onClose} className="studio-close-btn">
-              <FaTimes />
-            </button>
-            <div className="studio-privacy-pill">
-              <FaGlobeAmericas size={12} />
-              <span>Public</span>
-              <FaChevronDown size={10} />
+            <div className="studio-identity">
+              <span className="studio-avatar-ring">
+                <img src={currentUser?.profilePicture || '/assets/default-avatar.svg'} alt="" />
+              </span>
+              <div className="studio-identity-text">
+                <span className="studio-username">{currentUser?.userName || 'You'}</span>
+                <div className="studio-privacy-pill">
+                  <FaGlobeAmericas size={11} />
+                  <span>Public</span>
+                  <FaChevronDown size={9} />
+                </div>
+              </div>
             </div>
-            <button
-              onClick={() => handleAddPost(text, media)}
-              disabled={isSubmitting || (isEdit ? !text.trim() : !text.trim() && !media)}
-              className="studio-publish-btn"
-            >
-              {isSubmitting ? <FaSpinner className="studio-spin" /> : (isEdit ? 'Save' : 'Publish')}
+            <button onClick={onClose} className="studio-close-btn" disabled={isSubmitting}>
+              <FaTimes />
             </button>
           </div>
 
@@ -70,7 +110,7 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
                 ref={textareaRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="What's happening?"
+                placeholder="What's on your mind?"
                 className="studio-textarea"
                 rows={media ? 2 : 5}
                 disabled={isSubmitting}
@@ -108,24 +148,50 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
                     <FaImage />
                   </button>
                   <button className="studio-action-btn"><FaChartBar /></button>
-                  <button className="studio-action-btn"><FaRegSmile /></button>
+                  <div className="studio-emoji-wrapper" ref={emojiWrapperRef}>
+                    <button
+                      className="studio-action-btn"
+                      onClick={() => setShowEmojiPicker((v) => !v)}
+                    >
+                      <FaRegSmile />
+                    </button>
+                    {showEmojiPicker && (
+                      <div className="studio-emoji-popover">
+                        <EmojiPicker
+                          onEmojiClick={handleEmojiClick}
+                          theme={d ? 'dark' : 'light'}
+                          width={280}
+                          height={320}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>
 
-            <div className={`studio-counter ${text.length > 250 ? 'warning' : ''}`}>
-              <svg width="24" height="24" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke="#222" strokeWidth="2" fill="none" />
-                <circle 
-                  cx="12" cy="12" r="10" 
-                  stroke={text.length > 250 ? "#ff4d4d" : "#fff"} 
-                  strokeWidth="2" 
-                  fill="none"
-                  strokeDasharray="62.8"
-                  strokeDashoffset={62.8 - (62.8 * Math.min(text.length, 280)) / 280}
-                  style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-                />
-              </svg>
+            <div className="studio-right-controls">
+              <div className={`studio-counter ${text.length > 250 ? 'warning' : ''}`}>
+                <svg width="22" height="22" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke={d ? "#333" : "#e5e7eb"} strokeWidth="2" fill="none" />
+                  <circle
+                    cx="12" cy="12" r="10"
+                    stroke={text.length > 250 ? "#ff4d4d" : t.accent}
+                    strokeWidth="2"
+                    fill="none"
+                    strokeDasharray="62.8"
+                    strokeDashoffset={62.8 - (62.8 * Math.min(text.length, 280)) / 280}
+                    style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                  />
+                </svg>
+              </div>
+              <button
+                onClick={() => handleAddPost(text, media)}
+                disabled={isSubmitting || (isEdit ? !text.trim() : !text.trim() && !media)}
+                className="studio-publish-btn"
+              >
+                {isSubmitting ? <FaSpinner className="studio-spin" /> : (isEdit ? 'Save' : 'Publish')}
+              </button>
             </div>
           </div>
         </motion.div>
@@ -134,7 +200,7 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
           .studio-modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: ${d ? 'rgba(0, 0, 0, 0.85)' : 'rgba(17, 17, 20, 0.4)'};
             backdrop-filter: blur(12px);
             display: flex;
             align-items: flex-start;
@@ -146,26 +212,61 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
           .studio-card {
             width: 100%;
             max-width: 580px;
-            background: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 20px;
+            background: ${t.surface(d)};
+            border: ${t.border(d)};
+            border-radius: ${t.radius.xl};
             display: flex;
             flex-direction: column;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+            box-shadow: ${t.shadow(d)};
           }
 
           .studio-nav {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             padding: 16px 20px;
-            border-bottom: 1px solid #141414;
+            border-bottom: ${t.border(d)};
+          }
+
+          .studio-identity {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .studio-avatar-ring {
+            display: inline-flex;
+            padding: 2px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #ec4899);
+            flex-shrink: 0;
+          }
+
+          .studio-avatar-ring img {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid ${t.surface(d)};
+            display: block;
+          }
+
+          .studio-identity-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .studio-username {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: ${t.text(d)};
           }
 
           .studio-close-btn {
-            background: #1a1a1a;
+            background: ${t.surfaceAlt(d)};
             border: none;
-            color: #fff;
+            color: ${t.text(d)};
             width: 32px;
             height: 32px;
             border-radius: 50%;
@@ -176,27 +277,35 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
             transition: background 0.2s;
           }
 
-          .studio-close-btn:hover { background: #252525; }
+          .studio-close-btn:hover:not(:disabled) { background: ${d ? '#252525' : '#e4e4e9'}; }
+          .studio-close-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
           .studio-privacy-pill {
-            background: #141414;
-            border: 1px solid #222;
-            padding: 6px 14px;
-            border-radius: 20px;
-            color: #888;
-            font-size: 0.75rem;
+            background: ${t.surfaceAlt(d)};
+            border: ${t.border(d)};
+            padding: 3px 10px;
+            border-radius: ${t.radius.full};
+            color: ${t.textMuted(d)};
+            font-size: 0.68rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            width: fit-content;
+          }
+
+          .studio-right-controls {
             display: flex;
             align-items: center;
-            gap: 8px;
-            cursor: pointer;
+            gap: 14px;
           }
 
           .studio-publish-btn {
-            background: #fff;
-            color: #000;
+            background: ${t.gradient};
+            color: #ffffff;
             border: none;
             padding: 8px 20px;
-            border-radius: 20px;
+            border-radius: ${t.radius.full};
             font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
@@ -220,7 +329,7 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
           .studio-error {
             background: rgba(255, 77, 77, 0.12);
             border: 1px solid rgba(255, 77, 77, 0.35);
-            color: #ff8080;
+            color: ${d ? '#ff8080' : '#c53030'};
             font-size: 0.8rem;
             padding: 10px 14px;
             border-radius: 10px;
@@ -237,7 +346,7 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
             width: 100%;
             background: transparent;
             border: none;
-            color: #fff;
+            color: ${t.text(d)};
             font-size: 1.2rem;
             resize: none;
             outline: none;
@@ -245,12 +354,14 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
             font-weight: 300;
           }
 
+          .studio-textarea::placeholder { color: ${t.textMuted(d)}; }
+
           .studio-media-preview {
             position: relative;
             margin-top: 15px;
-            border-radius: 16px;
+            border-radius: ${t.radius.lg};
             overflow: hidden;
-            border: 1px solid #222;
+            border: ${t.border(d)};
           }
 
           .studio-preview-obj {
@@ -276,7 +387,7 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
 
           .studio-footer {
             padding: 16px 20px;
-            border-top: 1px solid #141414;
+            border-top: ${t.border(d)};
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -288,24 +399,40 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
           }
 
           .studio-action-btn {
-            background: #111;
-            border: 1px solid #1a1a1a;
-            color: #666;
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
+            background: transparent;
+            border: none;
+            color: ${t.accent};
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background-color 0.15s ease, transform 0.1s ease;
           }
 
           .studio-action-btn:hover {
-            background: #1a1a1a;
-            color: #fff;
-            border-color: #333;
+            background-color: ${t.accentBg(d)};
+          }
+
+          .studio-action-btn:active {
+            transform: scale(0.88);
+          }
+
+          .studio-emoji-wrapper {
+            position: relative;
+          }
+
+          .studio-emoji-popover {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 0;
+            z-index: 20;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: ${t.shadow(d)};
           }
 
           .studio-counter {
@@ -317,7 +444,7 @@ const PostModal = ({ showModal, onClose, handleAddPost, mode = 'create', initial
 
           .studio-scroll-area::-webkit-scrollbar { width: 4px; }
           .studio-scroll-area::-webkit-scrollbar-thumb {
-            background: #222;
+            background: ${d ? '#222' : 'rgba(0,0,0,0.15)'};
             border-radius: 10px;
           }
         `}</style>

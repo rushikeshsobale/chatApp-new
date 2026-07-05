@@ -1034,6 +1034,7 @@ const ProfilePage = () => {
           showModal={showModal}
           onClose={() => { setShowModal(false); setEditingPost(null); setPostError(null); }}
           theme={d ? "dark" : "light"}
+          currentUser={user}
         />
       )}
 
