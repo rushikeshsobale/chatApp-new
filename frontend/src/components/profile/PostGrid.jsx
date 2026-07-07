@@ -1,8 +1,15 @@
 import React from "react";
+import { FaCamera } from "react-icons/fa";
 
 const PostGrid = ({ posts }) => {
   if (!posts || posts.length === 0) {
-    return <div className="no-posts text-center fs-6 mt-3">No posts yet.</div>;
+    return (
+      <div className="no-posts">
+        <span className="no-posts-icon"><FaCamera /></span>
+        <div className="no-posts-title">No posts yet</div>
+        <p className="no-posts-subtext">Posts shared by this account will show up here.</p>
+      </div>
+    );
   }
 
   return (

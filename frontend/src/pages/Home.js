@@ -8,7 +8,7 @@ import {
   FaHeart, FaRegHeart, FaComment, FaPaperPlane,
   FaBookmark, FaRegBookmark, FaEllipsisH, FaBell,
   FaHashtag, FaCalendarAlt, FaUser, FaHome, FaPlus, FaTrash,
-  FaTh, FaStream, FaPlay,
+  FaTh, FaStream, FaPlay, FaSearch, FaUserFriends,
 } from 'react-icons/fa';
 import { Spinner, Alert, Badge, Toast, ToastContainer } from 'react-bootstrap';
 
@@ -669,9 +669,26 @@ const HomePage = () => {
                 <button className="btn btn-sm btn-outline-danger ms-3" onClick={fetchPosts}>Retry</button>
               </Alert>
             ) : filteredPosts.length === 0 ? (
-              <div className={`${theme.card} p-5 text-center rounded-3`}>
-                <h5>Nothing here yet.</h5>
-                <p className={theme.subtext}>Follow more people or search for something.</p>
+              <div className={`${theme.card} p-5 text-center rounded-4 hb-empty-state`}>
+                {searchTerm ? (
+                  <>
+                    <span className="hb-empty-icon"><FaSearch /></span>
+                    <h5 className="mb-1">No results for &ldquo;{searchTerm}&rdquo;</h5>
+                    <p className={theme.subtext}>Try a different name or keyword.</p>
+                    <button
+                      className="btn btn-sm btn-outline-secondary hb-load-more mt-1"
+                      onClick={() => setSearchTerm('')}
+                    >
+                      Clear search
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="hb-empty-icon"><FaUserFriends /></span>
+                    <h5 className="mb-1">Your feed is quiet</h5>
+                    <p className={theme.subtext}>Follow more people to see their posts show up here.</p>
+                  </>
+                )}
               </div>
             ) : viewMode === 'grid' ? (
               <div className="d-flex flex-column">

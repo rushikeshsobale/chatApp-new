@@ -232,6 +232,44 @@
   color: #888;
 }
 
+/* ================= EMPTY POST GRID ================= */
+
+.no-posts {
+  grid-column: 1 / -1;
+  text-align: center;
+  margin-top: 30px;
+  padding: 50px 20px;
+  border: 1px dashed #262626;
+  border-radius: 12px;
+  background: #121212;
+}
+
+.no-posts-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: #262626;
+  color: #eaeaea;
+  font-size: 22px;
+}
+
+.no-posts-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.no-posts-subtext {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
 /* ================= RESPONSIVE ================= */
 
 @media (max-width: 768px) {

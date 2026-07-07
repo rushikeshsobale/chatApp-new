@@ -275,6 +275,24 @@
   transform: scale(0.88);
 }
 
+/* Empty feed state (no posts / no search results) */
+.hb-empty-state {
+  border: 1px dashed rgba(127, 127, 127, 0.25);
+}
+
+.hb-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  font-size: 22px;
+  color: #6366f1;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(236, 72, 153, 0.14));
+}
+
 /* Load more */
 .hb-load-more {
   border-radius: 999px;
