@@ -45,10 +45,11 @@ export const UserProvider = ({ children }) => {
       return;
     }
 
-    // Connect using our centralized service engine
+    // Connect using our centralized service engine.
+    // user:init is (re-)emitted from within initializeSocket's "connect"
+    // handler, so it fires on reconnects too — no need to emit it here.
     const socketConnection = initializeSocket(user._id);
     setSocket(socketConnection);
-    socketConnection.emit('user:init', user._id);
 
     dispatch(fetchNotifications(user._id));
     socketConnection.on('got_a_notification', (data) => {
