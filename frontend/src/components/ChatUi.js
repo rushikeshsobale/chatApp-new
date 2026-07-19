@@ -67,7 +67,7 @@ function groupMessagesIntoBursts(messages, userId) {
 }
 
 const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConversation }) => {
-  const { socket, user } = useContext(UserContext);
+  const { socket, user, activeUsers } = useContext(UserContext);
   const navigate = useNavigate();
   const [messageInput, setMessageInput] = useState('');
   const [messages, setMessages] = useState([]);
@@ -529,6 +529,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
     );
   };
   const isBlocked = blockStatus.blockedByMe || blockStatus.blockedMe;
+  const isMemberOnline = activeUsers.some((u) => (u.userId ?? u) === member?._id);
   const isMuted = !!conversation?.mutedBy?.[userId];
   const isArchived = !!conversation?.archivedBy?.[userId];
   const { isDark } = useContext(ThemeContext);
@@ -549,7 +550,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
             </button>
 
             <div className="d-flex align-items-center gap-2">
-              <div className="avatar-ring is-online" style={{ width: "40px", height: "40px" }}>
+              <div className={`avatar-ring ${isMemberOnline ? "is-online" : ""}`} style={{ width: "40px", height: "40px" }}>
                 <img src={member?.profilePicture} alt="user" />
               </div>
 
@@ -562,7 +563,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
                 </h6>
 
                 <small style={{ color: "var(--color-ink-muted)" }}>
-                  {typingUser ? "typing..." : "online"}
+                  {typingUser ? "typing..." : isMemberOnline ? "online" : "offline"}
                 </small>
               </div>
             </div>
