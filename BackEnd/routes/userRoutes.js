@@ -59,7 +59,7 @@ router.get("/friends", auth, async (req, res) => {
       })
       .populate({
         path: "requester recipient",
-        select: "_id userName profilePicture"
+        select: "_id userName profilePicture publicKey"
       });
 
     const friendMap = new Map();

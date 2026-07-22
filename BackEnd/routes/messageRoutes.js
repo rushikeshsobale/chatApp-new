@@ -16,6 +16,7 @@ router.post(
     try {
       const {
         receiverId,
+        conversationId,
         content,
         parentId,
         messageType
@@ -24,40 +25,56 @@ router.post(
       // body-supplied senderId would let anyone send messages as anyone.
       const senderId = req.decoded.userId;
 
-      if (!receiverId) {
-        return res.status(400).json({
-          message: "Receiver ID required"
+      let conversation;
+
+      if (conversationId) {
+        // Sending into an existing conversation (used for groups, where
+        // there's no single receiverId to derive a 1:1 conversation from).
+        conversation = await Conversation.findById(conversationId);
+
+        if (!conversation) {
+          return res.status(404).json({ message: "Conversation not found" });
+        }
+
+        if (!conversation.participants.some(p => p.toString() === senderId)) {
+          return res.status(403).json({ message: "Not a participant in this conversation" });
+        }
+      } else {
+        if (!receiverId) {
+          return res.status(400).json({
+            message: "Receiver ID required"
+          });
+        }
+
+        const blockRelationship = await Relationship.findOne({
+          type: "block",
+          $or: [
+            { requester: senderId, recipient: receiverId },
+            { requester: receiverId, recipient: senderId }
+          ]
         });
-      }
 
-      const blockRelationship = await Relationship.findOne({
-        type: "block",
-        $or: [
-          { requester: senderId, recipient: receiverId },
-          { requester: receiverId, recipient: senderId }
-        ]
-      });
+        if (blockRelationship) {
+          return res.status(403).json({
+            message: "Cannot send message: user is blocked"
+          });
+        }
 
-      if (blockRelationship) {
-        return res.status(403).json({
-          message: "Cannot send message: user is blocked"
+        const participants = [senderId, receiverId].sort();
+
+        conversation = await Conversation.findOne({
+          participants
         });
-      }
 
-      const participants = [senderId, receiverId].sort();
-
-      let conversation = await Conversation.findOne({
-        participants
-      });
-
-      if (!conversation) {
-        conversation = await Conversation.create({
-          participants,
-          unreadCount: {
-            [senderId]: 0,
-            [receiverId]: 0
-          }
-        });
+        if (!conversation) {
+          conversation = await Conversation.create({
+            participants,
+            unreadCount: {
+              [senderId]: 0,
+              [receiverId]: 0
+            }
+          });
+        }
       }
 
       let attachment = null;
@@ -79,7 +96,7 @@ router.post(
       const newMessage = await Message.create({
         conversationId: conversation._id,
         senderId,
-        receiverId,
+        receiverId: receiverId || undefined,
         content: content || "",
         messageType:
           messageType ||
@@ -95,14 +112,21 @@ router.post(
         status: "sent"
       });
 
+      // Every other participant's unread count goes up — works for both
+      // a 1:1 conversation (one other participant) and a group (several).
+      const recipientIds = conversation.participants
+        .map(p => p.toString())
+        .filter(id => id !== senderId);
+
+      const unreadInc = {};
+      recipientIds.forEach(id => { unreadInc[`unreadCount.${id}`] = 1; });
+
       await Conversation.findByIdAndUpdate(
         conversation._id,
         {
           lastMessage: newMessage._id,
           lastMessageAt: new Date(),
-          $inc: {
-            [`unreadCount.${receiverId}`]: 1
-          }
+          $inc: unreadInc
         }
       );
 

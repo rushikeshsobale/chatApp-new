@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import {
   FaCamera, FaBookmark, FaRegBookmark, FaUserEdit, FaBell, FaPencilAlt, FaUserCog, FaLock, FaPlay,
-  FaHeart, FaRegHeart, FaComment, FaPaperPlane, FaTrash, FaEllipsisH,
+  FaHeart, FaRegHeart, FaComment, FaPaperPlane, FaTrash, FaEllipsisH, FaArrowLeft,
 } from "react-icons/fa";
 import { IoGridSharp } from "react-icons/io5";
 import { PiSlideshowFill } from "react-icons/pi";
@@ -910,6 +910,20 @@ const ProfilePage = () => {
 
         {/* main column */}
         <div style={s.main} onScroll={handleScroll} className="main-scroll col-md-6">
+          {routeUserId && (
+            <button
+              onClick={() => navigate(-1)}
+              aria-label="Back"
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: "none", border: "none", cursor: "pointer",
+                color: tokens.text(d), fontSize: 14, fontWeight: 500,
+                padding: "12px 16px 0",
+              }}
+            >
+              <FaArrowLeft size={16} /> Back
+            </button>
+          )}
           {profileLoading ? <HeaderSkeleton /> : <ProfileHeader />}
 
           {!profileLoading && isLocked ? (

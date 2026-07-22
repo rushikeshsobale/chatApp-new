@@ -55,7 +55,21 @@ module.exports = (io) => {
         // TYPING INDICATORS
         // ==================================================
 
-        socket.on("message:typing", ({ receiverId }) => {
+        socket.on("message:typing", async ({ receiverId, conversationId }) => {
+            if (conversationId) {
+                const conversation = await Conversation.findById(conversationId).select("participants").lean();
+                if (!conversation) return;
+
+                conversation.participants
+                    .map(String)
+                    .filter(id => id !== socket.userId)
+                    .forEach(id => io.to(id).emit("message:typing_received", {
+                        senderId: socket.userId,
+                        conversationId,
+                    }));
+                return;
+            }
+
             if (!receiverId) return;
 
             io.to(receiverId).emit("message:typing_received", {
@@ -63,7 +77,21 @@ module.exports = (io) => {
             });
         });
 
-        socket.on("message:typing_stop", ({ receiverId }) => {
+        socket.on("message:typing_stop", async ({ receiverId, conversationId }) => {
+            if (conversationId) {
+                const conversation = await Conversation.findById(conversationId).select("participants").lean();
+                if (!conversation) return;
+
+                conversation.participants
+                    .map(String)
+                    .filter(id => id !== socket.userId)
+                    .forEach(id => io.to(id).emit("message:typing_stop_received", {
+                        senderId: socket.userId,
+                        conversationId,
+                    }));
+                return;
+            }
+
             if (!receiverId) return;
 
             io.to(receiverId).emit("message:typing_stop_received", {
@@ -77,28 +105,35 @@ module.exports = (io) => {
 
         socket.on(
             "message:send",
-            async ({ receiverId, message }) => {
-                if (!receiverId || !message)
+            async ({ receiverId, conversationId, message }) => {
+                if (!message)
                     return;
-                io.to(receiverId).emit("message:received", message);
-                io.to(receiverId).emit("message:delivered", {
-                    messageId: message._id,
-                });
+
+                const targetConversationId =
+                    conversationId || message.conversationId;
+                if (!targetConversationId)
+                    return;
+
                 const conversation =
                     await Conversation.findById(
-                        message.conversationId
+                        targetConversationId
                     );
                 if (!conversation)
                     return;
-                const currentUnread =
-                    conversation.unreadCount.get(
-                        receiverId.toString()
-                    ) || 0;
 
-                conversation.unreadCount.set(
-                    receiverId.toString(),
-                    currentUnread,
-                );
+                // Every other participant — one for a 1:1 conversation,
+                // several for a group. Same broadcast path for both.
+                const recipientIds = conversation.participants
+                    .map((id) => id.toString())
+                    .filter((id) => id !== socket.userId);
+
+                recipientIds.forEach((id) => {
+                    io.to(id).emit("message:received", message);
+                    io.to(id).emit("message:delivered", {
+                        messageId: message._id,
+                    });
+                });
+
                 conversation.lastMessage =
                     message._id;
                 conversation.lastMessageAt =
@@ -118,33 +153,30 @@ module.exports = (io) => {
                         ),
                 };
 
-                // receiver
-                io.to(receiverId).emit(
-                    "conversation:update",
-                    payload
-                );
-
-                // sender
-                io.to(socket.userId).emit(
-                    "conversation:update",
-                    payload
+                // recipients + sender all get the updated conversation preview
+                [...recipientIds, socket.userId].forEach((id) =>
+                    io.to(id).emit("conversation:update", payload)
                 );
 
                 // Calls get their own call:incoming signal — a notification
                 // row for the call_log message would just be noise. Muted
                 // conversations skip the notification entirely.
-                const isMuted = conversation.mutedBy?.get(
-                    String(receiverId)
-                );
-                if (!isMuted && message.messageType !== "call_log") {
-                    notify(io, {
-                        recipient: receiverId,
-                        sender: message.senderId,
-                        type: "message",
-                        verb: "sent you a message",
-                    }).catch((err) =>
-                        console.error("Error notifying message:", err)
-                    );
+                if (message.messageType !== "call_log") {
+                    recipientIds.forEach((id) => {
+                        const isMuted = conversation.mutedBy?.get(String(id));
+                        if (isMuted) return;
+
+                        notify(io, {
+                            recipient: id,
+                            sender: message.senderId,
+                            type: "message",
+                            verb: conversation.isGroup
+                                ? `sent a message in ${conversation.groupName || "a group"}`
+                                : "sent you a message",
+                        }).catch((err) =>
+                            console.error("Error notifying message:", err)
+                        );
+                    });
                 }
             }
         );
@@ -236,7 +268,7 @@ module.exports = (io) => {
 
         socket.on(
             "conversation:read",
-            async ({ conversationId, receiverId }) => {
+            async ({ conversationId }) => {
                 try {
                     const conversation =
                         await Conversation.findById(conversationId);
@@ -246,7 +278,8 @@ module.exports = (io) => {
                         0
                     );
                     await conversation.save();
-                    // mark messages as read
+                    // mark messages as read (1:1 only — group messages carry
+                    // no single receiverId, so this matches nothing for them)
                     await Message.updateMany(
                         {
                             conversationId,
@@ -260,30 +293,31 @@ module.exports = (io) => {
                             }
                         }
                     );
-                    // notify sender
-                    io.to(receiverId).emit(
-                        "message:read_received",
-                        {
-                            conversationId,
 
-                        }
-                    );
+                    const recipientIds = conversation.participants
+                        .map(p => p.toString())
+                        .filter(id => id !== socket.userId);
 
                     const lastMessage = await Message.findOne({
                         conversationId
                     })
                         .sort({ createdAt: -1 })
                         .lean();
-                    io.to(receiverId).emit(
-                        "conversation:update",
-                        {
-                            conversationId: conversation._id,
-                            lastMessage,
-                            unreadCount: Object.fromEntries(
-                                conversation.unreadCount
-                            ),
-                        }
-                    );
+
+                    const payload = {
+                        conversationId: conversation._id,
+                        lastMessage,
+                        unreadCount: Object.fromEntries(
+                            conversation.unreadCount
+                        ),
+                    };
+
+                    // notify every other participant — one for a 1:1
+                    // conversation, several for a group
+                    recipientIds.forEach((id) => {
+                        io.to(id).emit("message:read_received", { conversationId });
+                        io.to(id).emit("conversation:update", payload);
+                    });
                 } catch (err) {
                     console.error(err);
                 }
@@ -313,7 +347,14 @@ module.exports = (io) => {
                     message.deletedAt = new Date();
                     await message.save();
 
-                    io.to(receiverId).emit("message:deleted", { messageId });
+                    const conversation = await Conversation.findById(message.conversationId)
+                        .select("participants")
+                        .lean();
+
+                    (conversation?.participants || [])
+                        .map(String)
+                        .filter(id => id !== socket.userId)
+                        .forEach(id => io.to(id).emit("message:deleted", { messageId }));
 
                     if (callback) callback({ status: "ok" });
                 } catch (err) {
@@ -367,13 +408,17 @@ module.exports = (io) => {
 
                     await message.save();
 
-                    io.to(receiverId).emit(
-                        "message:reacted",
-                        {
+                    const conversation = await Conversation.findById(message.conversationId)
+                        .select("participants")
+                        .lean();
+
+                    (conversation?.participants || [])
+                        .map(String)
+                        .filter(id => id !== socket.userId)
+                        .forEach(id => io.to(id).emit("message:reacted", {
                             messageId,
                             reactions: message.reactions,
-                        }
-                    );
+                        }));
 
                     if (callback) {
                         callback({

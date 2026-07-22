@@ -7,7 +7,7 @@ import moment from 'moment';
 import {
   FaHeart, FaRegHeart, FaComment, FaPaperPlane,
   FaBookmark, FaRegBookmark, FaEllipsisH, FaBell,
-  FaHashtag, FaCalendarAlt, FaUser, FaHome, FaPlus, FaTrash,
+  FaUser, FaHome, FaPlus, FaTrash,
   FaTh, FaStream, FaPlay, FaSearch, FaUserFriends,
 } from 'react-icons/fa';
 import { Spinner, Alert, Badge, Toast, ToastContainer } from 'react-bootstrap';
@@ -23,8 +23,6 @@ import {
   savePost,
   unsavePost,
   sharePost,
-  getTrendingTopics,
-  getEvents,
   createStory,
   getStories,
 } from '../services/profileService';
@@ -425,6 +423,7 @@ function useStories(userId) {
       onError?.();
     } finally {
       setUploading(false);
+      
     }
   }, [fetchStories]);
 
@@ -687,6 +686,9 @@ const HomePage = () => {
                     <span className="hb-empty-icon"><FaUserFriends /></span>
                     <h5 className="mb-1">Your feed is quiet</h5>
                     <p className={theme.subtext}>Follow more people to see their posts show up here.</p>
+                    <button className="btn btn-primary btn-sm mt-2" onClick={() => navigate('/explore')}>
+                      Discover people
+                    </button>
                   </>
                 )}
               </div>
@@ -762,23 +764,8 @@ const HomePage = () => {
 
           {/* ===== RIGHT RAIL ===== */}
           <div className="col-lg-3 d-none d-lg-block position-sticky" style={{ top: 80, height: 'fit-content' }}>
-           
+
               <FriendSuggestion theme={theme} />
-         
-
-            <div className={`${theme.card} p-3 rounded-3 mb-4`}>
-              <h2 className="h6 mb-3 d-flex align-items-center gap-2">
-                <FaHashtag className="text-primary" aria-hidden="true" /> Trending
-              </h2>
-              <p className={`small ${theme.subtext} m-0`}>No trending topics right now.</p>
-            </div>
-
-            <div className={`${theme.card} p-3 rounded-3`}>
-              <h2 className="h6 mb-3 d-flex align-items-center gap-2">
-                <FaCalendarAlt className="text-primary" aria-hidden="true" /> Events
-              </h2>
-              <p className={`small ${theme.subtext} m-0`}>No upcoming events.</p>
-            </div>
           </div>
 
         </div>

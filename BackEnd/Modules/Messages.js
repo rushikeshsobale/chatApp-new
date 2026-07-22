@@ -17,10 +17,11 @@ const MessageSchema = new Schema(
       index: true,
     },
 
+    // Absent for group messages — there's no single recipient, the
+    // conversation's participants list is the source of truth instead.
     receiverId: {
       type: String,
       ref: "Muser",
-      required: true,
       index: true,
     },
 

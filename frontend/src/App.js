@@ -33,14 +33,14 @@ const PageNotFound = lazy(() => import("./components/PageNotFound"));
 // 1. Reusable Navigation Context Conditional Wrapper
 const ManagedNavbar = () => {
   const location = useLocation();
+  const path = location.pathname.toLowerCase();
 
-  const showNavbar = [
-    "/home",
-    "/profile",
-    "/friends", 
-  ].some((route) =>
-    location.pathname.toLowerCase().startsWith(route)
-  );
+  // "/ProfilePage/:userId" is a drill-down view (reached from posts, suggestions,
+  // etc.) and shows its own back button instead of the full navbar — only the
+  // "/Profile" tab (no id) gets the full navbar.
+  const showNavbar =
+    ["/home", "/friends"].some((route) => path.startsWith(route)) ||
+    path === "/profile";
 
   return showNavbar ? <Navbar /> : null;
 };

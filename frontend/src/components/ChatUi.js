@@ -539,7 +539,7 @@ const ChatUi = ({ conversation, member, setMsgCounts, onBack, setSelectedConvers
   );
 
   return (
-    <div className="chat-surface d-flex flex-column w-100" style={{ height: "100vh", overflow: "hidden" }}>
+    <div className="chat-surface chat-shell d-flex flex-column w-100">
       {/* Header Row */}
       <div className="chat-surface d-flex align-items-center justify-content-between p-2 border-bottom chat-surface-line" style={{ height: '60px' }}>
         <div className="d-flex align-items-center justify-content-between w-100">

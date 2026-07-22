@@ -234,6 +234,114 @@ async saveKeyLocally(privateKey) {
       console.error("Decryption failed:", error);
       return "⚠️ Unable to decrypt message";
     }
+  },
+
+  // ==========================================
+  // 5. GROUP (SHARED-KEY) CRYPTOGRAPHIC ENGINE
+  // ==========================================
+  // Unlike 1:1 messages — which wrap a fresh AES key per message for just
+  // the two participants — a group generates ONE symmetric key for the
+  // whole conversation. It's RSA-wrapped once per member (stored in
+  // Conversation.encryptedKeys) instead of once per member per message,
+  // so the per-message payload stays small regardless of group size.
+
+  /**
+   * Generates the one symmetric key a group conversation encrypts every
+   * message with.
+   */
+  async generateGroupKey() {
+    return await window.crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+  },
+
+  /**
+   * RSA-wraps the group key once per member's public key. Returns the
+   * exact `encryptedKeys` array shape Conversation.encryptedKeys expects.
+   */
+  async wrapGroupKeyForMembers(groupKey, membersWithPublicKeys) {
+    const rawKeyBuffer = await window.crypto.subtle.exportKey("raw", groupKey);
+
+    return Promise.all(
+      membersWithPublicKeys.map(async ({ userId, publicKey }) => {
+        const importedPublicKey =
+          typeof publicKey === "string"
+            ? await this.importPublicKeyString(publicKey)
+            : publicKey;
+
+        const encryptedKeyBuffer = await window.crypto.subtle.encrypt(
+          { name: "RSA-OAEP" },
+          importedPublicKey,
+          rawKeyBuffer
+        );
+
+        return {
+          userId,
+          encryptedKey: this.arrayBufferToBase64(encryptedKeyBuffer),
+        };
+      })
+    );
+  },
+
+  /**
+   * Recovers a group's shared key from this user's wrapped copy in
+   * Conversation.encryptedKeys, using their RSA private key. Callers
+   * should cache the result per conversation rather than unwrapping on
+   * every message.
+   */
+  async unwrapGroupKey(encryptedKeyBase64, privateKey) {
+    const rawKeyBuffer = await window.crypto.subtle.decrypt(
+      { name: "RSA-OAEP" },
+      privateKey,
+      this.base64ToArrayBuffer(encryptedKeyBase64)
+    );
+
+    return await window.crypto.subtle.importKey(
+      "raw",
+      rawKeyBuffer,
+      "AES-GCM",
+      false,
+      ["encrypt", "decrypt"]
+    );
+  },
+
+  /** Encrypts a group message body with the conversation's shared key. */
+  async encryptGroupMessage(rawTextMessage, groupKey) {
+    const encoder = new TextEncoder();
+    const messageBuffer = encoder.encode(rawTextMessage);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+    const ciphertextBuffer = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      groupKey,
+      messageBuffer
+    );
+
+    return {
+      ciphertext: this.arrayBufferToBase64(ciphertextBuffer),
+      iv: this.arrayBufferToBase64(iv),
+    };
+  },
+
+  /** Decrypts a group message body with the conversation's shared key. */
+  async decryptGroupMessage(data, groupKey) {
+    if (!data?.content) return "";
+    try {
+      const payload = typeof data.content === "string" ? JSON.parse(data.content) : data.content;
+
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: this.base64ToArrayBuffer(payload.iv) },
+        groupKey,
+        this.base64ToArrayBuffer(payload.ciphertext)
+      );
+
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error("Group decryption failed:", error);
+      return "⚠️ Unable to decrypt message";
+    }
   }
 };
 

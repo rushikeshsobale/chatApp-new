@@ -170,21 +170,19 @@ const FriendSuggestion = ({ loadData }) => {
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "8px 10px", borderRadius: t.radius.md,
                 transition: "background 0.15s",
-                cursor: "default",
+                cursor: "pointer",
               }}
+              onClick={() => navigate(`/ProfilePage/${user._id}`)}
               onMouseEnter={(e) => e.currentTarget.style.background = t.surfaceAlt(dark)}
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             >
               {/* avatar */}
-              <div style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => navigate(`/userProfile/${user._id}`)}>
+              <div style={{ flexShrink: 0 }}>
                 <Avatar src={user.profilePicture} name={user.userName} size={38} dark={dark} />
               </div>
 
               {/* name */}
-              <div
-                style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
-                onClick={() => navigate(`/userProfile/${user._id}`)}
-              >
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: t.text(dark), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {user.userName}
                 </div>
@@ -245,14 +243,13 @@ const FriendSuggestion = ({ loadData }) => {
                 borderRadius: t.radius.lg,
                 padding: "14px 10px",
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                cursor: "pointer",
               }}
+              onClick={() => navigate(`/ProfilePage/${user._id}`)}
             >
-              <div style={{ cursor: "pointer" }} onClick={() => navigate(`/userProfile/${user._id}`)}>
-                <Avatar src={user.profilePicture} name={user.userName} size={44} dark={dark} />
-              </div>
+              <Avatar src={user.profilePicture} name={user.userName} size={44} dark={dark} />
               <div
-                style={{ fontSize: 12, fontWeight: 500, color: t.text(dark), textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
-                onClick={() => navigate(`/userProfile/${user._id}`)}
+                style={{ fontSize: 12, fontWeight: 500, color: t.text(dark), textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               >
                 {user.userName}
               </div>

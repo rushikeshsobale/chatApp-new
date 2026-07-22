@@ -8,7 +8,7 @@ const isAuthRoute = (url = '') => AUTH_ROUTES.some(route => url.includes(route))
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL,
-  timeout: 10000,
+  timeout: 30000,
   withCredentials: true,
 });
 
@@ -50,6 +50,11 @@ api.interceptors.response.use(
           console.error('API Error:', error.response.data);
           // window.location.href = '/error';
       }
+    } else if (error.code === 'ECONNABORTED') {
+      // Request timed out (e.g. a slow upload) — not a "server is down"
+      // situation, so let the calling code show its own inline error
+      // instead of nuking the whole page/form.
+      console.error('Request timeout:', error.message);
     } else {
       // Network down / server unreachable
       console.error('Network Error:', error.message);

@@ -109,3 +109,59 @@ export const getFriendsforGroupCreation = async () => {
     throw error;
   }
 };
+
+export const deleteGroup = async (conversationId) => {
+  try {
+    const res = await api.delete(`/conversations/${conversationId}`);
+    return res.data;
+  } catch (error) {
+    console.error("Failed to delete group", error);
+    throw error;
+  }
+};
+
+export const addGroupMember = async (conversationId, userId, encryptedKey) => {
+  try {
+    const res = await api.patch(`/conversations/${conversationId}/members`, { userId, encryptedKey });
+    return res.data;
+  } catch (error) {
+    console.error("Failed to add group member", error);
+    throw error;
+  }
+};
+
+export const removeGroupMember = async (conversationId, memberId) => {
+  try {
+    const res = await api.delete(`/conversations/${conversationId}/members/${memberId}`);
+    return res.data;
+  } catch (error) {
+    console.error("Failed to remove group member", error);
+    throw error;
+  }
+};
+
+export const leaveGroup = async (conversationId) => {
+  try {
+    const res = await api.delete(`/conversations/${conversationId}/leave`);
+    return res.data;
+  } catch (error) {
+    console.error("Failed to leave group", error);
+    throw error;
+  }
+};
+
+export const updateGroupInfo = async (conversationId, { groupName, groupAvatar }) => {
+  try {
+    const formData = new FormData();
+    if (groupName) formData.append("groupName", groupName);
+    if (groupAvatar) formData.append("groupAvatar", groupAvatar);
+
+    const res = await api.patch(`/conversations/${conversationId}/group-info`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data;
+  } catch (error) {
+    console.error("Failed to update group info", error);
+    throw error;
+  }
+};

@@ -10,6 +10,7 @@ const Media = require("../Modules/Media.js");
 const Post = require("../Modules/Post.js");
 const Relationship = require("../Modules/relationships.js");
 const { uploadToS3, deleteFromS3 } = require("../utils/s3Upload");
+const { checkImageModeration } = require("../utils/moderation");
 const { notify } = require("../utils/notify");
 const verifyToken = require("./verifyToken.js");
 const upload = multer({ storage: multer.memoryStorage() });
@@ -22,6 +23,17 @@ router.post("/mediaPost", verifyToken, upload.single("media"), async (req, res) 
     let mediaKey = null;
     let mediaType = 'image';
     if (req.file) {
+      if (req.file.mimetype.startsWith('image/')) {
+        const { flagged } = await checkImageModeration(req.file.buffer);
+        if (flagged) {
+          return res.status(422).json({
+            success: false,
+            code: "CONTENT_FLAGGED",
+            message: "This image appears to violate our content guidelines and can't be posted.",
+          });
+        }
+      }
+
       const uploadResult = await uploadToS3(req.file, {
           folder: "profiles",
         checkDuplicate: true

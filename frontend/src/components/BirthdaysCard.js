@@ -43,7 +43,7 @@ const BirthdaysCard = ({ userId }) => {
   };
 
   return (
-    <div className="card border-0 shadow-sm mb-3">
+    <div className=" border-0 shadow-sm mb-3">
      
       <div className="card-body">
         <div className="d-flex align-items-center">

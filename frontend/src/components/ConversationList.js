@@ -2,10 +2,12 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { ThemeContext } from "../contexts/ThemeContext";
 import CryptoUtils from "../utils/CryptoUtils";
 import "../css/chat-bubbles.css";
-import { FaCheck, FaCheckDouble, FaCog, FaArrowLeft, FaSearch, FaArchive } from "react-icons/fa";
+import { FaCheck, FaCheckDouble, FaCog, FaArrowLeft, FaSearch, FaArchive, FaPlus } from "react-icons/fa";
 import { UserContext } from "../contexts/UserContext";
-import { fetchConversations, fetchConversationById } from "../services/conversations";
+import { fetchConversations, fetchConversationById, getFriendsforGroupCreation } from "../services/conversations";
 import ChatUi from "./ChatUi";
+import GroupChatUi from "./GroupChatUi";
+import CreateGroupDrawer from "./CreateGroup";
 import UserSearchBox from "./UserSearchBox";
 import { useNavigate } from "react-router-dom";
 
@@ -25,6 +27,8 @@ const ConversationList = ({
   const [msgCounts, setMsgCounts] = useState({});
   const [showSearch, setShowSearch] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [groupableFriends, setGroupableFriends] = useState([]);
   const currentUserId = user?._id;
   // Kept in sync with `conversations` so the socket handler below can check
   // "do we already know about this conversation?" without a stale closure.
@@ -146,6 +150,38 @@ const ConversationList = ({
     };
   }, [socket, user, selectedConversation]);
 
+  // Group membership/metadata changes — covers everyone affected,
+  // including the acting admin's own tab and a member who just left or
+  // got removed (the server emits these to every affected participant,
+  // room-broadcast style, same as any other socket event).
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const handleGroupUpdated = ({ conversation }) => {
+      setConversations(prev => {
+        const exists = prev.some(c => c._id === conversation._id);
+        if (!exists) return [conversation, ...prev];
+        return prev.map(c => c._id === conversation._id ? conversation : c);
+      });
+      setSelectedConversation(prev => prev?._id === conversation._id ? conversation : prev);
+    };
+
+    const handleGroupRemovedOrDeleted = ({ conversationId }) => {
+      setConversations(prev => prev.filter(c => c._id !== conversationId));
+      setSelectedConversation(prev => prev?._id === conversationId ? null : prev);
+    };
+
+    socket.on("group:updated", handleGroupUpdated);
+    socket.on("group:removed", handleGroupRemovedOrDeleted);
+    socket.on("group:deleted", handleGroupRemovedOrDeleted);
+
+    return () => {
+      socket.off("group:updated", handleGroupUpdated);
+      socket.off("group:removed", handleGroupRemovedOrDeleted);
+      socket.off("group:deleted", handleGroupRemovedOrDeleted);
+    };
+  }, [socket, user]);
+
   // useEffect(() => {
   //   if (socket) return;
 
@@ -192,24 +228,28 @@ const ConversationList = ({
     conversation
   ) => {
 
-    const friend =
-      conversation.participants.find(
-        p => p._id !== user._id
+    if (conversation.isGroup) {
+      setSelectedFriend(null);
+      setSelectedConversation(conversation);
+      socket.emit("conversation:read", { conversationId: conversation._id });
+    } else {
+      const friend =
+        conversation.participants.find(
+          p => p._id !== user._id
+        );
+
+      setSelectedFriend(friend);
+      setSelectedConversation(conversation);
+
+      socket.emit(
+        "conversation:read",
+        {
+          conversationId:
+            conversation._id,
+        }
       );
+    }
 
-    setSelectedFriend(friend);
-    setSelectedConversation(conversation);
-
-    socket.emit(
-      "conversation:read",
-      {
-        conversationId: 
-          conversation._id,
-
-        receiverId:
-          friend._id,
-      }
-    );
     setConversations(prev =>
       prev.map(conv =>
         conv._id === conversation._id
@@ -224,6 +264,11 @@ const ConversationList = ({
       )
     );
   };
+
+  // Group conversations use the shared-key scheme (CryptoUtils.decryptGroupMessage),
+  // not the 1:1 hybrid scheme — this caches each group's unwrapped key so the
+  // preview decrypt below doesn't re-unwrap it on every conversations update.
+  const groupKeyCacheRef = useRef(new Map());
 
   useEffect(() => {
     let isCancelled = false;
@@ -240,9 +285,22 @@ const ConversationList = ({
         }
 
         try {
-          // Direct 1-on-1 decryption architecture
-          const text = await CryptoUtils.decryptMessage(conv.lastMessage, privateKey, currentUserId);
-          results[conv._id] = text;
+          if (conv.isGroup) {
+            let groupKey = groupKeyCacheRef.current.get(conv._id);
+            if (!groupKey) {
+              const ownEntry = conv.encryptedKeys?.find(k => (k.userId?._id || k.userId) === currentUserId);
+              if (!ownEntry) {
+                results[conv._id] = "[Unable to decrypt]";
+                continue;
+              }
+              groupKey = await CryptoUtils.unwrapGroupKey(ownEntry.encryptedKey, privateKey);
+              groupKeyCacheRef.current.set(conv._id, groupKey);
+            }
+            results[conv._id] = await CryptoUtils.decryptGroupMessage(conv.lastMessage, groupKey);
+          } else {
+            // Direct 1-on-1 decryption architecture
+            results[conv._id] = await CryptoUtils.decryptMessage(conv.lastMessage, privateKey, currentUserId);
+          }
         } catch (err) {
           console.error(`Decryption failed for channel ${conv._id}:`, err);
           results[conv._id] = "[Unable to decrypt]";
@@ -289,14 +347,43 @@ const ConversationList = ({
     (c) => !!c.archivedBy?.[currentUserId] === showArchived
   );
 
+  const isChatOpen = !!selectedFriend || !!selectedConversation?.isGroup;
+
+  const handleOpenCreateGroup = async () => {
+    try {
+      const friends = await getFriendsforGroupCreation();
+      setGroupableFriends(friends || []);
+    } catch (err) {
+      console.error("Failed to load friends for group creation:", err);
+      setGroupableFriends([]);
+    }
+    setShowCreateGroup(true);
+  };
+
+  const handleGroupCreated = (conversation) => {
+    setConversations(prev => {
+      const exists = prev.some(c => c._id === conversation._id);
+      if (exists) return prev;
+      return [conversation, ...prev];
+    });
+    setSelectedFriend(null);
+    setSelectedConversation(conversation);
+  };
+
   return (
     <>
 
+      <CreateGroupDrawer
+        friends={groupableFriends}
+        isOpen={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onGroupCreated={handleGroupCreated}
+      />
 
       <div className="chat-surface h-100 d-flex">
 
         {/* Conversation List */}
-        {(!isMobileView || !selectedFriend) && (
+        {(!isMobileView || !isChatOpen) && (
           <div
             className={`
         ${isMobileView ? "w-100" : "col-md-4 col-lg-4"}
@@ -328,6 +415,14 @@ const ConversationList = ({
               </button>
 
               <button
+                className="chat-icon-btn me-2"
+                title="New group"
+                onClick={handleOpenCreateGroup}
+              >
+                <FaPlus />
+              </button>
+
+              <button
                 className="chat-icon-btn"
                 onClick={() => setShowSearch(prev => !prev)}
               >
@@ -348,14 +443,20 @@ const ConversationList = ({
               visibleConversations.map((conversation) => {
                 if (!conversation?._id) return null;
 
-                // Strict Peer-to-Peer relational extraction
-                const friend = conversation?.participants?.find((p) => (p._id || p) !== currentUserId);
-                const displayName = friend?.userName || "Unknown User";
-                const avatar = friend?.profilePicture || "https://via.placeholder.com/40";
-                // Debug log for friend ID and active users
-                const isActive = activeUsers.some(
+                // Groups have no single "other side" — show the group's
+                // own name/avatar instead of resolving one participant.
+                const friend = conversation.isGroup
+                  ? null
+                  : conversation?.participants?.find((p) => (p._id || p) !== currentUserId);
+                const displayName = conversation.isGroup
+                  ? conversation.groupName
+                  : (friend?.userName || "Unknown User");
+                const avatar = conversation.isGroup
+                  ? conversation.groupAvatar
+                  : (friend?.profilePicture || "https://via.placeholder.com/40");
+                const isActive = !conversation.isGroup && activeUsers.some(
                   (user) =>
-                    user.userId === friend._id &&
+                    user.userId === friend?._id &&
                     user.status === "online"
                 );
 
@@ -435,7 +536,7 @@ const ConversationList = ({
         )}
 
         {/* Chat Panel */}
-        {(!isMobileView || selectedFriend) && (
+        {(!isMobileView || isChatOpen) && (
           <div
             className={`
         chat-surface
@@ -443,7 +544,14 @@ const ConversationList = ({
         d-flex flex-column h-100
       `}
           >
-            {selectedFriend ? (
+            {selectedConversation?.isGroup ? (
+              <GroupChatUi
+                conversation={selectedConversation}
+                setSelectedConversation={setSelectedConversation}
+                setMsgCounts={setMsgCounts}
+                onBack={() => setSelectedConversation(null)}
+              />
+            ) : selectedFriend ? (
               <ChatUi
                 conversation={selectedConversation}
                 setSelectedConversation={setSelectedConversation}

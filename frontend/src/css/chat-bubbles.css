@@ -304,6 +304,15 @@
   border-color: var(--color-surface-line) !important;
 }
 
+/* 100vh is a fallback for browsers without dvh support; 100dvh tracks the
+   *visible* viewport so the input dock stays pinned above the mobile
+   keyboard instead of the whole chat shell overflowing past it. */
+.chat-shell {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .chat-icon-btn {
   width: 34px;
   height: 34px;

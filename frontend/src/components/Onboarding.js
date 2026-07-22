@@ -43,6 +43,7 @@ console.log(searchParams.get("userId"), 'searchParams')
   const [password, setPassword] = useState(""); // Added password management state
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   // Form Field Allocation Data Model
   const [userData, setUserData] = useState({
@@ -90,6 +91,7 @@ console.log(searchParams.get("userId"), 'searchParams')
   }
 
   setLoading(true);
+  setSubmitError(null);
 
   try {
     // Generate encryption keys
@@ -189,6 +191,9 @@ console.log(searchParams.get("userId"), 'searchParams')
     console.error(
       "Submission failed:",
       err
+    );
+    setSubmitError(
+      typeof err === "string" ? err : "Profile completion failed. Please try again."
     );
   } finally {
     setLoading(false);
@@ -379,6 +384,20 @@ console.log(searchParams.get("userId"), 'searchParams')
 
             </div>
           </main>
+
+          {submitError && (
+            <div
+              className="mt-4 px-3 py-2 small"
+              style={{
+                background: "rgba(239, 68, 68, 0.12)",
+                border: "1px solid rgba(239, 68, 68, 0.35)",
+                borderRadius: "10px",
+                color: "#fca5a5",
+              }}
+            >
+              {submitError}
+            </div>
+          )}
 
           {/* ==================== 3. ANCHORED ACTION FOOTER ==================== */}
           <footer className="d-flex justify-content-between align-items-center mt-5 pt-3" style={{ borderTop: `1px solid ${CONFIG_THEME.border}` }}>

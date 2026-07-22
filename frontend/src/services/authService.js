@@ -56,6 +56,10 @@ export const completeProfile = async (formData) => {
   } catch (error) {
     console.error("Complete profile error:", error);
 
+    if (error?.code === "ECONNABORTED") {
+      throw "This is taking longer than expected — check your connection and try again.";
+    }
+
     throw (
       error?.response?.data?.error ||
       "Profile completion failed"
